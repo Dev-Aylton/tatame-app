@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "0.1.1";
+const APP_VERSION = "0.1.2";
 const diagnosticEvents = [];
 let versionClicks = 0;
 
@@ -156,9 +156,71 @@ const delegatedLessons = {};
 const linkRequests = [];
 const cashPayments = [];
 const receiptPayments = [];
-const storedDemoInvites = localStorage.getItem("tatame-demo-invites");
-const demoInvites = storedDemoInvites ? JSON.parse(storedDemoInvites) : [];
-if (!Array.isArray(demoInvites)) throw new TypeError("O estado local dos convites de demonstração é inválido.");
+
+function loadDemoPayments() {
+  try {
+    const stored = localStorage.getItem("tatame-demo-payments");
+    if (!stored) return;
+    const data = JSON.parse(stored);
+    const validPayment = (payment) => payment && typeof payment.id === "string" &&
+      typeof payment.studentName === "string" && typeof payment.professorAccount === "string" &&
+      typeof payment.amount === "string" && typeof payment.date === "string" &&
+      ["pending", "confirmed", "rejected", "undone", "reversed"].includes(payment.status) &&
+      (typeof payment.account === "string" || payment.account === null);
+    if (!data || !Array.isArray(data.cash) || !Array.isArray(data.receipts) ||
+        !data.cash.every((payment) => validPayment(payment) && ["student", "teacher"].includes(payment.source) &&
+          (payment.source !== "teacher" || (Number.isFinite(payment.undoUntil) &&
+            typeof payment.type === "string" && typeof payment.reference === "string"))) ||
+        !data.receipts.every((payment) => validPayment(payment) &&
+          ["pending", "confirmed", "rejected"].includes(payment.status))) {
+      throw new TypeError("Dados fictícios de pagamentos inválidos.");
+    }
+    cashPayments.push(...data.cash);
+    receiptPayments.push(...data.receipts);
+  } catch (error) {
+    console.error("Não foi possível carregar os pagamentos fictícios:", error);
+    window.setTimeout(() => showToast("Não foi possível carregar os pagamentos fictícios; a lista inicial está vazia.", "error"), 0);
+  }
+}
+
+function saveDemoPayments() {
+  try {
+    const receipts = receiptPayments.map(({ file, fileInput, ...payment }) => payment);
+    localStorage.setItem("tatame-demo-payments", JSON.stringify({ cash: cashPayments, receipts }));
+  } catch (error) {
+    console.error("Não foi possível salvar os pagamentos fictícios:", error);
+    showToast("Não foi possível salvar os pagamentos fictícios.", "error");
+    throw error;
+  }
+}
+
+function updateDemoPayments(update) {
+  const previousCash = cashPayments.map((payment) => ({ ...payment }));
+  const previousReceipts = receiptPayments.map((payment) => ({ ...payment }));
+  update();
+  try {
+    saveDemoPayments();
+  } catch (error) {
+    cashPayments.splice(0, cashPayments.length, ...previousCash);
+    receiptPayments.splice(0, receiptPayments.length, ...previousReceipts);
+    throw error;
+  }
+}
+
+loadDemoPayments();
+function loadDemoInvites() {
+  try {
+    const stored = localStorage.getItem("tatame-demo-invites");
+    const invites = stored ? JSON.parse(stored) : [];
+    if (!Array.isArray(invites)) throw new TypeError("O estado local dos convites de demonstração é inválido.");
+    return invites;
+  } catch (error) {
+    console.error("Não foi possível carregar os convites fictícios:", error);
+    window.setTimeout(() => showToast("Não foi possível carregar os convites fictícios; a lista inicial está vazia.", "error"), 0);
+    return [];
+  }
+}
+const demoInvites = loadDemoInvites();
 demoInvites.filter((invite) => invite.used && invite.academyId === demoAcademy.id).forEach((invite) => {
   const professor = demoProfiles[invite.professorAccount];
   if (!professor) return;
@@ -183,6 +245,123 @@ demoInvites.filter((invite) => invite.used && invite.academyId === demoAcademy.i
   student.account = account;
   student.teacherAccount = invite.professorAccount;
 });
+const DEMO_DATA_VERSION = 1;
+const demoDataKeys = {
+  profiles: "tatame-demo-profiles",
+  roster: "tatame-demo-roster",
+  links: "tatame-demo-links",
+  grades: "tatame-demo-grades",
+  invites: "tatame-demo-invites"
+};
+
+function readDemoData(key, validate) {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored === null) return null;
+    const record = JSON.parse(stored);
+    if (!record || record.version !== DEMO_DATA_VERSION || !validate(record.data)) {
+      throw new TypeError("Formato ou versão dos dados fictícios inválidos.");
+    }
+    return record.data;
+  } catch (error) {
+    console.error(`Não foi possível carregar ${key}:`, error);
+    window.setTimeout(() => showToast("Não foi possível carregar dados fictícios salvos; os dados iniciais serão usados.", "error"), 0);
+    return null;
+  }
+}
+
+function writeDemoData(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ version: DEMO_DATA_VERSION, data }));
+  } catch (error) {
+    console.error(`Não foi possível salvar ${key}:`, error);
+    throw error;
+  }
+}
+
+function saveDemoProfiles() { writeDemoData(demoDataKeys.profiles, demoProfiles); }
+function saveDemoRoster() { writeDemoData(demoDataKeys.roster, demoRoster); }
+function saveLinkRequests() { writeDemoData(demoDataKeys.links, linkRequests); }
+function saveDemoGradeHistory() {
+  writeDemoData(demoDataKeys.grades, Array.from(demoGradeHistory, ([student, entries]) => ({
+    index: demoRoster.indexOf(student), name: student.name, account: student.account, entries
+  })));
+}
+
+const isStringOrNull = (value) => value === null || typeof value === "string";
+const storedProfiles = readDemoData(demoDataKeys.profiles, (value) =>
+  value && typeof value === "object" && !Array.isArray(value) &&
+  ["adm", "professor", "instructor", "student", "student-unregistered"].every((key) => Object.hasOwn(value, key)) &&
+  Object.entries(value).every(([key, profile]) => /^[a-z0-9-]+$/.test(key) && profile &&
+    typeof profile.name === "string" && typeof profile.label === "string" &&
+    Object.hasOwn(roleScreens, profile.role) && typeof profile.start === "string" &&
+    (profile.teacherAccount === undefined || isStringOrNull(profile.teacherAccount)) &&
+    (profile.academyId === undefined || isStringOrNull(profile.academyId)) &&
+    (profile.grade === undefined || typeof profile.grade === "string"))
+);
+if (storedProfiles) Object.assign(demoProfiles, storedProfiles);
+
+const storedRoster = readDemoData(demoDataKeys.roster, (value) =>
+  Array.isArray(value) && value.every((student) => student && typeof student.name === "string" &&
+    typeof student.grade === "string" && isStringOrNull(student.account) && isStringOrNull(student.teacherAccount))
+);
+if (storedRoster) demoRoster.splice(0, demoRoster.length, ...storedRoster);
+
+const storedLinks = readDemoData(demoDataKeys.links, (value) =>
+  Array.isArray(value) && value.every((request) => request && typeof request.id === "string" &&
+    typeof request.account === "string" && typeof request.studentName === "string" &&
+    typeof request.professorAccount === "string" && ["pending", "approved", "rejected", "cancelled"].includes(request.status))
+);
+if (storedLinks) linkRequests.push(...storedLinks);
+
+const storedGrades = readDemoData(demoDataKeys.grades, (value) =>
+  Array.isArray(value) && value.every((item) => item && Number.isInteger(item.index) && item.index >= 0 &&
+    item.index < demoRoster.length && demoRoster[item.index].name === item.name &&
+    demoRoster[item.index].account === item.account && Array.isArray(item.entries) &&
+    item.entries.every((entry) => entry && typeof entry.belt === "string" && Number.isInteger(entry.degree) &&
+      typeof entry.date === "string" && typeof entry.professor === "string"))
+);
+if (storedGrades) storedGrades.forEach((item) => demoGradeHistory.set(demoRoster[item.index], item.entries));
+
+function updateDemoData(update, saves) {
+  const previous = {
+    profiles: structuredClone(demoProfiles),
+    roster: structuredClone(demoRoster),
+    links: structuredClone(linkRequests),
+    invites: structuredClone(demoInvites),
+    grades: Array.from(demoGradeHistory, ([student, entries]) => [demoRoster.indexOf(student), structuredClone(entries)]),
+    selectedIndex: demoRoster.indexOf(selectedGradeStudent),
+    authorized: Array.from(authorizedInstructorNames)
+  };
+  const previousStorage = new Map();
+  try {
+    for (const [key] of saves) previousStorage.set(key, localStorage.getItem(key));
+    update();
+    for (const [, save] of saves) save();
+  } catch (error) {
+    for (const key of Object.keys(demoProfiles)) delete demoProfiles[key];
+    Object.assign(demoProfiles, previous.profiles);
+    demoRoster.splice(0, demoRoster.length, ...previous.roster);
+    linkRequests.splice(0, linkRequests.length, ...previous.links);
+    demoInvites.splice(0, demoInvites.length, ...previous.invites);
+    demoGradeHistory.clear();
+    previous.grades.forEach(([index, entries]) => demoGradeHistory.set(demoRoster[index], entries));
+    selectedGradeStudent = previous.selectedIndex < 0 ? null : demoRoster[previous.selectedIndex];
+    authorizedInstructorNames.clear();
+    previous.authorized.forEach((name) => authorizedInstructorNames.add(name));
+    for (const [key, value] of previousStorage) {
+      try {
+        if (value === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+      } catch (restoreError) {
+        console.error(`Não foi possível restaurar ${key}:`, restoreError);
+      }
+    }
+    console.error("Não foi possível salvar os dados fictícios:", error);
+    showToast("Não foi possível salvar os dados fictícios.", "error");
+    throw error;
+  }
+}
 const teacherLinkCodes = new Map([["professor", "K7M4PX"]]);
 const linkCodeAttempts = new Map();
 let currentTeacherLinkPreview = null;
@@ -199,7 +378,7 @@ const tutorialStepsByRole = {
     ["teacher-home", "Painel do Professor", "Veja os indicadores, avisos e atalhos da sua turma. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
     ["students", "Alunos", "Consulte somente os alunos da sua turma."],
     ["student-detail", "Ficha do aluno", "Veja perfil, pagamentos, graduações e notas privadas. Em Graduações, escolha um aluno da sua turma, faixa e grau superiores e a data; confirme para registrar. Notas privadas não são compartilhadas com o Instrutor."],
-    ["student-create", "Novo aluno", "Cadastre um aluno fictício com sua faixa e grau atuais. Nome e graduação ficam na memória até recarregar; os demais campos não são salvos e nenhum login ou convite é criado."],
+    ["student-create", "Novo aluno", "Cadastre um aluno fictício com sua faixa e grau atuais. Nome e graduação ficam neste navegador; os demais campos não são salvos e nenhum login ou convite é criado."],
     ["teacher-code", "Código e convites", "Veja pedidos de vínculo, aprove ou recuse e gere links de uso único com validade de três dias."],
     ["role-management", "Papéis e aula delegada", "Promova somente seus alunos a Instrutor, autorize-o e decida se compartilha o plano ou deixa o treino livre. O Instrutor é um aluno com função de apoio: vê nome e graduação da turma, nunca pagamentos alheios, notas privadas ou conversas de terceiros; você decide o conteúdo."],
     ["pix-import", "Importar extrato Pix", "Importe um extrato para sugerir correspondências. Nada é pago ou confirmado automaticamente."],
@@ -236,6 +415,13 @@ const tutorialStepsByRole = {
     ["link-teacher", "Vincular a um Professor", "Informe o código de seis caracteres, confira somente o nome do Professor e da academia e envie o pedido. O vínculo depende da aprovação. Abra a conta para rever o tutorial ou sair."]
   ]
 };
+Object.entries(tutorialStepsByRole).forEach(([role, steps]) => {
+  steps.push([
+    role === "student-unregistered" ? "link-teacher" : "user-settings",
+    "Área de risco",
+    "No painel da conta, abra Área de risco para consultar o aviso. A exclusão ainda não está disponível nesta simulação."
+  ]);
+});
 const tutorialIllustrations = [
   '<svg viewBox="0 0 96 72" aria-hidden="true"><rect x="14" y="12" width="68" height="48" rx="8" fill="none" stroke="currentColor" stroke-width="4"/><path d="M25 28h46M25 39h30M25 50h20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="4"/></svg>',
   '<svg viewBox="0 0 96 72" aria-hidden="true"><circle cx="34" cy="27" r="11" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="64" cy="27" r="11" fill="none" stroke="currentColor" stroke-width="4"/><path d="M14 59c2-12 10-18 20-18s18 6 20 18M44 59c2-12 10-18 20-18s18 6 20 18" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="4"/></svg>',
@@ -902,8 +1088,13 @@ function closeTutorial() {
 
 function maybeOpenFirstTutorial(account) {
   const key = tutorialStorageKey(account);
-  if (localStorage.getItem(key)) return;
-  localStorage.setItem(key, "1");
+  try {
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, "1");
+  } catch (error) {
+    console.error("Não foi possível guardar a preferência do tutorial:", error);
+    showToast("Não foi possível guardar a preferência do tutorial neste navegador.", "error");
+  }
   openTutorial(account);
 }
 
@@ -1328,7 +1519,7 @@ const screens = {
 
   "student-create"() {
     return `
-      ${heading("VISÃO DO PROFESSOR", "Novo aluno e convite", "Use somente dados fictícios. Nome e graduação ficam na memória até recarregar; os demais campos são apenas visuais.")}
+      ${heading("VISÃO DO PROFESSOR", "Novo aluno e convite", "Use somente dados fictícios. Nome e graduação ficam neste navegador; os demais campos são apenas visuais.")}
       <div class="content-grid">
         ${panel("Cadastro", `
           <form data-create-demo-student>
@@ -1524,7 +1715,7 @@ const screens = {
     ];
     const receiptHistory = teacherReceipts.filter((payment) => payment.status === "confirmed");
     return `
-      ${heading("VISÃO DO PROFESSOR", "Pagamentos a confirmar", "Compare a leitura do comprovante com a cobrança e confirme ou recuse. Nenhuma alteração é gravada nesta demonstração.")}
+      ${heading("VISÃO DO PROFESSOR", "Pagamentos a confirmar", "Compare a leitura do comprovante com a cobrança e confirme ou recuse. Os registros fictícios ficam neste navegador.")}
       <div class="content-grid">
         ${panel("Aguardando confirmação", `
           ${pendingItems.length ? pendingItems.join("") : emptyState("Nenhum pagamento pendente", "Comprovantes e avisos em dinheiro enviados pelos alunos aparecerão nesta fila.")}
@@ -2035,6 +2226,8 @@ renderNavigation();
 renderScreen(new URLSearchParams(window.location.search).has("convite") ? "register" : "login");
 document.querySelector("#app-version").textContent = APP_VERSION;
 document.querySelector("#diagnostics-version").textContent = `Versão do app: ${APP_VERSION}`;
+cashPayments.filter((payment) => payment.source === "teacher" && payment.status === "confirmed" && payment.undoUntil > Date.now())
+  .forEach(scheduleTeacherCashExpiry);
 window.addEventListener("resize", updateToastPosition);
 if (window.ResizeObserver) {
   new ResizeObserver(updateToastPosition).observe(document.querySelector("#mobile-navigation"));
@@ -2260,13 +2453,13 @@ document.addEventListener("click", (event) => {
         }
         return { errorMessage: result.textContent || "Não foi possível solicitar o vínculo. Tente novamente." };
       }
-      linkRequests.push({
+      updateDemoData(() => linkRequests.push({
         id: `link-${Date.now()}`,
         account: activeDemoAccount,
         studentName: profile.name,
         professorAccount: currentTeacherLinkPreview,
         status: "pending"
-      });
+      }), [[demoDataKeys.links, saveLinkRequests]]);
     });
     return;
   }
@@ -2292,14 +2485,14 @@ document.addEventListener("click", (event) => {
         throw new Error("Falha simulada de vínculo.");
       }
       if (!cancelLink.isConnected || currentLinkRequest() !== request) return { errorMessage: "Não foi possível cancelar o pedido. Tente novamente." };
-      if (request) request.status = "cancelled";
+      if (request) updateDemoData(() => { request.status = "cancelled"; }, [[demoDataKeys.links, saveLinkRequests]]);
     });
     return;
   }
 
   if (cancelLink) {
     const request = currentLinkRequest();
-    if (request) request.status = "cancelled";
+    if (request) updateDemoData(() => { request.status = "cancelled"; }, [[demoDataKeys.links, saveLinkRequests]]);
     renderScreen(currentTitle.textContent === "Meu vínculo" ? "student-link" : "link-teacher");
     showToast("Pedido de vínculo cancelado.");
     return;
@@ -2312,28 +2505,30 @@ document.addEventListener("click", (event) => {
       showToast("Este pedido não está disponível para sua conta.", "error");
       return;
     }
-    request.status = linkDecision.dataset.linkDecision === "approve" ? "approved" : "rejected";
-    if (request.status === "approved") {
-      const studentProfile = demoProfiles[request.account];
-      studentProfile.teacherAccount = activeDemoAccount;
-      studentProfile.academyId = demoProfiles[activeDemoAccount].academyId;
-      if (request.account === "student-unregistered") {
-        studentProfile.role = "student";
-        studentProfile.label = "Aluno registrado";
-        studentProfile.start = "student-home";
+    updateDemoData(() => {
+      request.status = linkDecision.dataset.linkDecision === "approve" ? "approved" : "rejected";
+      if (request.status === "approved") {
+        const studentProfile = demoProfiles[request.account];
+        studentProfile.teacherAccount = activeDemoAccount;
+        studentProfile.academyId = demoProfiles[activeDemoAccount].academyId;
+        if (request.account === "student-unregistered") {
+          studentProfile.role = "student";
+          studentProfile.label = "Aluno registrado";
+          studentProfile.start = "student-home";
+        }
+        const rosterStudent = demoRoster.find((student) => student.account === request.account);
+        if (rosterStudent) {
+          rosterStudent.teacherAccount = activeDemoAccount;
+        } else {
+          demoRoster.push({
+            account: request.account,
+            name: studentProfile.name,
+            grade: studentProfile.grade,
+            teacherAccount: activeDemoAccount
+          });
+        }
       }
-      const rosterStudent = demoRoster.find((student) => student.account === request.account);
-      if (rosterStudent) {
-        rosterStudent.teacherAccount = activeDemoAccount;
-      } else {
-        demoRoster.push({
-          account: request.account,
-          name: studentProfile.name,
-          grade: studentProfile.grade,
-          teacherAccount: activeDemoAccount
-        });
-      }
-    }
+    }, [[demoDataKeys.links, saveLinkRequests], [demoDataKeys.profiles, saveDemoProfiles], [demoDataKeys.roster, saveDemoRoster]]);
     renderScreen("teacher-code");
     showToast(request.status === "approved" ? "Vínculo aprovado." : "Pedido de vínculo recusado.");
     return;
@@ -2367,14 +2562,16 @@ document.addEventListener("click", (event) => {
     const currentRole = record.querySelector("[data-current-role]");
     const previousRole = currentRole.textContent;
     const nextRole = targetRole === "professor" ? "Professor" : "Instrutor";
-    profile.role = targetRole;
-    profile.label = nextRole;
-    profile.start = targetRole === "professor" ? "teacher-home" : "instructor-class";
-    profile.academyId = targetRole === "instructor" ? demoProfiles[activeDemoAccount].academyId : null;
-    profile.teacherAccount = targetRole === "instructor" ? activeDemoAccount : null;
-    if (targetRole === "professor") authorizedInstructorNames.delete(profile.name);
-    const rosterRecord = demoRoster.find((student) => student.account === account);
-    if (rosterRecord && targetRole === "professor") rosterRecord.teacherAccount = null;
+    updateDemoData(() => {
+      profile.role = targetRole;
+      profile.label = nextRole;
+      profile.start = targetRole === "professor" ? "teacher-home" : "instructor-class";
+      profile.academyId = targetRole === "instructor" ? demoProfiles[activeDemoAccount].academyId : null;
+      profile.teacherAccount = targetRole === "instructor" ? activeDemoAccount : null;
+      if (targetRole === "professor") authorizedInstructorNames.delete(profile.name);
+      const rosterRecord = demoRoster.find((student) => student.account === account);
+      if (rosterRecord && targetRole === "professor") rosterRecord.teacherAccount = null;
+    }, [[demoDataKeys.profiles, saveDemoProfiles], [demoDataKeys.roster, saveDemoRoster]]);
     currentRole.textContent = nextRole;
     roleTransition.disabled = true;
     roleTransition.textContent = "Papel atualizado";
@@ -2400,10 +2597,12 @@ document.addEventListener("click", (event) => {
       showToast("Não foi possível vincular esta conta.", "error");
       return;
     }
-    professor.academyId = demoAcademy.id;
-    Object.values(demoProfiles).forEach((profile) => {
-      if (profile.teacherAccount === professorAccount) profile.academyId = demoAcademy.id;
-    });
+    updateDemoData(() => {
+      professor.academyId = demoAcademy.id;
+      Object.values(demoProfiles).forEach((profile) => {
+        if (profile.teacherAccount === professorAccount) profile.academyId = demoAcademy.id;
+      });
+    }, [[demoDataKeys.profiles, saveDemoProfiles]]);
     renderScreen("role-management");
     showToast("Professor vinculado à Academia Fictícia.");
     return;
@@ -2520,7 +2719,7 @@ document.addEventListener("click", (event) => {
       if (!isUndo && requestedAt < payment.undoUntil) {
         return { errorMessage: "O prazo ainda está aberto. Use Desfazer." };
       }
-      payment.status = isUndo ? "undone" : "reversed";
+      updateDemoPayments(() => { payment.status = isUndo ? "undone" : "reversed"; });
       if (!cashCorrection.isConnected) refreshTeacherCashHistory();
       showToast(successMessage);
     });
@@ -2560,15 +2759,19 @@ document.addEventListener("click", (event) => {
         if (!receipt || receipt.status !== "pending" || activeRole !== "professor" || receipt.professorAccount !== activeDemoAccount) {
           return { errorMessage: "Comprovante indisponível. Confira sua conta." };
         }
-        receipt.status = paymentAction.hasAttribute("data-confirm-payment") ? "confirmed" : "rejected";
-        receipt.file = null;
+        updateDemoPayments(() => {
+          receipt.status = paymentAction.hasAttribute("data-confirm-payment") ? "confirmed" : "rejected";
+          receipt.file = null;
+        });
         if (receipt.fileInput) receipt.fileInput.value = "";
       } else if (isCashDecision) {
         const payment = cashPayments.find((item) => item.id === paymentAction.dataset.cashId && item.status === "pending");
         if (!payment || activeRole !== "professor" || payment.professorAccount !== activeDemoAccount) {
           return { errorMessage: "Aviso indisponível. Confira sua conta." };
         }
-        payment.status = paymentAction.dataset.cashDecision === "confirm" ? "confirmed" : "rejected";
+        updateDemoPayments(() => {
+          payment.status = paymentAction.dataset.cashDecision === "confirm" ? "confirmed" : "rejected";
+        });
       } else {
         showToast(successMessage);
       }
@@ -2616,7 +2819,7 @@ document.addEventListener("click", (event) => {
     }
     const result = document.querySelector("#cash-notice-result");
     const completeCashNotice = () => {
-      cashPayments.push({
+      updateDemoPayments(() => cashPayments.push({
         id: `cash-${Date.now()}`,
         account: activeDemoAccount,
         studentName: profile.name,
@@ -2625,7 +2828,7 @@ document.addEventListener("click", (event) => {
         date: dateInput.value,
         source: "student",
         status: "pending"
-      });
+      }));
       result.textContent = "Pagamento em dinheiro lançado e PENDENTE até a confirmação do Professor.";
       if (cashNotice.isConnected) showToast("Aviso de pagamento em dinheiro ficou pendente.");
     };
@@ -2672,7 +2875,7 @@ document.addEventListener("click", (event) => {
       validationMessage = "Escolha uma imagem ou PDF fictício antes de enviar.";
     }
     const saveReceipt = () => {
-      receiptPayments.push({
+      updateDemoPayments(() => receiptPayments.push({
         id: `receipt-${Date.now()}`,
         account: activeDemoAccount,
         studentName: profile.name,
@@ -2682,7 +2885,7 @@ document.addEventListener("click", (event) => {
         file: fileInput.files[0],
         fileInput,
         status: "pending"
-      });
+      }));
     };
     const showReceiptResult = () => {
       renderScreen("student-payments");
@@ -2878,10 +3081,11 @@ document.addEventListener("submit", (event) => {
   }
   const submitButton = form.querySelector('button[type="submit"][data-loading-text]');
   runLoadingAction(submitButton, () => {
-    invite.used = true;
-    demoProfiles.instructor.teacherAccount = invite.professorAccount;
-    demoProfiles.instructor.academyId = invite.academyId;
-    saveDemoInvites();
+    updateDemoData(() => {
+      invite.used = true;
+      demoProfiles.instructor.teacherAccount = invite.professorAccount;
+      demoProfiles.instructor.academyId = invite.academyId;
+    }, [[demoDataKeys.invites, saveDemoInvites], [demoDataKeys.profiles, saveDemoProfiles]]);
     result.textContent = "Convite validado para Instrutor. O acesso depende da autorização do Professor.";
     form.querySelector("#instructor-code").value = "";
     showToast("Convite de Instrutor validado.");
@@ -2955,27 +3159,28 @@ document.addEventListener("submit", (event) => {
         (invite.type === "instructor" && demoProfiles.instructor.role !== "instructor")) {
       return { errorMessage: "Não foi possível validar este convite. Confira o link e tente novamente." };
     }
-    if (invite.type === "instructor") {
-      demoProfiles.instructor.teacherAccount = invite.professorAccount;
-      demoProfiles.instructor.academyId = demoProfiles[invite.professorAccount].academyId;
-    } else {
-      const account = `pre-registered-${invite.recipientId}`;
-      demoProfiles[account] = {
-        role: "student",
-        label: "Aluno registrado",
-        name: invite.recipientName,
-        start: "student-home",
-        teacherAccount: invite.professorAccount,
-        academyId: invite.academyId,
-        grade: rosterStudent.grade,
-        gradeHistory: ["Graduação fictícia preservada"]
-      };
-      rosterStudent.account = account;
-      rosterStudent.teacherAccount = invite.professorAccount;
-    }
-    invite.used = true;
-    if (invite.type === "instructor") demoProfiles.instructor.academyId = invite.academyId;
-    saveDemoInvites();
+    updateDemoData(() => {
+      if (invite.type === "instructor") {
+        demoProfiles.instructor.teacherAccount = invite.professorAccount;
+        demoProfiles.instructor.academyId = demoProfiles[invite.professorAccount].academyId;
+      } else {
+        const account = `pre-registered-${invite.recipientId}`;
+        demoProfiles[account] = {
+          role: "student",
+          label: "Aluno registrado",
+          name: invite.recipientName,
+          start: "student-home",
+          teacherAccount: invite.professorAccount,
+          academyId: invite.academyId,
+          grade: rosterStudent.grade,
+          gradeHistory: ["Graduação fictícia preservada"]
+        };
+        rosterStudent.account = account;
+        rosterStudent.teacherAccount = invite.professorAccount;
+      }
+      invite.used = true;
+      if (invite.type === "instructor") demoProfiles.instructor.academyId = invite.academyId;
+    }, [[demoDataKeys.invites, saveDemoInvites], [demoDataKeys.profiles, saveDemoProfiles], [demoDataKeys.roster, saveDemoRoster], [demoDataKeys.grades, saveDemoGradeHistory]]);
     result.textContent = `Convite validado para ${recipient.name}. Conta preparada nesta demonstração; nenhum dado foi enviado.`;
     form.querySelector("#register-email").value = "";
     form.querySelector("#invite-code").value = "";
@@ -3011,11 +3216,11 @@ document.addEventListener("submit", (event) => {
     buttons: Array.from(form.querySelectorAll("button, input, select")),
     loadingText: "Salvando...",
     loadingMessage: "Cadastrando aluno fictício.",
-    successMessage: "Aluno fictício cadastrado nesta sessão, sem login.",
+    successMessage: "Aluno fictício cadastrado neste navegador, sem login.",
     errorMessage: "Não foi possível cadastrar. Tente novamente.",
     afterSuccess: () => {
       renderScreen("student-create");
-      showToast("Aluno fictício cadastrado nesta sessão, sem login.");
+      showToast("Aluno fictício cadastrado neste navegador, sem login.");
     }
   }, async () => {
     await new Promise((resolve) => window.setTimeout(resolve, 900));
@@ -3025,7 +3230,9 @@ document.addEventListener("submit", (event) => {
     if (!valid || !button.isConnected || activeRole !== "professor" || activeDemoAccount !== account) {
       return { errorMessage: "Confira o nome fictício, a faixa e o grau." };
     }
-    demoRoster.push({ account: null, name, grade: gradeLabel(belt, degree), teacherAccount: account, demoCreated: true });
+    updateDemoData(() => {
+      demoRoster.push({ account: null, name, grade: gradeLabel(belt, degree), teacherAccount: account, demoCreated: true });
+    }, [[demoDataKeys.roster, saveDemoRoster]]);
   });
 });
 
@@ -3068,11 +3275,13 @@ document.addEventListener("submit", (event) => {
         !isHigherGrade(student.grade, requestedIndex, degree)) {
       return { errorMessage: "Confira o aluno, a graduação superior e a data." };
     }
-    const history = demoGradeHistory.get(student) || [];
-    history.push({ belt, degree, date, professor: professor.name });
-    demoGradeHistory.set(student, history);
-    student.grade = gradeLabel(belt, degree);
-    if (student.account && demoProfiles[student.account]) demoProfiles[student.account].grade = student.grade;
+    updateDemoData(() => {
+      const history = demoGradeHistory.get(student) || [];
+      history.push({ belt, degree, date, professor: professor.name });
+      demoGradeHistory.set(student, history);
+      student.grade = gradeLabel(belt, degree);
+      if (student.account && demoProfiles[student.account]) demoProfiles[student.account].grade = student.grade;
+    }, [[demoDataKeys.grades, saveDemoGradeHistory], [demoDataKeys.roster, saveDemoRoster], [demoDataKeys.profiles, saveDemoProfiles]]);
     showToast("Graduação registrada no histórico.");
   });
 });
@@ -3127,7 +3336,7 @@ document.addEventListener("submit", (event) => {
       status: "confirmed",
       undoUntil: Date.now() + 10000
     };
-    cashPayments.push(payment);
+    updateDemoPayments(() => cashPayments.push(payment));
     refreshTeacherCashHistory();
     scheduleTeacherCashExpiry(payment);
     showToast("Recebimento lançado. Desfaça em até 10 segundos no histórico.");

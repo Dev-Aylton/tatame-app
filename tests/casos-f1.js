@@ -213,7 +213,7 @@ window.CASOS_ACEITE_F1 = [
     perfil: "Professor",
     regras: "RN06",
     precondicoes: "Aluno e cobrança fictícios ativos, associados ao professor autenticado.",
-    passos: ["Na simulação, pesquisar um aluno da turma sem acentos e com maiúsculas diferentes; conferir a graduação nas sugestões.", "Informar valor, data, tipo e referência; conferir os dados na confirmação e cancelar uma vez antes de confirmar.", "Desfazer um lançamento em até 10 segundos; em outro, aguardar o prazo e estornar.", "Repetir com ?erro-simulado=professor-pagamento-dinheiro-desfazer e ?erro-simulado=professor-pagamento-dinheiro-estornar; conferir o alerta e a nova tentativa.", "Consultar o pagamento e o resumo financeiro."],
+    passos: ["Na simulação, pesquisar um aluno da turma sem acentos e com maiúsculas diferentes; conferir a graduação nas sugestões.", "Informar valor, data, tipo e referência; conferir os dados na confirmação e cancelar uma vez antes de confirmar.", "Recarregar e conferir o registro; antes e depois do prazo, verificar as opções Desfazer e Estornar.", "Desfazer um lançamento em até 10 segundos; em outro, aguardar o prazo e estornar.", "Repetir com ?erro-simulado=professor-pagamento-dinheiro-desfazer e ?erro-simulado=professor-pagamento-dinheiro-estornar; conferir o alerta e a nova tentativa.", "Consultar o pagamento e o resumo financeiro."],
     esperado: "A simulação identifica o aluno da turma, confirma os dados antes de lançar e mantém os registros desfeitos ou estornados no histórico. O recebimento fica confirmado na hora e vinculado ao aluno, ao valor, à data e ao Professor que o lançou; não há movimentação de dinheiro pelo app."
   },
   {
@@ -324,7 +324,7 @@ window.CASOS_ACEITE_F1 = [
     regras: "RN15",
     precondicoes: "Aluno fictício vinculado ao professor autenticado.",
     passos: ["Na ficha, selecionar um aluno da própria turma e registrar uma graduação superior, por faixa ou grau, com data fictícia após confirmar.", "Reabrir o histórico e conferir a graduação atual, os graus visuais e a ordem cronológica.", "Verificar que graduação igual ou inferior não é aceita e que a vermelha com 10 graus não oferece promoção.", "Repetir com ?erro-simulado=professor-graduacao e conferir o alerta e a nova tentativa."],
-    esperado: "A graduação fica associada ao aluno e Professor corretos, atualiza faixa e grau e aparece no histórico. Na simulação, os dados permanecem somente na memória da página."
+    esperado: "A graduação fica associada ao aluno e Professor corretos, atualiza faixa e grau e aparece no histórico. Na simulação, os dados permanecem neste navegador após recarregar."
   },
   {
     id: "F1-GRAD-02",
@@ -425,6 +425,16 @@ window.CASOS_ACEITE_F1 = [
     precondicoes: "Há uma versão candidata da política e um registro das práticas de dados confirmadas pelo usuário.",
     passos: ["Conferir cada tipo de dado, finalidade, hipótese legal, consentimento, retenção, compartilhamento, canal de atendimento e declaração de segurança contra as informações confirmadas.", "Alterar uma prática no produto e verificar a revisão correspondente da política.", "Tentar publicar texto com informação ainda não confirmada ou divergente."],
     esperado: "A política corresponde às práticas efetivas e aprovadas; alterações relevantes exigem atualização dos dois formatos; conteúdo não confirmado ou divergente bloqueia a publicação e é encaminhado ao usuário para decisão."
+  },
+  {
+    id: "F1-PRIV-03",
+    area: "Privacidade e LGPD",
+    titulo: "Exclusão simulada preserva registros compartilhados sem dados pessoais",
+    perfil: "Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro",
+    regras: "Decisão do usuário para a simulação: exclusão persistente no navegador e identificação Conta excluída",
+    precondicoes: "Há contas fictícias e, quando aplicável, pagamentos, vínculos e graduações compartilhados.",
+    passos: ["Para cada tipo de conta, abrir a área de risco e verificar aviso, descrição e confirmação digitada EXCLUIR.", "Acionar a exclusão, tentar toque duplo e verificar Excluindo..., ✓ Concluído e retorno à entrada.", "Recarregar e conferir que a conta excluída, seus dados pessoais, mensagens e conversas não retornam, inclusive por convite já usado.", "Entrar na conta da outra parte e verificar pagamentos, vínculos e graduações preservados com Conta excluída, inclusive após recarregar.", "Conferir também os dados persistidos e as telas de demonstração que usam nomes e conversas fixos.", "Repetir com erro simulado e verificar Tentar de novo, alerta próximo ao botão e preservação dos dados.", "Simular falha de armazenamento durante a exclusão e verificar que o erro é informado sem indicar sucesso.", "Conferir área de risco e confirmação nos temas claro e escuro, sem corte ou sobreposição."],
+    esperado: "A exclusão simulada não acontece sem a confirmação; em sucesso, os dados pessoais deixam de estar disponíveis, os registros compartilhados permanecem anonimizados após recarregar e o usuário retorna à entrada. Em erro, nenhum dado é apagado."
   },
   {
     id: "F1-ACC-08",

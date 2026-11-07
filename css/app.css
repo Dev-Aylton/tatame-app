@@ -1953,14 +1953,24 @@ form[data-accept-demo-invite] .register-action-error {
   background: var(--surface-raised);
 }
 
-.user-panel-risk h3 {
-  margin: 0;
+.user-panel-risk summary {
   color: var(--text);
   font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.user-panel-risk h3 span {
+.user-panel-risk summary span {
   color: var(--alert);
+}
+
+.user-panel-risk summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .user-panel-risk p {
