@@ -16,6 +16,9 @@
   --amber: #e3b354;
   --red: #df7979;
   --blue: #84a5d0;
+  --gold-text: var(--gold);
+  --green-text: var(--green);
+  --amber-text: var(--amber);
   --shadow: 0 16px 42px rgb(0 0 0 / 24%);
 }
 
@@ -86,7 +89,7 @@ textarea:focus-visible {
 }
 
 .prototype-banner strong {
-  color: var(--gold);
+  color: var(--gold-text);
   font-size: 10px;
   letter-spacing: .12em;
 }
@@ -146,7 +149,7 @@ textarea:focus-visible {
 
 .eyebrow {
   margin: 0;
-  color: var(--gold);
+  color: var(--gold-text);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .15em;
@@ -301,7 +304,7 @@ textarea:focus-visible {
   border: 1px solid rgb(201 162 75 / 45%);
   border-radius: 50%;
   background: var(--gold-soft);
-  color: var(--gold);
+  color: var(--gold-text);
   font-weight: 700;
 }
 
@@ -502,12 +505,12 @@ button.text-link {
 
 .metric-card--green .metric-value,
 .status--paid {
-  color: var(--green);
+  color: var(--green-text);
 }
 
 .metric-card--amber .metric-value,
 .status--pending {
-  color: var(--amber);
+  color: var(--amber-text);
 }
 
 .metric-card--red .metric-value,
@@ -610,13 +613,13 @@ button.text-link {
 .badge--green {
   border-color: rgb(99 189 133 / 25%);
   background: rgb(99 189 133 / 9%);
-  color: var(--green);
+  color: var(--green-text);
 }
 
 .badge--amber {
   border-color: rgb(227 179 84 / 25%);
   background: rgb(227 179 84 / 9%);
-  color: var(--amber);
+  color: var(--amber-text);
 }
 
 .badge--red {
@@ -821,7 +824,7 @@ button.text-link {
   border: 1px solid rgb(201 162 75 / 36%);
   border-radius: 50%;
   background: var(--gold-soft);
-  color: var(--gold);
+  color: var(--gold-text);
   font-size: 10px;
   font-weight: 700;
 }
@@ -851,7 +854,7 @@ button.text-link {
   border: 1px solid rgb(227 179 84 / 30%);
   border-radius: 16px;
   background: rgb(227 179 84 / 8%);
-  color: var(--amber);
+  color: var(--amber-text);
   font-size: 24px;
 }
 
@@ -1315,7 +1318,7 @@ button.text-link {
 }
 
 .quick-action-icon {
-  color: var(--gold);
+  color: var(--gold-text);
   font-size: 21px;
 }
 
@@ -1391,7 +1394,7 @@ button.text-link {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface-raised);
-  color: var(--gold);
+  color: var(--gold-text);
 }
 
 .tutorial-illustration svg {
@@ -1512,7 +1515,7 @@ button.text-link {
 
 .user-panel-link > span:first-child {
   width: 22px;
-  color: var(--gold);
+  color: var(--gold-text);
   font-size: 18px;
   text-align: center;
 }
@@ -1739,7 +1742,7 @@ button.text-link {
 }
 
 .receipt-result--match {
-  color: var(--green);
+  color: var(--green-text);
 }
 
 .receipt-result--different {
@@ -1863,11 +1866,14 @@ body[data-theme="light"] {
   --surface-soft: #eeece7;
   --line: #dedbd4;
   --text: #252522;
-  --muted: #6d706f;
+  --muted: #676a69;
   --gold: #9a7425;
   --gold-soft: rgb(154 116 37 / 10%);
+  --gold-text: #7d5e1e;
   --green: #278450;
+  --green-text: #237748;
   --amber: #a36a12;
+  --amber-text: #925f10;
   --red: #b34141;
   --blue: #416ca9;
   --shadow: 0 12px 32px rgb(37 34 27 / 8%);
@@ -1901,6 +1907,60 @@ body[data-theme="light"] .auth-visual {
 
 body[data-theme="light"] .auth-visual p {
   color: #59574f;
+}
+
+body[data-theme="light"] .nav-group-title {
+  color: #6e7179;
+}
+
+body[data-theme="light"] .nav-item {
+  color: #6b727c;
+}
+
+body[data-theme="light"] .nav-item:hover {
+  color: var(--text);
+}
+
+body[data-theme="light"] .nav-item[aria-current="page"],
+body[data-theme="light"] .app-footer a,
+body[data-theme="light"] .text-link,
+body[data-theme="light"] .badge--gold,
+body[data-theme="light"] .notice--pending,
+body[data-theme="light"] .filter-chip[aria-pressed="true"],
+body[data-theme="light"] .tab-button[aria-selected="true"],
+body[data-theme="light"] .auth-visual-foot {
+  color: var(--gold-text);
+}
+
+body[data-theme="light"] .app-footer {
+  color: #696d74;
+}
+
+body[data-theme="light"] .auth-divider {
+  color: #72757d;
+}
+
+body[data-theme="light"] .field input::placeholder,
+body[data-theme="light"] .field textarea::placeholder,
+body[data-theme="light"] .search-input::placeholder {
+  color: #72757c;
+}
+
+body[data-theme="light"] .field label,
+body[data-theme="light"] .field-label {
+  color: var(--text);
+}
+
+body[data-theme="light"] .notice--info {
+  color: var(--blue);
+}
+
+body[data-theme="light"] .button--danger {
+  color: var(--red);
+}
+
+body[data-theme="light"] .button--primary {
+  color: #0a0a0a;
 }
 
 @media (min-width: 1500px) {
@@ -2031,6 +2091,15 @@ body[data-theme="light"] .auth-visual p {
   .mobile-navigation .mobile-add-button > span:first-child {
     font-size: 26px;
     line-height: 1;
+  }
+
+  /* A barra inferior continua escura no modo claro; o texto segue o tom do modo escuro. */
+  body[data-theme="light"] .mobile-navigation button {
+    color: #9aa0a6;
+  }
+
+  body[data-theme="light"] .mobile-navigation .mobile-add-button {
+    color: #0a0a0a;
   }
 
   .content-grid {
