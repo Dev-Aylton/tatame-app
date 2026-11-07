@@ -681,7 +681,7 @@ body[data-theme="light"] .button--google:focus-visible {
   cursor: progress;
 }
 
-.button--action:is([data-login-action], [data-register-action], [data-link-action], [data-student-action], [data-professor-payment-action])[aria-busy="true"]::after {
+.button--action:is([data-login-action], [data-register-action], [data-link-action], [data-student-action], [data-professor-payment-action], [data-grade-action], [data-panel-action], [data-student-create-action])[aria-busy="true"]::after {
   content: "";
   width: 14px;
   height: 14px;
@@ -725,6 +725,39 @@ body[data-theme="light"] .button--google:focus-visible {
 
 form[data-register-teacher-cash] .form-grid {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.teacher-cash-options:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 12rem;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.teacher-cash-option {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text);
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.teacher-cash-option:is(:focus-visible, [aria-selected="true"]) {
+  border-color: var(--accent);
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.teacher-cash-selection {
+  overflow-wrap: anywhere;
 }
 
 form[data-accept-demo-invite] .form-actions {
@@ -1403,6 +1436,56 @@ form[data-accept-demo-invite] .register-action-error {
   background: #8e62aa;
 }
 
+.rank-belt {
+  display: inline-flex;
+  width: min(180px, 100%);
+  min-width: 120px;
+  height: 22px;
+  flex: 0 1 180px;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: hidden;
+  border: 1px solid #777;
+  border-radius: 4px;
+}
+
+.belt-display--rank {
+  flex-wrap: wrap;
+}
+
+.belt-display--rank .belt-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rank-belt--0 { background: #eee; }
+.rank-belt--1 { background: #315da5; }
+.rank-belt--2 { background: #70418d; }
+.rank-belt--3 { background: #70442c; }
+.rank-belt--4 { background: #171717; }
+.rank-belt--5 { background: repeating-linear-gradient(90deg, #a32327 0 18px, #171717 18px 36px); }
+.rank-belt--6 { background: repeating-linear-gradient(90deg, #a32327 0 18px, #eee 18px 36px); }
+.rank-belt--7 { background: #a32327; }
+
+.rank-belt-bar {
+  display: flex;
+  height: 100%;
+  min-width: 40%;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 2px;
+  padding: 2px 4px;
+  background: #202020;
+}
+
+.rank-belt--4 .rank-belt-bar { background: #a32327; }
+
+.rank-belt-bar i {
+  width: 3px;
+  height: 100%;
+  background: #fff;
+}
+
 .belt-copy strong,
 .belt-copy small {
   display: block;
@@ -1715,6 +1798,63 @@ form[data-accept-demo-invite] .register-action-error {
   display: block;
 }
 
+.user-panel-version,
+.user-panel-diagnostics,
+.user-panel-action {
+  margin-top: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.version-trigger {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+
+.user-panel-diagnostics summary {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.user-panel-diagnostics[open] .diagnostics-chevron {
+  transform: rotate(90deg);
+}
+
+.user-panel-diagnostics summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.user-panel-diagnostics ul {
+  padding-left: 20px;
+  overflow-wrap: anywhere;
+}
+
+.user-panel-action p {
+  margin: 0 0 8px;
+}
+
+.user-panel-action .button {
+  width: 100%;
+  min-height: 48px;
+  font-size: 14px;
+}
+
+.user-panel-action .login-action-error {
+  margin: 4px 0 0;
+}
+
 .user-panel-profile strong {
   font-size: 16px;
   overflow-wrap: anywhere;
@@ -1803,6 +1943,31 @@ form[data-accept-demo-invite] .register-action-error {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.user-panel-risk {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid var(--alert);
+  border-radius: 12px;
+  background: var(--surface-raised);
+}
+
+.user-panel-risk h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.user-panel-risk h3 span {
+  color: var(--alert);
+}
+
+.user-panel-risk p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .privacy-page {

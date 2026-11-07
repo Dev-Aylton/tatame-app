@@ -37,11 +37,21 @@ Para simular falha nas ações do aluno, use `?erro-simulado=aluno-dinheiro`, `?
 
 Para simular falhas nas ações de pagamentos do Professor, use `?erro-simulado=professor-pagamento-dinheiro-lancar`, `professor-pagamento-dinheiro-confirmar`, `professor-pagamento-dinheiro-recusar`, `professor-pagamento-comprovante-confirmar`, `professor-pagamento-comprovante-recusar`, `professor-pagamento-desconto`, `professor-pagamento-saldo`, `professor-pagamento-isencao`, `professor-pagamento-pix-confirmar` ou `professor-pagamento-pix-revisar`, sempre como valor de `erro-simulado`. As decisões exigem os avisos ou sugestões fictícios correspondentes.
 
+Para simular falha ao corrigir um lançamento em dinheiro, use `?erro-simulado=professor-pagamento-dinheiro-desfazer` ou `?erro-simulado=professor-pagamento-dinheiro-estornar`. O Professor informa tipo e referência, confirma o lançamento e pode desfazê-lo em até 10 segundos; depois, pode estorná-lo. Ambos permanecem no histórico fictício até recarregar a página.
+
+Para simular falha ao graduar um aluno da própria turma, use `?erro-simulado=professor-graduacao`. A graduação é manual, exige faixa e/ou grau superiores e data e permanece apenas na memória da página. A convenção adulta usada é branca, azul, roxa e marrom com 0 a 4 graus; preta com 0 a 6; coral vermelha e preta no 7º; coral vermelha e branca no 8º; e vermelha no 9º e 10º.
+
+Para simular falha no cadastro inicial de aluno, use `?erro-simulado=professor-cadastro-aluno`. Nome, faixa e grau ficam na memória até recarregar; os demais campos são apenas visuais, sem criação de login ou convite.
+
+O painel da conta mostra a versão definida em `APP_VERSION`; atualize essa constante sempre antes de cada push. Sete cliques na versão revelam diagnósticos temporários com categorias e horários de erros, sem mensagens, nomes, arquivos ou dados da conta. Para simular falhas nas ações do painel, use `?erro-simulado=painel-atualizar` ou `?erro-simulado=painel-sincronizar`. A verificação de atualização não baixa arquivos, e a sincronização não envia dados. Uma atualização real requer um mecanismo de distribuição e controle de versão, por exemplo um service worker e uma estratégia de cache.
+
+A navegação lateral agrupa as telas disponíveis por assunto e pelo papel da conta ativa; não há troca de visão dentro da sessão. O painel da conta reúne preferências disponíveis, ajuda, ações simuladas do app, diagnósticos desbloqueados e saída. A área de risco aparece separada ao final, mas a exclusão de conta ainda não está disponível na simulação.
+
 - **Acesso:** Tenho um código de convite; Entrar como Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro; Ver política e termo, Voltar para entrar; Voltar e Validar convite de instrutor.
 - **Aluno:** Ver histórico de graduações, Ver academia; Trocar de professor, Vincular a um professor, Cancelar pedido; Escolher comprovante Pix.
 - **Painel do professor:** Cadastrar aluno, Papéis e autorizações, Importar extrato Pix, Confirmar pagamentos e Conversas.
 - **Alunos e ficha:** Novo aluno, filtros Todos, Ativos, Trancados e Sem acesso, Abrir ficha; abas Resumo, Pagamentos, Graduações, Feedbacks e Notas privadas.
-- **Novo aluno e convite:** Limpar campos, Prévia de cadastro e Pré-visualizar convite.
+- **Novo aluno e convite:** Limpar campos e Pré-visualizar convite.
 - **Código e convites:** Trocar código, Gerar link, Aprovar e Recusar pedidos de vínculo.
 - **Papéis e autorizações:** Vincular à Academia Fictícia/Academia vinculada, Graduar a Professor, Promover a instrutor/Papel atualizado, Autorizar/Autorizado e Delegar aula.
 - **Importar extrato Pix:** seletor Arquivo do extrato Pix.
@@ -88,7 +98,7 @@ Resumo das fases; o acompanhamento detalhado fica na página visual do [plano do
 - [v] Criar dois avatares SVG genéricos (masculino e feminino), com silhuetas definidas e rostos menos arredondados. **Aprovados pelo usuário.**
 - [v] Ajustar o ícone Escudo: insígnia redonda, “T” redesenhado e faixa preta com ponteira vermelha e três graus brancos. **Correção solicitada aplicada; ícone aprovado pelo usuário.**
 - [ ] Preparar o ícone de instalação do iPhone nos formatos e dimensões exigidos pelo PWA e conferir sua leitura na tela inicial.
-- [ ] Aprimorar navegação, painel da conta e apresentação instalada no iPhone. **Interface ampliada, paletas dos dois temas aplicadas e logo existente configurado; faltam ícones 180/192 e versão maskable, testes responsivos e validação no iPhone e pelo usuário.**
+- [ ] Aprimorar navegação, painel da conta e apresentação instalada no iPhone. **Interface ampliada, menus agrupados por assunto, paletas dos dois temas aplicadas e logo existente configurado; faltam ícones 180/192 e versão maskable, testes responsivos e validação no iPhone e pelo usuário.**
 - [ ] Aplicar estados e mensagens acessíveis aos botões de ação. **Padrão reutilizável aplicado aos dois botões de login simulado; faltam os demais controles listados acima e a validação pelo usuário.**
 - [v] Validar os dois avatares placeholder. **Aprovados pelo usuário.**
 - [v] Exigir testes visuais e funcionais de todas as telas em diferentes tamanhos de viewport a cada lote, incluindo larguras de referência, limites dos breakpoints, retrato/paisagem, altura curta, zoom/texto aumentado, sobreposições, recortes e modais. **Critério obrigatório definido pelo usuário; os testes de cada lote devem registrar e passar por essas verificações.**
@@ -96,8 +106,8 @@ Resumo das fases; o acompanhamento detalhado fica na página visual do [plano do
 - [x] Acrescentar casos de aceite para o link de privacidade, modal no app, página HTML independente, sincronização do conteúdo e revisão de declarações antes da publicação. **Feito nesta tarefa; aguardando revisão/validação do usuário.**
 - [ ] Confirmar com o usuário os dados pessoais tratados, suas finalidades, hipóteses legais, consentimento, retenção, compartilhamento, atendimento a direitos e conteúdo da política antes de redigi-la.
 - [ ] Criar a página HTML da política e implementar no app o link que abre o modal; manter ambos sincronizados e testar acesso, conteúdo, fechamento, teclado e responsividade.
-- [v] Desenvolver o app em branch separada de `main` e fazer merge apenas com autorização explícita; commits e pushes também exigem autorização e testes válidos.
-- [v] Consultar o usuário quando houver muitos arquivos pendentes sem commit/push, antes de publicar ou iniciar operações de commit. **Regra aplicada nesta tarefa: 23 arquivos pendentes foram apresentados ao usuário; ele autorizou prosseguir sem commit/push.**
+- [v] Desenvolver o app em branch separada de `main`; merge na `main` exige autorização do Aylton e testes validados por ele, enquanto commit ou push da branch `feat/telas-iniciais` exige pedido do Aylton, sem exigir testes válidos. Pedido de commit ou push da branch feat/telas-iniciais não é bloqueado por estado de lote, teste ou validação.
+- [v] Consultar o usuário quando houver muitos arquivos pendentes sem commit/push, antes de publicar ou iniciar operações de commit, exceto para commit ou push da branch `feat/telas-iniciais` quando o Aylton pedir. **Regra aplicada nesta tarefa: 23 arquivos pendentes foram apresentados ao usuário; ele autorizou prosseguir sem commit/push.**
 - [v] Remover do projeto os arquivos, propostas e recursos explicitamente descartados pelo usuário; não arquivar nem manter uma lista de descartes. **Regra definida pelo usuário; confirmar antes de excluir itens cujo descarte não esteja explícito.**
 - [v] Manter a tela visual correspondente aberta no navegador do VS Code antes e durante cada alteração visual, atualizando-a para acompanhamento do usuário. **Regra definida pelo usuário.**
 - [v] Encerrar cada prompt executado com um resumo de até 10 linhas sobre alterações, verificações, pendências e erros. **Regra definida pelo usuário.**
@@ -110,7 +120,10 @@ Resumo das fases; o acompanhamento detalhado fica na página visual do [plano do
 - [ ] Definir no banco as regras de autorização, validade e reutilização do convite de instrutor antes de implementar o cadastro; a atribuição do perfil não será confiada ao navegador.
 - [ ] Revisar os limites de leitura dos dados dos alunos necessários durante a aula e confirmar o texto dos casos do instrutor antes de desenhar RLS.
 - [ ] A partir dos casos validados, mapear fluxos de acesso e permissões; definir somente as tabelas e políticas RLS necessárias e respectivos testes positivos/negativos.
-- [ ] Construir um protótipo navegável de todas as telas da F1 do roadmap e dos requisitos confirmados do instrutor (acesso/convites, aluno, professor, Adm, pagamentos, graduações, atalhos e privacidade), mantendo a identidade visual: web otimizada para notebook com sidebar à esquerda e painel do usuário oculto à direita; mobile priorizado para iPhone 13 ou superior com navegação inferior e áreas seguras. Usar fixtures fictícias, sem integração ou lógica funcional. Manter termo e política como conteúdo pendente; validar visualmente com o usuário antes de iniciar as funções.
+- [ ] Construir um protótipo navegável de todas as telas da F1 do roadmap e dos requisitos confirmados do instrutor (acesso/convites, aluno, professor, Adm, pagamentos, graduações, atalhos e privacidade), mantendo a identidade visual: web otimizada para notebook com sidebar à esquerda e painel do usuário oculto à direita; mobile priorizado para iPhone 13 ou superior com navegação inferior e áreas seguras. Usar fixtures fictícias, sem integração ou lógica funcional. Manter termo e política como conteúdo pendente; validar visualmente com o usuário antes de iniciar as funções. No lançamento fictício em dinheiro, foram adicionados busca, confirmação, desfazer e estorno; faltam priorização por cobrança vinculada, testes responsivos e validação do usuário.
+- [x] Acrescentar ao protótipo a graduação manual de faixa superior pelo Professor, com data, confirmação e histórico em memória; falta conferir os testes responsivos e validar o fluxo com o usuário.
+- [ ] Ampliar a simulação de graduação para faixas e graus adultos e cadastro inicial, e o painel com versão, diagnósticos, atualização e sincronização simuladas. Implementação parcial; faltam testes funcionais e responsivos completos e validação do usuário.
+- [ ] Implementar e testar a exclusão fictícia de conta, apagando dados pessoais e preservando pagamentos, vínculos e graduações da outra parte com identificação anonimizada como Conta excluída.
 - [ ] Revisar com o usuário o desenho do Lote 1; só depois criar migrations incrementais, sem executá-las. A aplicação não dependerá delas até o desenvolvedor confirmar que foram revisadas e aplicadas.
 - [ ] Após aprovação do desenho e confirmação de que o esquema necessário está aplicado, implementar o primeiro fluxo vertical: login, convite/liberação de professor, cadastro/convite de aluno e consentimento (RN01–RN04, RN25), com seus testes.
 - [ ] Executar testes do Lote 1, corrigir falhas e apresentar o resultado para validação do usuário antes de iniciar o próximo lote.
@@ -138,4 +151,4 @@ Resumo das fases; o acompanhamento detalhado fica na página visual do [plano do
 - [ ] Executar os testes de publicação segura; suspeita de dado sensível bloqueia a ação até orientação do usuário.
 - [ ] Executar a suíte completa: funcionalidades, permissões/RLS, regressão, PWA/offline, responsividade e revisão manual.
 - [ ] Confirmar funcionamento ponta a ponta e obter validação do usuário para todos os lotes.
-- [ ] Solicitar autorização explícita antes de qualquer commit ou push; não publicar enquanto houver teste pendente ou falho.
+- [ ] Solicitar autorização explícita antes de qualquer commit ou push; não publicar a partir da `main` enquanto houver teste pendente ou falho, sem aplicar esse bloqueio ao push da branch `feat/telas-iniciais`.

@@ -89,27 +89,56 @@
       <span><strong id="user-panel-profile-name">Sem sessão ativa</strong><small id="user-panel-profile-role">Perfil demonstrativo</small><small id="user-panel-profile-academy">Sem academia vinculada</small></span>
     </div>
     <nav class="user-panel-links" aria-label="Navegação da conta">
-      <h3 class="user-panel-group-title">Navegação</h3>
+      <h3 class="user-panel-group-title">Conta e preferências</h3>
       <button class="user-panel-link" type="button" data-screen-target="user-settings">
         <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg></span><span><strong>Preferências</strong><small>Conta e visualização</small></span><span aria-hidden="true">›</span>
       </button>
       <button class="user-panel-link" type="button" data-screen-target="privacy">
         <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 19 6v5c0 4.5-2.7 7.7-7 10-4.3-2.3-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span><span><strong>Privacidade</strong><small>Conteúdo pendente de revisão</small></span><span aria-hidden="true">›</span>
       </button>
-    </nav>
-    <div class="user-panel-links" aria-label="Ações da conta" role="group">
-      <h3 class="user-panel-group-title">Ações da conta</h3>
-      <button class="user-panel-link" type="button" data-open-tutorial>
-        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 17h.01"/></svg></span><span><strong>Tutorial</strong><small>Ajuda para esta conta</small></span><span aria-hidden="true">›</span>
-      </button>
       <button class="user-panel-link" type="button" data-theme-toggle>
         <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v16M12 4a8 8 0 0 1 0 16"/></svg></span><span><strong>Alternar tema</strong><small>Apenas para visualização</small></span><span aria-hidden="true">›</span>
       </button>
+    </nav>
+    <div class="user-panel-links" aria-label="Ajuda" role="group">
+      <h3 class="user-panel-group-title">Ajuda</h3>
+      <button class="user-panel-link" type="button" data-open-tutorial>
+        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 17h.01"/></svg></span><span><strong>Tutorial</strong><small>Ajuda para esta conta</small></span><span aria-hidden="true">›</span>
+      </button>
+    </div>
+    <div class="user-panel-links" aria-label="App" role="group">
+      <h3 class="user-panel-group-title">App</h3>
+      <div class="user-panel-version">Versão do app: <button type="button" class="version-trigger" id="app-version"></button></div>
+      <div class="user-panel-action">
+        <p>Verificação simulada, sem baixar atualizações.</p>
+        <button class="button button--quiet button--action" type="button" data-panel-action="atualizar"><span aria-hidden="true">↻</span><span data-action-label>Atualizar o app</span></button>
+        <p class="login-action-error" role="alert"></p>
+        <p class="field-help" role="status" aria-live="polite"></p>
+      </div>
+      <div class="user-panel-action">
+        <p>Simulação: nenhum dado é enviado à nuvem.</p>
+        <button class="button button--quiet button--action" type="button" data-panel-action="sincronizar"><span aria-hidden="true">⇅</span><span data-action-label>Sincronizar dados com a nuvem</span></button>
+        <p class="login-action-error" role="alert"></p>
+        <p class="field-help" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+    <details class="user-panel-diagnostics" id="user-diagnostics" hidden>
+      <summary><span class="diagnostics-chevron" aria-hidden="true">▸</span> Diagnósticos</summary>
+      <p>Somente tipos de erro e horários desta sessão, sem dados pessoais.</p>
+      <p id="diagnostics-version"></p>
+      <ul id="diagnostics-list"><li>Nenhum erro registrado nesta sessão.</li></ul>
+    </details>
+    <div class="user-panel-links" aria-label="Sessão" role="group">
+      <h3 class="user-panel-group-title">Sessão</h3>
       <button class="user-panel-link" type="button" data-logout-role>
         <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H5v16h5M13 8l4 4-4 4M8 12h9"/></svg></span><span><strong>Sair</strong><small>Encerrar esta sessão demonstrativa</small></span><span aria-hidden="true">›</span>
       </button>
     </div>
     <p class="user-panel-note">O perfil e as permissões são definidos pelo banco na versão funcional.</p>
+    <section class="user-panel-risk" aria-labelledby="user-panel-risk-title">
+      <h3 id="user-panel-risk-title"><span aria-hidden="true">⚠</span> Área de risco</h3>
+      <p>A exclusão de conta ainda não está disponível nesta simulação.</p>
+    </section>
   </dialog>
 
   <dialog class="privacy-dialog" id="privacy-modal" aria-labelledby="privacy-modal-title">

@@ -1,5 +1,24 @@
 "use strict";
 
+const APP_VERSION = "0.1.1";
+const diagnosticEvents = [];
+let versionClicks = 0;
+
+function recordDiagnostic(category) {
+  diagnosticEvents.push({ category, time: new Date().toLocaleTimeString("pt-BR") });
+  const list = document.querySelector("#diagnostics-list");
+  if (list) {
+    list.replaceChildren(...diagnosticEvents.map((entry) => {
+      const item = document.createElement("li");
+      item.textContent = `${entry.time} — ${entry.category}`;
+      return item;
+    }));
+  }
+}
+
+window.addEventListener("error", () => recordDiagnostic("Erro no aplicativo"), true);
+window.addEventListener("unhandledrejection", () => recordDiagnostic("Operação não concluída"));
+
 const navigationGroups = [
   {
     title: "Acesso",
@@ -18,48 +37,64 @@ const navigationGroups = [
     items: [["link-teacher", "Vincular a um professor", "⌁"]]
   },
   {
-    title: "Aluno",
-    roles: ["student", "instructor"],
+    title: "Treino",
+    roles: ["instructor"],
+    items: [["instructor-class", "Treino compartilhado", "▣"]]
+  },
+  {
+    title: "Início e atalhos",
+    roles: ["student", "instructor", "professor", "adm"],
     items: [
+      ["admin-home", "Painel do Adm", "▦"],
+      ["teacher-home", "Painel do professor", "▦"],
       ["student-home", "Início", "⌂"],
-      ["student-link", "Meu vínculo", "⌁"],
-      ["student-payments", "Meus pagamentos", "▤"],
-      ["student-grades", "Minhas graduações", "◇"],
-      ["student-chat", "Conversa com o professor", "✉"]
+      ["quick-actions", "Ações rápidas", "✦"]
     ]
   },
   {
-    title: "Professor",
+    title: "Minha conta de aluno",
+    roles: ["student", "instructor"],
+    items: [
+      ["student-link", "Meu vínculo", "⌁"],
+      ["student-payments", "Meus pagamentos", "▤"],
+      ["student-grades", "Minhas graduações", "◇"]
+    ]
+  },
+  {
+    title: "Alunos e vínculos",
     roles: ["professor"],
     items: [
-      ["teacher-home", "Painel do professor", "▦"],
       ["students", "Alunos", "♧"],
       ["student-detail", "Ficha do aluno", "▧"],
       ["student-create", "Novo aluno e convite", "＋"],
       ["teacher-code", "Código e convites", "⌁"],
-      ["role-management", "Papéis e autorizações", "◈"],
-      ["pix-import", "Importar extrato Pix", "⇧"],
+      ["role-management", "Papéis e autorizações", "◈"]
+    ]
+  },
+  {
+    title: "Pagamentos",
+    roles: ["professor"],
+    items: [
       ["payment-review", "Pagamentos a confirmar", "▤"],
       ["overdue", "Atrasados", "◷"],
-      ["quick-actions", "Ações rápidas", "✦"],
-      ["teacher-chat", "Conversas", "✉"]
+      ["pix-import", "Importar extrato Pix", "⇧"]
     ]
   },
   {
-    title: "Instrutor",
-    roles: ["instructor"],
-    items: [
-      ["instructor-class", "Treino compartilhado", "▣"],
-      ["instructor-chat", "Conversa com o professor", "✉"]
-    ]
-  },
-  {
-    title: "Adm",
+    title: "Professores e papéis",
     roles: ["adm"],
     items: [
-      ["admin-home", "Painel do Adm", "▦"],
       ["teacher-invites", "Professores convidados", "♧"],
       ["role-management", "Papéis e autorizações", "◈"]
+    ]
+  },
+  {
+    title: "Comunicação",
+    roles: ["student", "professor", "instructor"],
+    items: [
+      ["teacher-chat", "Conversas", "✉"],
+      ["student-chat", "Conversa com o professor", "✉"],
+      ["instructor-chat", "Conversa com o professor", "✉"]
     ]
   },
   {
@@ -104,6 +139,9 @@ const demoRoster = [
   { account: null, name: "ALUNO FICTÍCIO 02", grade: "Faixa branca", teacherAccount: "professor" },
   { account: null, name: "ALUNO FICTÍCIO 03", grade: "Faixa roxa · 1 grau", teacherAccount: "professor" }
 ];
+const demoBelts = ["Branca", "Azul", "Roxa", "Marrom", "Preta", "Coral vermelha e preta", "Coral vermelha e branca", "Vermelha"];
+const demoGradeHistory = new Map();
+let selectedGradeStudent = null;
 const demoInviteRecipients = [
   { id: "instructor", type: "instructor", name: demoProfiles.instructor.name },
   { id: "student-02", type: "student", name: demoRoster[2].name },
@@ -160,12 +198,12 @@ const tutorialStepsByRole = {
   professor: [
     ["teacher-home", "Painel do Professor", "Veja os indicadores, avisos e atalhos da sua turma. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
     ["students", "Alunos", "Consulte somente os alunos da sua turma."],
-    ["student-detail", "Ficha do aluno", "Veja perfil, pagamentos, graduações e notas privadas, que não são compartilhadas com o Instrutor."],
-    ["student-create", "Novo aluno", "Cadastre um aluno fictício e prepare o convite de acesso."],
+    ["student-detail", "Ficha do aluno", "Veja perfil, pagamentos, graduações e notas privadas. Em Graduações, escolha um aluno da sua turma, faixa e grau superiores e a data; confirme para registrar. Notas privadas não são compartilhadas com o Instrutor."],
+    ["student-create", "Novo aluno", "Cadastre um aluno fictício com sua faixa e grau atuais. Nome e graduação ficam na memória até recarregar; os demais campos não são salvos e nenhum login ou convite é criado."],
     ["teacher-code", "Código e convites", "Veja pedidos de vínculo, aprove ou recuse e gere links de uso único com validade de três dias."],
     ["role-management", "Papéis e aula delegada", "Promova somente seus alunos a Instrutor, autorize-o e decida se compartilha o plano ou deixa o treino livre. O Instrutor é um aluno com função de apoio: vê nome e graduação da turma, nunca pagamentos alheios, notas privadas ou conversas de terceiros; você decide o conteúdo."],
     ["pix-import", "Importar extrato Pix", "Importe um extrato para sugerir correspondências. Nada é pago ou confirmado automaticamente."],
-    ["payment-review", "Pagamentos a confirmar", "Confira avisos, confirme ou recuse. Também pode lançar dinheiro diretamente como recebido."],
+    ["payment-review", "Pagamentos a confirmar", "Confira avisos ou lance dinheiro recebido: busque o aluno da turma, informe tipo e referência e confirme os dados. É possível desfazer por 10 segundos; depois, use Estornar. O histórico é preservado nesta simulação."],
     ["overdue", "Atrasados", "Revise cobranças atrasadas antes de enviar um lembrete."],
     ["quick-actions", "Ações rápidas", "Use os atalhos e limite lotes de mensalidades a 24 cobranças."],
     ["teacher-chat", "Conversas", "Converse somente com seus alunos e Instrutores autorizados."],
@@ -272,10 +310,13 @@ function renderNavigation() {
   const visibleGroups = activeRole
     ? navigationGroups.filter((group) => group.roles.includes(activeRole))
     : navigationGroups.filter((group) => group.roles.includes("public"));
-  navigation.innerHTML = visibleGroups.map((group) => `
+  navigation.innerHTML = visibleGroups.map((group) => ({
+    ...group,
+    items: group.items.filter(([id]) => canViewScreen(id))
+  })).filter((group) => group.items.length > 0).map((group) => `
     <section class="nav-group" aria-label="${group.title}">
       <h2 class="nav-group-title">${group.title}</h2>
-      ${group.items.filter(([id]) => canViewScreen(id)).map(([id, title]) => `
+      ${group.items.map(([id, title]) => `
         <button class="nav-item" type="button" data-screen-target="${id}">
           <span class="nav-icon">${navigationIcon(id)}</span>
           <span>${title}</span>
@@ -424,14 +465,61 @@ function listRow(title, detail, value = "", badge = "") {
   `;
 }
 
-function studentEntry(name, detail, image, status) {
+function studentEntry(name, detail, image, status, rosterIndex = demoRoster.findIndex((student) => student.name === name && student.teacherAccount === activeDemoAccount)) {
   return `
     <div class="student-entry">
-      ${personRow(name, "Perfil fictício", image, `<span class="badge ${status}">${detail}</span>`)}
+      ${personRow(escapeHtml(name), "Perfil fictício", image, `<span class="badge ${status}">${detail}</span>`)}
       <span class="student-entry-note">Mensalidade e vencimento: —</span>
-      ${button("Abrir ficha", "student-detail", "button button--small button--quiet")}
+      <button class="button button--small button--quiet" type="button" data-screen-target="student-detail" data-roster-index="${rosterIndex}"><span>Abrir ficha</span></button>
     </div>
   `;
+}
+
+function gradeBeltIndex(grade) {
+  const belt = grade.split(" · ")[0].replace(/^faixa\s+/i, "").trim().toLocaleLowerCase("pt-BR");
+  return demoBelts.findIndex((item) => item.toLocaleLowerCase("pt-BR") === belt);
+}
+
+function beltDegrees(beltIndex) {
+  if (beltIndex >= 0 && beltIndex <= 3) return [0, 1, 2, 3, 4];
+  if (beltIndex === 4) return [0, 1, 2, 3, 4, 5, 6];
+  if (beltIndex === 5) return [7];
+  if (beltIndex === 6) return [8];
+  if (beltIndex === 7) return [9, 10];
+  return [];
+}
+
+function gradeDegree(grade) {
+  const match = grade.match(/ · (\d+) graus?$/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function gradeLabel(belt, degree) {
+  return `Faixa ${belt.toLocaleLowerCase("pt-BR")} · ${degree} ${degree === 1 ? "grau" : "graus"}`;
+}
+
+function isHigherGrade(currentGrade, beltIndex, degree) {
+  const currentIndex = gradeBeltIndex(currentGrade);
+  const currentDegree = gradeDegree(currentGrade);
+  return beltDegrees(currentIndex).includes(currentDegree) && beltDegrees(beltIndex).includes(degree) &&
+    (beltIndex > currentIndex || (beltIndex === currentIndex && degree > currentDegree));
+}
+
+function gradeVisual(grade) {
+  const index = gradeBeltIndex(grade);
+  const degree = gradeDegree(grade);
+  if (!beltDegrees(index).includes(degree)) return "";
+  return `<span class="rank-belt rank-belt--${index}" aria-hidden="true"><span class="rank-belt-bar">${'<i></i>'.repeat(degree)}</span></span>`;
+}
+
+function gradeHistoryEntries(student) {
+  return [...(demoGradeHistory.get(student) || [])].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function renderGradeHistory(student) {
+  const entries = gradeHistoryEntries(student);
+  const existing = `<div class="timeline-item"><span class="timeline-dot"></span><div><strong>Faixa registrada</strong><small>Data: — · Responsável: professor</small></div></div>`;
+  return existing + entries.map((entry) => `<div class="timeline-item"><span class="timeline-dot"></span><div><strong>${escapeHtml(gradeLabel(entry.belt, entry.degree))}</strong>${gradeVisual(gradeLabel(entry.belt, entry.degree))}<small>Data: ${escapeHtml(formatDemoDate(entry.date))} · Responsável: ${escapeHtml(entry.professor)}</small></div></div>`).join("");
 }
 
 function field(id, label, placeholder, type = "text", help = "") {
@@ -589,16 +677,93 @@ function renderReceiptHistoryRow(payment) {
 }
 
 function renderTeacherCashHistory() {
-  const confirmed = cashPayments.filter((payment) =>
-    payment.status === "confirmed" && payment.source === "teacher" && payment.professorAccount === activeDemoAccount
+  const entries = cashPayments.filter((payment) =>
+    payment.source === "teacher" && payment.professorAccount === activeDemoAccount
   );
-  if (!confirmed.length) return emptyState("Nenhum lançamento direto", "Recebimentos em dinheiro lançados pelo Professor aparecerão aqui.");
-  return confirmed.map((payment) => `
-    <div class="list-row">
-      <span class="row-copy"><strong>${escapeHtml(payment.studentName)}</strong><small>Dinheiro confirmado · ${escapeHtml(formatDemoDate(payment.date))}</small></span>
-      <strong class="row-value">${escapeHtml(payment.amount)}</strong>
-    </div>
-  `).join("");
+  if (!entries.length) return emptyState("Nenhum lançamento direto", "Recebimentos em dinheiro lançados pelo Professor aparecerão aqui.");
+  return entries.map(renderTeacherCashEntry).join("");
+}
+
+function renderTeacherCashEntry(payment) {
+  const status = payment.status === "undone" ? "Desfeito" : payment.status === "reversed" ? "Estornado" : "Confirmado";
+  const canUndo = payment.status === "confirmed" && Date.now() < payment.undoUntil;
+  return `
+    <article class="teacher-cash-entry" tabindex="-1" data-teacher-cash-entry="${escapeHtml(payment.id)}">
+      <div class="list-row">
+        <span class="row-copy"><strong>${escapeHtml(payment.studentName)}</strong><small>Dinheiro ${status.toLowerCase()} · ${escapeHtml(formatDemoDate(payment.date))}</small>${payment.type && payment.reference ? `<small>${escapeHtml(payment.type)} · ${escapeHtml(payment.reference)}</small>` : ""}</span>
+        <strong class="row-value">${escapeHtml(payment.amount)}</strong>
+      </div>
+      ${payment.status === "confirmed" ? `
+        <div class="row-actions">
+          ${teacherPaymentButton(canUndo ? "Desfazer" : "Estornar", canUndo ? "dinheiro-desfazer" : "dinheiro-estornar", "button button--small button--quiet", `data-teacher-cash-correction="${canUndo ? "undo" : "reverse"}" data-cash-id="${escapeHtml(payment.id)}"`)}
+        </div>
+        <p class="visually-hidden" role="status" aria-live="polite"></p>
+      ` : ""}
+    </article>
+  `;
+}
+
+function teacherCashStudentLabel(student) {
+  return `${student.name} · ${student.grade}`;
+}
+
+function normalizeTeacherCashSearch(value) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
+}
+
+function renderTeacherCashOptions(query = "") {
+  const normalized = normalizeTeacherCashSearch(query);
+  return demoRoster
+    .map((student, index) => ({ student, index }))
+    .filter(({ student }) => student.teacherAccount === activeDemoAccount && normalizeTeacherCashSearch(teacherCashStudentLabel(student)).includes(normalized))
+    .map(({ student, index }) => `<button type="button" class="teacher-cash-option" role="option" aria-selected="false" id="teacher-cash-option-${index}" data-teacher-cash-student-index="${index}">${escapeHtml(teacherCashStudentLabel(student))}</button>`)
+    .join("") || '<span class="field-help">Nenhum aluno encontrado na sua turma.</span>';
+}
+
+function updateTeacherCashOptions(input) {
+  const options = document.querySelector("#teacher-cash-students");
+  if (!options) return;
+  options.innerHTML = renderTeacherCashOptions(input.value);
+  options.hidden = false;
+  input.setAttribute("aria-expanded", "true");
+  input.removeAttribute("aria-activedescendant");
+}
+
+function chooseTeacherCashStudent(input, index) {
+  const student = demoRoster[index];
+  if (!student || student.teacherAccount !== activeDemoAccount) return;
+  input.value = teacherCashStudentLabel(student);
+  input.dataset.selectedStudent = String(index);
+  input.setAttribute("aria-expanded", "false");
+  input.removeAttribute("aria-activedescendant");
+  document.querySelector("#teacher-cash-students").hidden = true;
+  document.querySelector("#teacher-cash-selection").textContent = `Selecionado: ${teacherCashStudentLabel(student)}`;
+  input.focus();
+}
+
+function refreshTeacherCashHistory() {
+  const history = document.querySelector("#teacher-cash-history");
+  if (history && activeRole === "professor") history.innerHTML = renderTeacherCashHistory();
+}
+
+function scheduleTeacherCashExpiry(payment) {
+  window.setTimeout(() => {
+    const row = document.querySelector(`[data-teacher-cash-entry="${payment.id}"]`);
+    if (!row || payment.status !== "confirmed" || payment.professorAccount !== activeDemoAccount) return;
+    if (screenContent.querySelector('[data-professor-payment-action][aria-busy="true"], [data-professor-payment-action][data-action-state="success"]')) {
+      scheduleTeacherCashExpiry(payment);
+      return;
+    }
+    const hadFocus = row.contains(document.activeElement);
+    const hadError = Boolean(row.querySelector('[role="alert"]:not(:empty)'));
+    if (hadError) {
+      showToast("O prazo para desfazer terminou. Use Estornar.", "error");
+    }
+    row.outerHTML = renderTeacherCashEntry(payment);
+    const updatedRow = document.querySelector(`[data-teacher-cash-entry="${payment.id}"]`);
+    if (hadError) updatedRow.querySelector('[role="alert"]').textContent = "Não foi possível desfazer. Prazo encerrado; use Estornar.";
+    if (hadFocus) updatedRow.querySelector("button").focus();
+  }, Math.max(100, payment.undoUntil - Date.now()));
 }
 
 function renderStudentCashHistory() {
@@ -709,7 +874,9 @@ function renderTutorialStep() {
   document.querySelector("#tutorial-title").textContent = `Tutorial ${profile.label}`;
   document.querySelector("#tutorial-illustration").innerHTML = tutorialIllustrations[tutorialStepIndex % tutorialIllustrations.length];
   document.querySelector("#tutorial-step-title").textContent = step[1];
-  document.querySelector("#tutorial-copy").textContent = step[2];
+  document.querySelector("#tutorial-copy").textContent = step[2] + (tutorialStepIndex === 0
+    ? " O menu agrupa as opções disponíveis para sua conta. No painel da conta ficam ajuda, ações simuladas do app e saída; sete toques na versão revelam diagnósticos da sessão."
+    : "");
   document.querySelector("[data-tutorial-back]").disabled = tutorialStepIndex === 0;
   document.querySelector("[data-tutorial-next]").textContent = tutorialStepIndex === steps.length - 1 ? "Concluir" : "Próximo";
 }
@@ -946,7 +1113,7 @@ const screens = {
   },
 
   "student-payments"() {
-    const lastCashPayment = [...cashPayments].reverse().find((payment) => payment.account === activeDemoAccount);
+    const lastCashPayment = [...cashPayments].reverse().find((payment) => payment.account === activeDemoAccount && !["undone", "reversed"].includes(payment.status));
     const receiptAlreadySent = receiptPayments.some((payment) => payment.account === activeDemoAccount);
     const cashResult = lastCashPayment
       ? lastCashPayment.status === "pending"
@@ -1031,18 +1198,21 @@ const screens = {
   },
 
   "student-grades"() {
+    const profile = demoProfiles[activeDemoAccount];
+    const student = demoRoster.find((item) => item.account === activeDemoAccount);
+    const history = student ? renderGradeHistory(student) : `<div class="timeline-item"><span class="timeline-dot"></span><div><strong>Faixa registrada</strong><small>Data: — · Responsável: professor</small></div></div>`;
     return `
       ${heading("VISÃO DO ALUNO", "Minhas graduações", "Histórico manual registrado pelo professor, em ordem cronológica.")}
       <div class="content-grid">
         ${panel("Linha do tempo", `
           <div class="timeline">
             <div class="timeline-item"><span class="timeline-dot"></span><div><strong>Início dos treinos</strong><small>Data e professor: —</small></div></div>
-            <div class="timeline-item"><span class="timeline-dot"></span><div><strong>Faixa registrada</strong><small>Data: — · Responsável: professor</small></div></div>
+            ${history}
             <div class="timeline-item"><span class="timeline-dot"></span><div><strong>Grau registrado</strong><small>Data: — · Responsável: professor</small></div></div>
           </div>
         `)}
         ${panel("Faixa atual", `
-          <div class="belt-display"><span class="belt-swatch"></span><span class="belt-copy"><strong>Faixa conforme cadastro</strong><small>Graus exibidos no histórico</small></span></div>
+          <div class="belt-display belt-display--rank">${gradeVisual(profile.grade || "")}<span class="belt-copy"><strong>${escapeHtml(profile.grade || "Faixa conforme cadastro")}</strong><small>Graus exibidos no histórico</small></span></div>
           <p class="field-help" style="margin-top:12px">Não há contagem de presença nem previsão automática de graduação.</p>
         `, "panel-card--highlight")}
       </div>
@@ -1095,17 +1265,47 @@ const screens = {
         ${studentEntry("ALUNO FICTÍCIO 01", "ATIVO", "avatar-masculino.svg", "badge--green")}
         ${studentEntry("ALUNO FICTÍCIO 02", "SEM LOGIN", "avatar-feminino.svg", "badge--blue")}
         ${studentEntry("ALUNO FICTÍCIO 03", "TRANCADO", "avatar-masculino.svg", "badge--amber")}
+        ${demoRoster.map((student, index) => student.demoCreated && student.teacherAccount === activeDemoAccount
+          ? studentEntry(student.name, "SEM LOGIN", "avatar-masculino.svg", "badge--blue", index) : "").join("")}
       `)}
     `;
   },
 
   "student-detail"() {
+    const ownStudents = demoRoster.filter((student) => student.teacherAccount === activeDemoAccount);
+    if (!selectedGradeStudent || !ownStudents.includes(selectedGradeStudent)) selectedGradeStudent = ownStudents[0] || null;
+    const student = selectedGradeStudent;
+    const beltIndex = student ? gradeBeltIndex(student.grade) : -1;
+    const currentDegree = student ? gradeDegree(student.grade) : -1;
+    const currentValid = beltDegrees(beltIndex).includes(currentDegree);
+    const availableBelts = currentValid ? demoBelts.filter((belt, index) =>
+      index > beltIndex || (index === beltIndex && beltDegrees(index).some((degree) => degree > currentDegree))) : [];
+    const history = student ? gradeHistoryEntries(student) : [];
+    const latestGrade = history.length ? history[history.length - 1] : null;
+    const gradeForm = student ? `
+      <div class="field"><label for="grade-student">Aluno da sua turma</label><select id="grade-student">${ownStudents.map((item) => `<option value="${demoRoster.indexOf(item)}" ${item === student ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select></div>
+      <div class="timeline">${renderGradeHistory(student)}</div>
+      ${!currentValid ? `<p class="notice notice--info">Graduação atual não reconhecida; confira o cadastro antes de graduar.</p>` : availableBelts.length ? `
+        <form data-register-student-grade>
+          <div class="form-grid">
+            <div class="field"><label for="grade-belt">Nova faixa</label><select id="grade-belt" required><option value="">Selecione</option>${availableBelts.map((belt) => `<option value="${escapeHtml(belt)}">${escapeHtml(belt)}</option>`).join("")}</select></div>
+            <div class="field"><label for="grade-degree">Novo grau</label><select id="grade-degree" required disabled><option value="">Selecione a faixa</option></select></div>
+            <div class="field"><label for="grade-date">Data da graduação</label><input id="grade-date" type="date" required></div>
+          </div>
+          <div class="form-actions"><div class="student-action-control">
+            <button class="button button--primary button--action" type="submit" data-grade-action><span data-action-label>Graduar aluno</span></button>
+            <p class="login-action-error student-action-error" role="alert"></p>
+          </div></div>
+          <p class="visually-hidden" role="status" aria-live="polite"></p>
+        </form>
+      ` : `<p class="field-help">Não há graduação superior na lista.</p>`}
+    ` : emptyState("Nenhum aluno da turma", "Alunos vinculados ao Professor aparecerão aqui.");
     return `
       ${heading("VISÃO DO PROFESSOR", "Ficha do aluno", "Resumo e registros do aluno fictício; notas privadas aparecem apenas nesta visualização de professor.")}
       ${panel("Perfil", `
         <div class="profile-summary">
-          ${personRow("ALUNO FICTÍCIO 01", "Cadastro demonstrativo · perfil de aluno")}
-          <div class="belt-display"><span class="belt-swatch belt-swatch--blue"></span><span class="belt-copy"><strong>Faixa conforme cadastro</strong><small>Último registro: —</small></span></div>
+          ${personRow(student ? escapeHtml(student.name) : "Nenhum aluno da turma", "Cadastro demonstrativo · perfil de aluno")}
+          <div class="belt-display belt-display--rank">${student ? gradeVisual(student.grade) : ""}<span class="belt-copy"><strong>${student ? escapeHtml(student.grade) : "Faixa não disponível"}</strong><small>Último registro: ${latestGrade ? escapeHtml(formatDemoDate(latestGrade.date)) : "—"}</small></span></div>
         </div>
       `, "panel-card--highlight")}
       <div class="tab-list" role="tablist" aria-label="Seções da ficha do aluno">
@@ -1120,7 +1320,7 @@ const screens = {
         <p class="panel-copy" style="margin-top:16px">Contato, aniversário e outros dados só aparecem conforme o escopo definido para cada perfil.</p>
       </section>
       <section class="tab-panel panel-card" id="panel-payments" role="tabpanel" aria-labelledby="tab-payments" data-tab-panel="payments" hidden>${listRow("Cobrança", "Vencimento: —", "R$ —", '<span class="badge badge--pending">PENDENTE</span>')}${emptyState("Sem registros adicionais", "O histórico é demonstrativo.")}</section>
-      <section class="tab-panel panel-card" id="panel-grades" role="tabpanel" aria-labelledby="tab-grades" data-tab-panel="grades" hidden><div class="timeline"><div class="timeline-item"><span class="timeline-dot"></span><div><strong>Faixa registrada</strong><small>Data: — · Responsável: professor</small></div></div></div></section>
+      <section class="tab-panel panel-card" id="panel-grades" role="tabpanel" aria-labelledby="tab-grades" data-tab-panel="grades" hidden>${gradeForm}</section>
       <section class="tab-panel panel-card" id="panel-feedback" role="tabpanel" aria-labelledby="tab-feedback" data-tab-panel="feedback" hidden>${emptyState("Nenhum feedback demonstrativo", "Mensagens e metas aparecem conforme o roadmap.")}</section>
       <section class="tab-panel panel-card" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" data-tab-panel="notes" hidden><div class="notice notice--info">Anotações privadas do professor. Não são exibidas ao aluno nem ao instrutor.</div><textarea class="search-input" aria-label="Prévia de anotação privada" placeholder="Campo visual; nada será salvo" style="margin-top:12px"></textarea></section>
     `;
@@ -1128,12 +1328,12 @@ const screens = {
 
   "student-create"() {
     return `
-      ${heading("VISÃO DO PROFESSOR", "Novo aluno e convite", "Campos previstos no roadmap. Este protótipo não envia nem armazena as informações digitadas.")}
+      ${heading("VISÃO DO PROFESSOR", "Novo aluno e convite", "Use somente dados fictícios. Nome e graduação ficam na memória até recarregar; os demais campos são apenas visuais.")}
       <div class="content-grid">
         ${panel("Cadastro", `
-          <form data-demo-form>
+          <form data-create-demo-student>
             <div class="form-grid">
-              ${field("student-name", "Nome", "Nome do aluno")}
+              <div class="field"><label for="student-name">Nome fictício</label><input id="student-name" type="text" placeholder="Nome fictício do aluno" required></div>
               ${field("student-contact", "Contato", "Contato (opcional)")}
               ${field("student-birthday", "Aniversário", "dd/mm/aaaa", "text")}
               <div class="field">
@@ -1144,16 +1344,18 @@ const screens = {
               ${field("student-due", "Dia do vencimento", "—", "number")}
               <div class="field">
                 <label for="student-belt">Faixa</label>
-                <select id="student-belt"><option>Selecione</option><option>Branca</option><option>Azul</option><option>Roxa</option><option>Marrom</option><option>Preta</option></select>
+                <select id="student-belt" required><option value="">Selecione</option>${demoBelts.map((belt) => `<option>${belt}</option>`).join("")}</select>
               </div>
+              <div class="field"><label for="student-degree">Grau atual</label><select id="student-degree" required disabled><option value="">Selecione a faixa</option></select></div>
               <div class="field">
                 <label for="student-access">Acesso</label>
                 <select id="student-access"><option>Convite para conta</option><option>Perfil sem login</option></select>
                 <small class="field-help">Aluno sem telefone pode permanecer gerenciado pelo professor.</small>
               </div>
             </div>
-            <div class="notice notice--info" style="margin-top:16px">Dados fictícios para conferência. Nenhum dado é armazenado sem consentimento; não há campo de responsável por menor.</div>
-            <div class="form-actions"><button class="button button--quiet" type="reset">Limpar campos</button><button class="button button--primary" type="submit">Prévia de cadastro</button></div>
+            <div class="notice notice--info" style="margin-top:16px">O cadastro fictício não cria login nem convite. Contato, aniversário, plano, valor, vencimento e acesso não são salvos.</div>
+            <div class="form-actions"><button class="button button--quiet" type="reset">Limpar campos</button><div class="student-action-control"><button class="button button--primary button--action" type="submit" data-student-create-action><span data-action-label>Cadastrar aluno fictício</span></button><p class="login-action-error student-action-error" role="alert"></p></div></div>
+            <p class="field-help" role="status" aria-live="polite"></p>
           </form>
         `)}
         ${panel("Convite do aluno", `
@@ -1329,12 +1531,14 @@ const screens = {
         `)}
         <div class="stack">
           ${panel("Lançar dinheiro recebido", `
-            <p class="panel-copy">O Professor pode registrar diretamente um recebimento em dinheiro; ele fica confirmado na hora.</p>
+            <p class="panel-copy">O recebimento fica confirmado na hora. Você pode desfazê-lo por 10 segundos no histórico; depois, use Estornar.</p>
             <form data-register-teacher-cash>
               <div class="form-grid">
-                <div class="field"><label for="teacher-cash-student">Aluno da sua turma</label><select id="teacher-cash-student">${demoRoster.filter((student) => student.teacherAccount === activeDemoAccount).map((student) => `<option value="${escapeHtml(student.name)}">${escapeHtml(student.name)}</option>`).join("")}</select></div>
+                <div class="field"><label for="teacher-cash-student">Aluno da sua turma</label><input id="teacher-cash-student" type="text" role="combobox" aria-autocomplete="list" aria-controls="teacher-cash-students" aria-expanded="false" autocomplete="off" aria-describedby="teacher-cash-student-help teacher-cash-selection" required><div class="teacher-cash-options" id="teacher-cash-students" role="listbox" aria-label="Alunos da sua turma" hidden></div><small class="field-help" id="teacher-cash-student-help">Digite o nome e selecione o aluno e sua graduação na lista.</small><small class="field-help teacher-cash-selection" id="teacher-cash-selection" role="status"></small></div>
                 <div class="field"><label for="teacher-cash-amount">Valor recebido</label><input id="teacher-cash-amount" type="number" min="0.01" step="0.01" value="150.00" required></div>
                 <div class="field"><label for="teacher-cash-date">Data de recebimento</label><input id="teacher-cash-date" type="date" value="2026-11-07" required></div>
+                <div class="field"><label for="teacher-cash-type">Tipo da cobrança</label><input id="teacher-cash-type" type="text" required></div>
+                <div class="field"><label for="teacher-cash-reference">Referência</label><input id="teacher-cash-reference" type="text" required></div>
               </div>
               <div class="form-actions"><div class="student-action-control">
                 <button class="button button--primary button--action" type="submit" data-professor-payment-action="dinheiro-lancar"><span data-action-label>Registrar recebido em dinheiro</span></button>
@@ -1550,7 +1754,7 @@ const screens = {
         ${panel("Perfil", personRow(profile.name, profile.label) + `
           <div class="stack" style="margin-top:18px">
             ${listRow("Papel", "Simulado para esta demonstração", "", `<span class="badge">${profile.label.toUpperCase()}</span>`)}
-            ${listRow("Versão do app", "Visualização do protótipo", "", '<span class="badge badge--gold">F1</span>')}
+            ${listRow("Versão do app", "Visualização do protótipo", "", `<span class="badge badge--gold">${APP_VERSION}</span>`)}
           </div>
         `)}
         ${panel("Preferências", `
@@ -1704,6 +1908,7 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
   if (button.disabled) return;
   const label = button.querySelector("[data-action-label]");
   if (!label || !feedback || !announcement) {
+    recordDiagnostic("Erro ao iniciar uma ação");
     console.error("Não foi possível exibir o estado da ação.");
     showToast("Não foi possível iniciar a ação. Tente novamente.", "error");
     return;
@@ -1725,6 +1930,7 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
   try {
     const outcome = await action();
     if (outcome && outcome.errorMessage) {
+      recordDiagnostic("Ação não concluída");
       if (button.isConnected) {
         label.textContent = "Tentar de novo";
         button.setAttribute("aria-label", `Tentar de novo: ${originalText}`);
@@ -1753,6 +1959,7 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
       showToast(successMessage);
     }
   } catch (error) {
+    recordDiagnostic(error instanceof Error && error.message.startsWith("Falha simulada") ? "Erro simulado de ação" : "Erro ao executar uma ação");
     console.error("Falha ao executar a ação:", error);
     if (button.isConnected) {
       label.textContent = "Tentar de novo";
@@ -1826,6 +2033,8 @@ function setTheme() {
 
 renderNavigation();
 renderScreen(new URLSearchParams(window.location.search).has("convite") ? "register" : "login");
+document.querySelector("#app-version").textContent = APP_VERSION;
+document.querySelector("#diagnostics-version").textContent = `Versão do app: ${APP_VERSION}`;
 window.addEventListener("resize", updateToastPosition);
 if (window.ResizeObserver) {
   new ResizeObserver(updateToastPosition).observe(document.querySelector("#mobile-navigation"));
@@ -1834,6 +2043,48 @@ if (window.ResizeObserver) {
 document.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
+
+  if (target.closest("#app-version")) {
+    versionClicks += 1;
+    if (versionClicks >= 7) document.querySelector("#user-diagnostics").hidden = false;
+    return;
+  }
+
+  const panelAction = target.closest("[data-panel-action]");
+  if (panelAction instanceof HTMLButtonElement) {
+    const action = panelAction.dataset.panelAction;
+    const control = panelAction.closest(".user-panel-action");
+    const isUpdate = action === "atualizar";
+    runButtonAction(panelAction, {
+      feedback: control.querySelector('[role="alert"]'),
+      announcement: control.querySelector('[role="status"]'),
+      buttons: [panelAction],
+      loadingText: isUpdate ? "Verificando..." : "Sincronizando...",
+      loadingMessage: isUpdate ? "Verificação simulada em andamento." : "Sincronização simulada em andamento.",
+      successMessage: isUpdate ? "Verificação simulada concluída; nenhum download foi realizado." : "Simulação concluída; nenhum dado foi enviado.",
+      errorMessage: isUpdate ? "Não foi possível verificar. Tente novamente." : "Não foi possível sincronizar. Tente novamente."
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === `painel-${action}`) {
+        throw new Error("Falha simulada de ação do painel.");
+      }
+    });
+    return;
+  }
+
+  const studentOption = target.closest("[data-teacher-cash-student-index]");
+  if (studentOption) {
+    const input = document.querySelector("#teacher-cash-student");
+    if (input) chooseTeacherCashStudent(input, Number(studentOption.dataset.teacherCashStudentIndex));
+    return;
+  }
+  const studentOptions = document.querySelector("#teacher-cash-students");
+  const studentInput = document.querySelector("#teacher-cash-student");
+  if (studentOptions && studentInput && target !== studentInput && !studentOptions.contains(target)) {
+    studentOptions.hidden = true;
+    studentInput.setAttribute("aria-expanded", "false");
+    studentInput.removeAttribute("aria-activedescendant");
+  }
 
   const googleLogin = target.closest('button[data-login-action][type="button"]');
   if (googleLogin instanceof HTMLButtonElement) {
@@ -1891,6 +2142,14 @@ document.addEventListener("click", (event) => {
   const screenButton = target.closest("[data-screen-target]");
   if (screenButton) {
     const screenId = screenButton.dataset.screenTarget;
+    if (screenButton.hasAttribute("data-roster-index")) {
+      const student = demoRoster[Number(screenButton.dataset.rosterIndex)];
+      if (!student || activeRole !== "professor" || student.teacherAccount !== activeDemoAccount) {
+        showToast("Aluno indisponível. Confira sua turma.", "error");
+        return;
+      }
+      selectedGradeStudent = student;
+    }
     if (userPanel.open) closeUserPanel(() => renderScreen(screenId));
     else renderScreen(screenId);
     return;
@@ -2226,6 +2485,48 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const cashCorrection = target.closest("[data-teacher-cash-correction]");
+  if (cashCorrection) {
+    const row = cashCorrection.closest("[data-teacher-cash-entry]");
+    const payment = cashPayments.find((item) => item.id === cashCorrection.dataset.cashId && item.source === "teacher");
+    const isUndo = cashCorrection.dataset.teacherCashCorrection === "undo";
+    const requestedAt = Date.now();
+    const hadFocus = document.activeElement === cashCorrection;
+    const successMessage = isUndo ? "Lançamento desfeito e mantido no histórico." : "Lançamento estornado e mantido no histórico.";
+    runButtonAction(cashCorrection, {
+      feedback: cashCorrection.parentElement.querySelector('[role="alert"]'),
+      announcement: row.querySelector('[role="status"]'),
+      buttons: Array.from(screenContent.querySelectorAll("[data-professor-payment-action]")),
+      loadingText: "Salvando...",
+      loadingMessage: "Registrando correção.",
+      successMessage,
+      errorMessage: "Não foi possível corrigir. Tente novamente.",
+      afterSuccess: () => {
+        refreshTeacherCashHistory();
+        const updatedRow = document.querySelector(`[data-teacher-cash-entry="${payment.id}"]`);
+        if (hadFocus && updatedRow) updatedRow.focus();
+      }
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === `professor-pagamento-dinheiro-${isUndo ? "desfazer" : "estornar"}`) {
+        throw new Error("Falha simulada de correção de pagamento.");
+      }
+      if (!payment || activeRole !== "professor" || payment.professorAccount !== activeDemoAccount || payment.status !== "confirmed") {
+        return { errorMessage: "Lançamento indisponível. Confira sua conta." };
+      }
+      if (isUndo && requestedAt >= payment.undoUntil) {
+        return { errorMessage: "Prazo encerrado. Use Estornar." };
+      }
+      if (!isUndo && requestedAt < payment.undoUntil) {
+        return { errorMessage: "O prazo ainda está aberto. Use Desfazer." };
+      }
+      payment.status = isUndo ? "undone" : "reversed";
+      if (!cashCorrection.isConnected) refreshTeacherCashHistory();
+      showToast(successMessage);
+    });
+    return;
+  }
+
   const paymentAction = target.closest("button[data-professor-payment-action]");
   if (paymentAction && paymentAction.type === "button" && paymentAction.closest(".payment-review-row")) {
     const row = paymentAction.closest(".payment-review-row");
@@ -2438,6 +2739,24 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target instanceof HTMLSelectElement && target.id === "grade-belt") {
+    const form = target.closest("[data-register-student-grade]");
+    const degrees = form.querySelector("#grade-degree");
+    const index = demoBelts.indexOf(target.value);
+    const available = selectedGradeStudent
+      ? beltDegrees(index).filter((degree) => isHigherGrade(selectedGradeStudent.grade, index, degree))
+      : [];
+    degrees.innerHTML = `<option value="">Selecione</option>${available.map((degree) => `<option value="${degree}">${degree} ${degree === 1 ? "grau" : "graus"}</option>`).join("")}`;
+    degrees.disabled = available.length === 0;
+    return;
+  }
+  if (target instanceof HTMLSelectElement && target.id === "student-belt") {
+    const degrees = target.form.querySelector("#student-degree");
+    const available = beltDegrees(demoBelts.indexOf(target.value));
+    degrees.innerHTML = `<option value="">Selecione</option>${available.map((degree) => `<option value="${degree}">${degree} ${degree === 1 ? "grau" : "graus"}</option>`).join("")}`;
+    degrees.disabled = available.length === 0;
+    return;
+  }
   if (!(target instanceof HTMLInputElement)) return;
 
   if (target.matches("[data-receipt-file]") && target.files.length) {
@@ -2459,8 +2778,64 @@ document.addEventListener("change", (event) => {
   }
 });
 
+document.addEventListener("input", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement) || target.id !== "teacher-cash-student") return;
+  delete target.dataset.selectedStudent;
+  document.querySelector("#teacher-cash-selection").textContent = "";
+  updateTeacherCashOptions(target);
+});
+
+document.addEventListener("focusin", (event) => {
+  const target = event.target;
+  if (target instanceof HTMLInputElement && target.id === "teacher-cash-student" && !target.dataset.selectedStudent) {
+    updateTeacherCashOptions(target);
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement) || input.id !== "teacher-cash-student") return;
+  const list = document.querySelector("#teacher-cash-students");
+  if (event.key === "Escape") {
+    list.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+    return;
+  }
+  if (!["ArrowDown", "ArrowUp", "Enter"].includes(event.key)) return;
+  if (list.hidden && event.key !== "Enter") updateTeacherCashOptions(input);
+  const options = Array.from(list.querySelectorAll('[role="option"]'));
+  const current = options.findIndex((option) => option.id === input.getAttribute("aria-activedescendant"));
+  if (event.key === "Enter") {
+    if (current >= 0 && !list.hidden) {
+      event.preventDefault();
+      chooseTeacherCashStudent(input, Number(options[current].dataset.teacherCashStudentIndex));
+    }
+    return;
+  }
+  if (!options.length) return;
+  event.preventDefault();
+  const next = event.key === "ArrowDown" ? (current + 1) % options.length : (current <= 0 ? options.length - 1 : current - 1);
+  options.forEach((option, index) => option.setAttribute("aria-selected", String(index === next)));
+  input.setAttribute("aria-activedescendant", options[next].id);
+  options[next].scrollIntoView({ block: "nearest" });
+});
+
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target instanceof HTMLSelectElement && target.id === "grade-student") {
+    const student = demoRoster[Number(target.value)];
+    if (!student || activeRole !== "professor" || student.teacherAccount !== activeDemoAccount) {
+      showToast("Aluno indisponível. Confira sua turma.", "error");
+      return;
+    }
+    selectedGradeStudent = student;
+    renderScreen("student-detail");
+    screenContent.querySelector('[data-tab="grades"]').click();
+    screenContent.querySelector("#grade-student").focus();
+    return;
+  }
   if (target instanceof HTMLSelectElement && target.id === "invite-link-type") {
     const recipient = screenContent.querySelector("#invite-link-recipient");
     if (recipient) recipient.innerHTML = renderDemoInviteRecipients(target.value);
@@ -2610,44 +2985,152 @@ document.addEventListener("submit", (event) => {
   });
 });
 
+document.addEventListener("reset", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-create-demo-student]")) return;
+  const degree = event.target.querySelector("#student-degree");
+  degree.innerHTML = '<option value="">Selecione a faixa</option>';
+  degree.disabled = true;
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-create-demo-student]")) return;
+  event.preventDefault();
+  const form = event.target;
+  const button = form.querySelector("[data-student-create-action]");
+  if (button.disabled) return;
+  const account = activeDemoAccount;
+  const name = form.querySelector("#student-name").value.trim();
+  const belt = form.querySelector("#student-belt").value;
+  const value = form.querySelector("#student-degree").value;
+  const degree = value === "" ? -1 : Number(value);
+  const valid = activeRole === "professor" && Boolean(demoProfiles[account]) && name &&
+    beltDegrees(demoBelts.indexOf(belt)).includes(degree);
+  runButtonAction(button, {
+    feedback: button.parentElement.querySelector('[role="alert"]'),
+    announcement: form.querySelector('[role="status"]'),
+    buttons: Array.from(form.querySelectorAll("button, input, select")),
+    loadingText: "Salvando...",
+    loadingMessage: "Cadastrando aluno fictício.",
+    successMessage: "Aluno fictício cadastrado nesta sessão, sem login.",
+    errorMessage: "Não foi possível cadastrar. Tente novamente.",
+    afterSuccess: () => {
+      renderScreen("student-create");
+      showToast("Aluno fictício cadastrado nesta sessão, sem login.");
+    }
+  }, async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 900));
+    if (new URLSearchParams(window.location.search).get("erro-simulado") === "professor-cadastro-aluno") {
+      throw new Error("Falha simulada de cadastro.");
+    }
+    if (!valid || !button.isConnected || activeRole !== "professor" || activeDemoAccount !== account) {
+      return { errorMessage: "Confira o nome fictício, a faixa e o grau." };
+    }
+    demoRoster.push({ account: null, name, grade: gradeLabel(belt, degree), teacherAccount: account, demoCreated: true });
+  });
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-register-student-grade]")) return;
+  event.preventDefault();
+  const form = event.target;
+  const student = selectedGradeStudent;
+  const professorAccount = activeDemoAccount;
+  const professor = demoProfiles[professorAccount];
+  const belt = form.querySelector("#grade-belt").value;
+  const degreeValue = form.querySelector("#grade-degree").value;
+  const degree = degreeValue === "" ? -1 : Number(degreeValue);
+  const date = form.querySelector("#grade-date").value;
+  const submitButton = form.querySelector("[data-grade-action]");
+  if (submitButton.disabled) return;
+  const requestedIndex = demoBelts.indexOf(belt);
+  const valid = activeRole === "professor" && professor && student && student.teacherAccount === professorAccount &&
+    isHigherGrade(student.grade, requestedIndex, degree) && date;
+  if (valid && !window.confirm(`Graduar ${student.name} para ${gradeLabel(belt, degree)} em ${formatDemoDate(date)}?`)) return;
+  runButtonAction(submitButton, {
+    feedback: submitButton.parentElement.querySelector('[role="alert"]'),
+    announcement: form.querySelector('[role="status"]'),
+    buttons: [submitButton, form.querySelector("#grade-belt"), form.querySelector("#grade-degree"), form.querySelector("#grade-date"), screenContent.querySelector("#grade-student")],
+    loadingText: "Salvando...",
+    loadingMessage: "Registrando graduação.",
+    successMessage: "Graduação registrada no histórico.",
+    errorMessage: "Não foi possível registrar. Tente novamente.",
+    afterSuccess: () => {
+      renderScreen("student-detail");
+      screenContent.querySelector('[data-tab="grades"]').click();
+    }
+  }, async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 900));
+    if (new URLSearchParams(window.location.search).get("erro-simulado") === "professor-graduacao") {
+      throw new Error("Falha simulada de graduação.");
+    }
+    if (!valid || !submitButton.isConnected || activeRole !== "professor" || activeDemoAccount !== professorAccount ||
+        !demoRoster.includes(student) || selectedGradeStudent !== student || student.teacherAccount !== professorAccount ||
+        !isHigherGrade(student.grade, requestedIndex, degree)) {
+      return { errorMessage: "Confira o aluno, a graduação superior e a data." };
+    }
+    const history = demoGradeHistory.get(student) || [];
+    history.push({ belt, degree, date, professor: professor.name });
+    demoGradeHistory.set(student, history);
+    student.grade = gradeLabel(belt, degree);
+    if (student.account && demoProfiles[student.account]) demoProfiles[student.account].grade = student.grade;
+    showToast("Graduação registrada no histórico.");
+  });
+});
+
 document.addEventListener("submit", (event) => {
   if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-register-teacher-cash]")) return;
   event.preventDefault();
   const form = event.target;
-  const studentName = form.querySelector("#teacher-cash-student").value;
+  const studentField = form.querySelector("#teacher-cash-student");
+  const studentInput = studentField.value;
   const amountValue = Number(form.querySelector("#teacher-cash-amount").value);
   const dateValue = form.querySelector("#teacher-cash-date").value;
-  const student = demoRoster.find((item) => item.name === studentName && item.teacherAccount === activeDemoAccount);
+  const typeValue = form.querySelector("#teacher-cash-type").value.trim();
+  const referenceValue = form.querySelector("#teacher-cash-reference").value.trim();
+  const search = normalizeTeacherCashSearch(studentInput);
+  const students = demoRoster.filter((item) => item.teacherAccount === activeDemoAccount &&
+    [item.name, teacherCashStudentLabel(item)].some((value) => normalizeTeacherCashSearch(value) === search));
+  const selected = studentField.dataset.selectedStudent === undefined ? null : demoRoster[Number(studentField.dataset.selectedStudent)];
+  const student = selected && selected.teacherAccount === activeDemoAccount && normalizeTeacherCashSearch(teacherCashStudentLabel(selected)) === search
+    ? selected : students.length === 1 ? students[0] : null;
   const submitButton = form.querySelector('button[type="submit"]');
+  if (submitButton.disabled) return;
+  const valid = activeRole === "professor" && student && Number.isFinite(amountValue) && amountValue > 0 && dateValue && typeValue && referenceValue;
+  const formattedAmount = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(amountValue);
+  if (valid && !window.confirm(`${formattedAmount} para ${student.name} (${student.grade}), ${typeValue} · ${referenceValue}?`)) return;
   runButtonAction(submitButton, {
     feedback: submitButton.parentElement.querySelector('[role="alert"]'),
     announcement: form.querySelector("#teacher-cash-result"),
     buttons: Array.from(screenContent.querySelectorAll("[data-professor-payment-action]")),
     loadingText: "Salvando...",
     loadingMessage: "Registrando recebimento.",
-    successMessage: "Recebimento lançado e confirmado no histórico.",
+    successMessage: "Recebimento lançado. Desfaça em até 10 segundos no histórico.",
     errorMessage: "Não foi possível registrar. Tente novamente."
   }, async () => {
     await new Promise((resolve) => window.setTimeout(resolve, 900));
     if (new URLSearchParams(window.location.search).get("erro-simulado") === "professor-pagamento-dinheiro-lancar") {
       throw new Error("Falha simulada de lançamento em dinheiro.");
     }
-    if (activeRole !== "professor" || !student || student.teacherAccount !== activeDemoAccount || !Number.isFinite(amountValue) || amountValue <= 0 || !dateValue) {
-      return { errorMessage: "Confira o aluno, o valor e a data." };
+    if (!valid || activeRole !== "professor" || student.teacherAccount !== activeDemoAccount) {
+      return { errorMessage: "Confira o aluno da lista, o valor, a data, o tipo e a referência." };
     }
-    cashPayments.push({
+    const payment = {
       id: `cash-${Date.now()}`,
       account: student.account,
       studentName: student.name,
       professorAccount: activeDemoAccount,
-      amount: new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(amountValue),
+      amount: formattedAmount,
       date: dateValue,
+      type: typeValue,
+      reference: referenceValue,
       source: "teacher",
-      status: "confirmed"
-    });
-    const history = document.querySelector("#teacher-cash-history");
-    if (history) history.innerHTML = renderTeacherCashHistory();
-    showToast("Dinheiro recebido lançado como confirmado.");
+      status: "confirmed",
+      undoUntil: Date.now() + 10000
+    };
+    cashPayments.push(payment);
+    refreshTeacherCashHistory();
+    scheduleTeacherCashExpiry(payment);
+    showToast("Recebimento lançado. Desfaça em até 10 segundos no histórico.");
   });
 });
 

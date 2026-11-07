@@ -213,8 +213,8 @@ window.CASOS_ACEITE_F1 = [
     perfil: "Professor",
     regras: "RN06",
     precondicoes: "Aluno e cobrança fictícios ativos, associados ao professor autenticado.",
-    passos: ["Lançar o recebimento em dinheiro.", "Consultar o pagamento e o resumo financeiro."],
-    esperado: "O recebimento fica confirmado na hora e vinculado ao aluno, ao valor, à data e ao Professor que o lançou; não há movimentação de dinheiro pelo app."
+    passos: ["Na simulação, pesquisar um aluno da turma sem acentos e com maiúsculas diferentes; conferir a graduação nas sugestões.", "Informar valor, data, tipo e referência; conferir os dados na confirmação e cancelar uma vez antes de confirmar.", "Desfazer um lançamento em até 10 segundos; em outro, aguardar o prazo e estornar.", "Repetir com ?erro-simulado=professor-pagamento-dinheiro-desfazer e ?erro-simulado=professor-pagamento-dinheiro-estornar; conferir o alerta e a nova tentativa.", "Consultar o pagamento e o resumo financeiro."],
+    esperado: "A simulação identifica o aluno da turma, confirma os dados antes de lançar e mantém os registros desfeitos ou estornados no histórico. O recebimento fica confirmado na hora e vinculado ao aluno, ao valor, à data e ao Professor que o lançou; não há movimentação de dinheiro pelo app."
   },
   {
     id: "F1-PAG-02",
@@ -323,8 +323,8 @@ window.CASOS_ACEITE_F1 = [
     perfil: "Professor",
     regras: "RN15",
     precondicoes: "Aluno fictício vinculado ao professor autenticado.",
-    passos: ["Registrar faixa, grau, data e responsável fictícios.", "Abrir novamente o histórico do aluno."],
-    esperado: "A graduação fica salva com os campos informados e associada ao aluno e professor corretos."
+    passos: ["Na ficha, selecionar um aluno da própria turma e registrar uma graduação superior, por faixa ou grau, com data fictícia após confirmar.", "Reabrir o histórico e conferir a graduação atual, os graus visuais e a ordem cronológica.", "Verificar que graduação igual ou inferior não é aceita e que a vermelha com 10 graus não oferece promoção.", "Repetir com ?erro-simulado=professor-graduacao e conferir o alerta e a nova tentativa."],
+    esperado: "A graduação fica associada ao aluno e Professor corretos, atualiza faixa e grau e aparece no histórico. Na simulação, os dados permanecem somente na memória da página."
   },
   {
     id: "F1-GRAD-02",
