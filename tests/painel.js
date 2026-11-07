@@ -69,7 +69,7 @@ const checks = [
   },
   {
     name: "Cobertura inclui perfis e regras centrais",
-    detail: "A suíte cobre acesso, pagamentos, privacidade, graduações e o instrutor substituto.",
+    detail: "A suíte cobre acesso, pagamentos, privacidade, graduações e o instrutor (aluno com função de apoio).",
     run() {
       const areas = new Set(cases.map((testCase) => testCase.area));
       return areas.has("Autenticação") &&
@@ -79,18 +79,17 @@ const checks = [
         areas.has("Graduações") &&
         areas.has("Interface responsiva") &&
         areas.has("Privacidade e LGPD") &&
-        areas.has("Instrutor substituto") &&
+        areas.has("Instrutor") &&
         areas.has("Segurança e publicação") &&
-        casesF1.length === 42 &&
-        casesF2.length === 1 &&
-        casesF3.length === 2 &&
+        casesF1.length === 50 &&
+        casesF2.length === 3 &&
+        casesF3.length === 1 &&
         cases.some((testCase) => testCase.id === "F1-ACC-06") &&
         cases.some((testCase) => testCase.id === "F1-PRIV-01") &&
         cases.some((testCase) => testCase.id === "F1-PRIV-02") &&
         cases.some((testCase) => testCase.id === "F1-PAG-08") &&
-        cases.filter((testCase) => testCase.area === "Instrutor substituto" && testCase.revisao).length === 5 &&
+        cases.filter((testCase) => testCase.area === "Instrutor" && testCase.revisao).length === 5 &&
         cases.some((testCase) => testCase.id === "F2-INST-01" && testCase.fase === "F2") &&
-        cases.some((testCase) => testCase.id === "F3-PUSH-01") &&
         cases.some((testCase) => testCase.id === "F3-REL-01");
     }
   }
