@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#121316">
+  <title>Plano do projeto | Tatame</title>
+  <link rel="stylesheet" href="plano.css">
+  <script src="plano.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="../README.md" aria-label="Tatame — documentação do projeto">
+        <img src="../assets/logos/tatame-icone-escudo.svg" alt="">
+        <span>TATAME <span class="brand-divider">/</span> PLANO</span>
+      </a>
+      <a class="top-link" href="teste.html">Painel de testes <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">ACOMPANHAMENTO DO PROJETO</p>
+      <h1 id="page-title">Plano de evolução<span>.</span></h1>
+      <p class="intro-copy">Acompanhe o que já foi feito, o que você validou e os próximos passos do Tatame. Os estados são atualizados conforme avançamos juntos.</p>
+    </section>
+
+    <section class="progress-card" aria-labelledby="progress-title">
+      <div class="progress-heading">
+        <div>
+          <p class="eyebrow">VISÃO GERAL</p>
+          <h2 id="progress-title">Progresso do plano</h2>
+        </div>
+        <strong class="progress-percent" id="progress-percent">—</strong>
+      </div>
+      <div class="progress-track" id="progress-track" role="progressbar" aria-label="Itens feitos ou validados" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <span class="progress-segment progress-segment--validated" id="validated-bar"></span>
+        <span class="progress-segment progress-segment--done" id="done-bar"></span>
+      </div>
+      <div class="legend" aria-label="Resumo por estado">
+        <span><i class="legend-dot legend-dot--validated"></i><strong id="validated-count">0</strong> validados</span>
+        <span><i class="legend-dot legend-dot--done"></i><strong id="done-count">0</strong> feitos, aguardando validação</span>
+        <span><i class="legend-dot legend-dot--pending"></i><strong id="pending-count">0</strong> pendentes</span>
+      </div>
+      <p class="progress-note" id="progress-note" aria-live="polite"></p>
+    </section>
+
+    <section class="plan-content" aria-labelledby="tasks-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">ROTEIRO COMPLETO</p>
+          <h2 id="tasks-title">Etapas e tarefas</h2>
+        </div>
+        <div class="filters" role="group" aria-label="Filtrar tarefas por estado">
+          <button class="filter-button is-active" type="button" data-filter="todos" aria-pressed="true">Todos</button>
+          <button class="filter-button" type="button" data-filter="pendente" aria-pressed="false">Pendentes</button>
+          <button class="filter-button" type="button" data-filter="feito" aria-pressed="false">Feitos</button>
+          <button class="filter-button" type="button" data-filter="validado" aria-pressed="false">Validados</button>
+        </div>
+      </div>
+      <p class="section-description">Os estados refletem o plano mantido no README: [ ] pendente, [x] feito e aguardando sua validação, [v] validado por você.</p>
+      <div class="phase-list" id="phase-list" aria-live="polite"></div>
+    </section>
+
+    <footer class="footer">
+      <span>Um lote por vez · sem commit ou push sem sua autorização</span>
+      <a href="../README.md">Abrir plano no README <span aria-hidden="true">↗</span></a>
+    </footer>
+  </main>
+</body>
+</html>

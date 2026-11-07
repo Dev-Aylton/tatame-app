@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#121316">
+  <title>Testes | Tatame</title>
+  <link rel="stylesheet" href="painel.css">
+  <script src="casos-f1.js" defer></script>
+  <script src="casos-f2.js" defer></script>
+  <script src="casos-f3.js" defer></script>
+  <script src="painel.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="../README.md" aria-label="Tatame — painel de qualidade e documentação do projeto">
+        <img class="brand-logo" src="../assets/logos/tatame-icone-escudo.svg" alt="Símbolo Escudo do Tatame">
+        <span class="brand-divider" aria-hidden="true">/</span>
+        <span>QUALIDADE</span>
+      </a>
+      <div class="topbar-actions">
+        <a class="plan-link" href="plano.html">Plano do projeto</a>
+        <span class="build-label"><span class="status-dot"></span> AMBIENTE LOCAL</span>
+      </div>
+    </header>
+
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">ACOMPANHAMENTO DO PROJETO</p>
+      <h1 id="page-title">Painel de testes<span>.</span></h1>
+      <p class="intro-copy">Acompanhe as verificações executadas e o que ainda precisa ser validado antes de avançar.</p>
+    </section>
+
+    <section class="summary-grid" aria-label="Resumo dos testes">
+      <article class="summary-card">
+        <span class="summary-label">CASOS DE ACEITE</span>
+        <strong class="summary-value" id="product-count">—</strong>
+        <span class="summary-note">especificados; aguardam execução</span>
+      </article>
+      <article class="summary-card">
+        <span class="summary-label">CASOS EXECUTADOS</span>
+        <strong class="summary-value" id="executed-count">0</strong>
+        <span class="summary-note" id="executed-note">nenhum executado; app ainda não implementado</span>
+      </article>
+      <article class="summary-card summary-card--state">
+        <span class="summary-label">INTEGRIDADE DO PAINEL</span>
+        <strong class="summary-value" id="panel-count">—</strong>
+        <span class="summary-note" id="panel-note">verificações ainda não executadas</span>
+      </article>
+    </section>
+
+    <section class="content-card" aria-labelledby="suite-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">EXECUÇÃO DISPONÍVEL</p>
+          <h2 id="suite-title">Integridade das especificações</h2>
+        </div>
+        <button class="run-button" id="run-tests" type="button">
+          <span aria-hidden="true">▶</span> Executar verificações
+        </button>
+      </div>
+      <p class="section-description">Estas verificações conferem a estrutura do catálogo de aceite. Não executam nem aprovam funcionalidades do aplicativo.</p>
+      <div class="results" id="results" aria-live="polite">
+        <div class="empty-state" id="empty-state">
+          <span class="empty-icon" aria-hidden="true">○</span>
+          <div>
+            <strong>Aguardando execução</strong>
+            <p>Execute as verificações do painel para ver os resultados aqui.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-card roadmap-card" aria-labelledby="coverage-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">TEST-FIRST · FASE 1</p>
+          <h2 id="coverage-title">Casos de aceite</h2>
+        </div>
+        <span class="pending-badge" id="case-status"><span aria-hidden="true">○</span> AGUARDAM IMPLEMENTAÇÃO</span>
+      </div>
+      <p class="section-description">Cada caso define perfil, pré-condições, passos e resultado esperado. Os casos marcados para revisão são propostas: precisam da sua validação antes de virarem critérios finais. Casos especificados não significam aprovação do app.</p>
+      <div class="case-list" id="case-list" aria-live="polite">
+        <p class="case-loading">Carregando os casos de aceite...</p>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>Sem dados reais. Sem aprovação presumida.</span>
+      <a href="../README.md">Abrir plano do projeto <span aria-hidden="true">↗</span></a>
+    </footer>
+  </main>
+</body>
+</html>
