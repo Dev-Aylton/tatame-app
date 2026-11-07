@@ -29,3 +29,11 @@ Projeto: PWA de gestão de academia de jiu-jitsu (nome Tatame). Interface e comm
 - O plano de trabalho fica no final do README. Cada item usa exatamente um destes estados: `[ ]` a fazer; `[x]` feito, aguardando validação do usuário; `[v]` validado pelo usuário. Ao final de cada tarefa, atualizar o estado do que foi feito e descrever o que falta. Se surgir trabalho necessário que ainda não esteja listado, acrescentá-lo ao plano sem apagar o histórico. O assistente não marca `[v]` por conta própria.
 - Um lote só avança depois que sua implementação e todos os testes previstos passam e o usuário valida o resultado. A conclusão do projeto exige todos os lotes validados, a suíte de regressão aprovada e o app funcional de ponta a ponta. Não fazer commit nem push sem autorização explícita. Mesmo com autorização, push só pode ocorrer após todos os testes válidos e o app 100% funcional.
 - Atualize os tutoriais por tipo de conta sempre que surgir funcionalidade nova.
+
+## Regras acrescentadas em 07/11/2026
+
+1. **Push e testes:** a exigência de "testes válidos" vale para MERGE na main e para publicação do site, NÃO para push da branch de trabalho (feat/telas-iniciais ou dev). Quando o Aylton autorizar explicitamente commit e push da branch de trabalho em um prompt, o Copilot deve fazê-los, sem --force, sem tocar na main, sem Co-authored-by e sem menção a IA. Push na main e merge continuam proibidos sem autorização explícita.
+
+2. **Botões de ação** (entrar, enviar, baixar, importar, salvar, confirmar etc.): todo botão de ação deve ter estados visíveis e acessíveis: normal, pressionado, foco, desabilitado, carregando (ex.: "Enviando..."), sucesso e erro. O estado fica DENTRO do botão; erro aparece só quando ocorre, com explicação simples e o que fazer, perto do botão, com role="alert". Bloqueio contra toque duplo, nunca só cor. Para importar e baixar, cobrir também arquivo inválido, arquivo grande demais e cancelado. Usar o padrão existente (runButtonAction), sem criar outro.
+
+3. **Conferência visual:** em toda alteração de interface, conferir que nada se sobreponha indevidamente, que textos não fiquem quebrados ou cortados e que itens não fiquem desalinhados, em 360, 390, 430 e 768 px, nos temas claro e escuro, antes do resumo final. Se não conseguir conferir alguma largura, informar.
