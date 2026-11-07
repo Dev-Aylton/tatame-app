@@ -18,6 +18,8 @@ window.PLANO_TATAME = [
       ["validado", "Criar dois avatares SVG genéricos (masculino e feminino), com silhuetas definidas e rostos menos arredondados. Aprovados pelo usuário."],
       ["validado", "Ajustar o ícone Escudo: insígnia redonda, T redesenhado e faixa preta com ponteira vermelha e três graus brancos. Correção solicitada aplicada; ícone aprovado pelo usuário."],
       ["pendente", "Preparar o ícone de instalação do iPhone nos formatos e dimensões exigidos pelo PWA e conferir sua leitura na tela inicial."],
+      ["pendente", "Aprimorar navegação, painel da conta e apresentação instalada no iPhone. Interface ampliada, paletas dos dois temas aplicadas e logo existente configurado; faltam ícones 180/192 e versão maskable, testes responsivos e validação no iPhone e pelo usuário."],
+      ["pendente", "Aplicar estados e mensagens acessíveis aos botões de ação. Padrão reutilizável aplicado aos dois botões de login simulado; faltam os demais controles listados no README e a validação pelo usuário."],
       ["validado", "Validar os dois avatares placeholder. Aprovados pelo usuário."],
       ["validado", "Exigir testes visuais e funcionais de todas as telas em diferentes tamanhos de viewport a cada lote, incluindo larguras de referência, limites dos breakpoints, retrato/paisagem, altura curta, zoom/texto aumentado, sobreposições, recortes e modais. Critério obrigatório definido pelo usuário; os testes de cada lote devem registrar e passar por essas verificações."],
       ["validado", "Exigir conformidade com a LGPD e confirmar com o usuário informações e decisões sobre dados pessoais, finalidades, hipóteses legais, consentimento, retenção, compartilhamento, direitos dos titulares e declarações da política antes de implementá-las."],

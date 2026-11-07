@@ -150,7 +150,7 @@ const linkCodeAttempts = new Map();
 let currentTeacherLinkPreview = null;
 const tutorialStepsByRole = {
   adm: [
-    ["admin-home", "Painel do Adm", "Acompanhe os dados administrativos fictícios e os avisos gerais."],
+    ["admin-home", "Painel do Adm", "Acompanhe os dados administrativos fictícios e os avisos gerais. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
     ["teacher-invites", "Professores convidados", "Convide professores. Só o Adm define quem será Professor."],
     ["role-management", "Papéis e academia", "Defina o papel de Professor, vincule-o a uma academia e, quando necessário, gradue um Instrutor a Professor."],
     ["academy", "Academia", "Consulte o quadro da equipe e os horários publicados da academia."],
@@ -158,7 +158,7 @@ const tutorialStepsByRole = {
     ["privacy", "Privacidade", "Consulte os avisos de privacidade e o estado do conteúdo pendente."]
   ],
   professor: [
-    ["teacher-home", "Painel do Professor", "Veja os indicadores, avisos e atalhos da sua turma."],
+    ["teacher-home", "Painel do Professor", "Veja os indicadores, avisos e atalhos da sua turma. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
     ["students", "Alunos", "Consulte somente os alunos da sua turma."],
     ["student-detail", "Ficha do aluno", "Veja perfil, pagamentos, graduações e notas privadas, que não são compartilhadas com o Instrutor."],
     ["student-create", "Novo aluno", "Cadastre um aluno fictício e prepare o convite de acesso."],
@@ -174,7 +174,7 @@ const tutorialStepsByRole = {
     ["privacy", "Privacidade", "Leia os avisos de privacidade e o estado do conteúdo pendente."]
   ],
   instructor: [
-    ["student-home", "Início pessoal", "Consulte seu perfil e seus próprios avisos, separados das informações dos alunos da turma."],
+    ["student-home", "Início pessoal", "Consulte seu perfil e seus próprios avisos, separados das informações dos alunos da turma. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
     ["student-payments", "Meus pagamentos", "Consulte somente suas cobranças e seus próprios pagamentos. Nunca verá pagamentos de outros alunos."],
     ["student-grades", "Minhas graduações", "Acompanhe sua própria faixa e seu histórico de graduações."],
     ["instructor-class", "Aula delegada", "Veja nome e graduação atual da turma e a aula que o Professor decidiu compartilhar, ou “Treino livre”. Registre “Segui” ou “Não segui”; pagamentos de outros alunos e notas privadas não aparecem."],
@@ -184,7 +184,7 @@ const tutorialStepsByRole = {
     ["privacy", "Privacidade", "Consulte os avisos de privacidade."]
   ],
   student: [
-    ["student-home", "Início", "Consulte seu perfil, o status da mensalidade e atalhos pessoais."],
+    ["student-home", "Início", "Consulte seu perfil, o status da mensalidade e atalhos pessoais. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
     ["student-link", "Meu vínculo", "Veja seu Professor e academia, troque de Professor por código e acompanhe pedidos pendentes."],
     ["student-payments", "Meus pagamentos", "Consulte suas cobranças, envie comprovante ou informe um pagamento em dinheiro, que fica pendente até a confirmação do Professor."],
     ["student-grades", "Minhas graduações", "Acompanhe sua faixa e seu histórico de graduações."],
@@ -195,7 +195,7 @@ const tutorialStepsByRole = {
     ["privacy", "Privacidade", "Consulte os avisos de privacidade."]
   ],
   "student-unregistered": [
-    ["link-teacher", "Vincular a um Professor", "Informe o código de seis caracteres, confira somente o nome do Professor e da academia e envie o pedido. O vínculo depende da aprovação."]
+    ["link-teacher", "Vincular a um Professor", "Informe o código de seis caracteres, confira somente o nome do Professor e da academia e envie o pedido. O vínculo depende da aprovação. Abra a conta para rever o tutorial ou sair."]
   ]
 };
 const tutorialIllustrations = [
@@ -223,6 +223,51 @@ const tutorialDialog = document.querySelector("#tutorial-modal");
 const userPanel = document.querySelector("#user-panel");
 let toastTimeout;
 
+const navigationIconPaths = {
+  home: '<path d="M3 11 12 4l9 7M5 10v10h14V10M9 20v-6h6v6"/>',
+  login: '<path d="M10 4H5v16h5M13 8l4 4-4 4M8 12h9"/>',
+  invite: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>',
+  link: '<path d="M10 13a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-2 2M14 11a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l2-2"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  people: '<circle cx="9" cy="8" r="3"/><path d="M3 19a6 6 0 0 1 12 0M16 5a3 3 0 0 1 0 6M17 14a5 5 0 0 1 4 5"/>',
+  profile: '<circle cx="12" cy="8" r="3"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+  personAdd: '<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M18 10v6M15 13h6"/>',
+  payment: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
+  grade: '<path d="M3 9h18v6H3zM15 9v6M17 11v2M19 11v2"/>',
+  message: '<path d="M4 5h16v12H9l-5 3V5Z"/><path d="M8 9h8M8 13h5"/>',
+  shield: '<path d="M12 3 19 6v5c0 4.5-2.7 7.7-7 10-4.3-2.3-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
+  upload: '<path d="M12 16V4M8 8l4-4 4 4M4 15v5h16v-5"/>',
+  actions: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>',
+  lesson: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  academy: '<path d="M3 20h18M5 20V8l7-4 7 4v12M9 20v-6h6v6M9 9h.01M15 9h.01"/>',
+  settings: '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/>'
+};
+const navigationIconByScreen = {
+  login: "login", register: "invite", "link-teacher": "link", "no-access": "clock",
+  "instructor-invite": "invite", "student-home": "home", "student-link": "link",
+  "student-payments": "payment", "student-grades": "grade", "student-chat": "message",
+  "teacher-home": "home", students: "people", "student-detail": "profile",
+  "student-create": "personAdd", "teacher-code": "link", "role-management": "shield",
+  "pix-import": "upload", "payment-review": "payment", overdue: "clock",
+  "quick-actions": "actions", "teacher-chat": "message", "instructor-class": "lesson",
+  "instructor-chat": "message", "admin-home": "home", "teacher-invites": "people",
+  academy: "academy", "user-settings": "settings", privacy: "shield"
+};
+const mobileNavigationLabels = {
+  login: "Entrar", register: "Cadastro", "link-teacher": "Vincular",
+  "student-home": "Início", "student-link": "Vínculo", "student-payments": "Pagamentos",
+  "student-grades": "Graduações", "teacher-home": "Início", students: "Alunos",
+  "student-detail": "Ficha", "student-create": "Novo aluno", "instructor-class": "Aula",
+  "admin-home": "Início", "teacher-invites": "Convites", "role-management": "Papéis",
+  academy: "Academia"
+};
+
+function navigationIcon(id) {
+  const path = navigationIconPaths[navigationIconByScreen[id]];
+  if (!path) throw new Error(`Ícone de navegação ausente: ${id}`);
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+}
+
 function renderNavigation() {
   const visibleGroups = activeRole
     ? navigationGroups.filter((group) => group.roles.includes(activeRole))
@@ -230,9 +275,9 @@ function renderNavigation() {
   navigation.innerHTML = visibleGroups.map((group) => `
     <section class="nav-group" aria-label="${group.title}">
       <h2 class="nav-group-title">${group.title}</h2>
-      ${group.items.filter(([id]) => canViewScreen(id)).map(([id, title, icon]) => `
+      ${group.items.filter(([id]) => canViewScreen(id)).map(([id, title]) => `
         <button class="nav-item" type="button" data-screen-target="${id}">
-          <span class="nav-icon" aria-hidden="true">${icon}</span>
+          <span class="nav-icon">${navigationIcon(id)}</span>
           <span>${title}</span>
         </button>
       `).join("")}
@@ -247,10 +292,13 @@ function renderMobileNavigation() {
   const items = activeRole
     ? (roleScreens[activeRole] || []).filter((id) => canViewScreen(id)).slice(0, 4)
     : ["login", "register", "link-teacher"];
+  mobileNavigation.style.setProperty("--mobile-nav-items", items.length);
   mobileNavigation.innerHTML = items.map((id) => {
     const info = screenInfo[id] || { title: id, group: "" };
-    return `<button type="button" data-screen-target="${id}"><span aria-hidden="true">⌁</span><span>${info.title}</span></button>`;
+    const label = mobileNavigationLabels[id] || info.title;
+    return `<button type="button" data-screen-target="${id}" aria-label="${info.title}"><span class="mobile-nav-icon">${navigationIcon(id)}</span><span class="mobile-nav-label">${label}</span></button>`;
   }).join("");
+  updateToastPosition();
 }
 
 function canViewScreen(id) {
@@ -282,6 +330,7 @@ function startDemoRole(account) {
       !link.hasAttribute("data-open-tutorial") &&
       !link.hasAttribute("data-logout-role");
   });
+  document.querySelector(".user-panel-links[aria-label='Navegação da conta']").hidden = activeRole === "student-unregistered";
   renderNavigation();
   renderScreen(profile.start);
   maybeOpenFirstTutorial(account);
@@ -300,6 +349,7 @@ function endDemoRole() {
   document.querySelectorAll(".user-panel-link").forEach((link) => {
     link.hidden = false;
   });
+  document.querySelector(".user-panel-links[aria-label='Navegação da conta']").hidden = false;
   userPanel.close();
   renderNavigation();
   renderScreen("login");
@@ -701,15 +751,21 @@ const screens = {
           <p class="eyebrow">BEM-VINDO AO TATAME</p>
           <h2>Continuar</h2>
           <p>Use a forma de acesso habilitada para sua conta. Nenhum login é realizado neste protótipo.</p>
-          <button class="button button--primary" type="button" data-demo-action>Continuar com Google</button>
+          <div class="visually-hidden" id="login-action-status" role="status" aria-live="polite" aria-atomic="true"></div>
+          <button class="button button--google button--action" type="button" data-login-action aria-describedby="google-login-error">
+            <img class="google-icon" src="assets/logos/google-g.svg" alt="" aria-hidden="true">
+            <span data-action-label>Fazer login com o Google</span>
+          </button>
+          <div class="login-action-error" id="google-login-error" role="alert" aria-atomic="true"></div>
           <div class="auth-divider">ou entre com e-mail</div>
-          <form data-demo-form>
+          <form data-demo-form data-login-form>
             ${field("login-email", "E-mail", "seu e-mail", "email")}
             <div class="field" style="margin-top:12px">
               <label for="login-password">Senha</label>
               <input id="login-password" name="password" type="password" placeholder="Sua senha">
             </div>
-            <button class="button button--primary" type="submit" style="width:100%;margin-top:14px">Entrar</button>
+            <button class="button button--primary button--action" type="submit" data-login-action aria-describedby="email-login-error" style="width:100%;margin-top:14px"><span data-action-label>Entrar</span></button>
+            <div class="login-action-error" id="email-login-error" role="alert" aria-atomic="true"></div>
           </form>
           <p class="field-help" style="margin:15px 0 0">Ainda não tem conta? A criação começa por um convite.</p>
           ${button("Tenho um código de convite", "link-teacher", "button button--quiet", "↗")}
@@ -740,8 +796,12 @@ const screens = {
             <div class="notice notice--pending" style="margin-top:16px">${privacyPlaceholder}</div>
             <div class="form-actions">
               <button class="button button--quiet" type="button" data-open-privacy>Ver política e termo</button>
-              <button class="button button--primary" type="submit" data-loading-text="Validando…">Validar convite</button>
+              <div class="register-action-control">
+                <button class="button button--primary button--action" type="submit" data-register-action aria-describedby="register-action-error"><span data-action-label>Validar convite</span></button>
+                <div class="login-action-error register-action-error" id="register-action-error" role="alert" aria-atomic="true"></div>
+              </div>
             </div>
+            <div class="visually-hidden" id="register-action-status" role="status" aria-live="polite" aria-atomic="true"></div>
             <p class="field-help" id="invite-validation-result" role="status" aria-live="polite"></p>
           </form>
         `)}
@@ -765,22 +825,24 @@ const screens = {
       ${heading("VÍNCULO", "Vincular a um professor", "Para aluno que já tem conta e ainda não tem vínculo. Conta, nome, faixa e histórico são mantidos.")}
       <div class="content-grid">
         ${panel("Código do professor", `
+          <div class="visually-hidden" id="link-action-status" role="status" aria-live="polite" aria-atomic="true"></div>
           ${request ? `
             <div class="notice notice--pending">Aguardando aprovação do Professor. Sua conta, nome, faixa e histórico permanecem os mesmos.</div>
-            <div class="form-actions"><button class="button button--quiet" type="button" data-cancel-link>Cancelar pedido</button></div>
+            <div class="form-actions"><div class="link-action-control"><button class="button button--quiet button--action" type="button" data-cancel-link data-link-action aria-describedby="cancel-link-error"><span data-action-label>Cancelar pedido</span></button><div class="login-action-error link-action-error" id="cancel-link-error" role="alert" aria-atomic="true"></div></div></div>
           ` : `
             <div class="field">
               <label for="link-code">Código de 6 caracteres</label>
               <input id="link-code" name="link-code" type="text" minlength="6" maxlength="6" pattern="[A-Z0-9]{6}" autocomplete="off" placeholder="Ex.: K7M4PX" aria-describedby="link-code-help link-code-result" required>
               <small class="field-help" id="link-code-help">Use letras maiúsculas e números, exatamente como recebeu do Professor.</small>
             </div>
-            <div class="form-actions"><button class="button button--quiet" type="button" data-check-link-code>Consultar código</button></div>
-            <p class="field-help" id="link-code-result" role="status" aria-live="polite"></p>
+            <div class="form-actions"><div class="link-action-control"><button class="button button--quiet button--action" type="button" data-check-link-code data-link-action aria-describedby="link-code-result"><span data-action-label>Consultar código</span></button><div class="login-action-error link-action-error" id="link-code-result" role="alert" aria-atomic="true"></div></div></div>
             <div class="link-preview" id="link-preview" hidden>
-              <span class="eyebrow">PRÉVIA DO VÍNCULO</span>
-              <strong id="link-preview-professor"></strong>
-              <small id="link-preview-academy"></small>
-              <button class="button button--primary" type="button" data-request-link>Solicitar vínculo</button>
+              <div id="link-preview-details">
+                <span class="eyebrow">PRÉVIA DO VÍNCULO</span>
+                <strong id="link-preview-professor"></strong>
+                <small id="link-preview-academy"></small>
+              </div>
+              <div class="link-action-control"><button class="button button--primary button--action" type="button" data-request-link data-link-action aria-describedby="request-link-error"><span data-action-label>Solicitar vínculo</span></button><div class="login-action-error link-action-error" id="request-link-error" role="alert" aria-atomic="true"></div></div>
             </div>
           `}
         `)}
@@ -1496,18 +1558,26 @@ const screens = {
 };
 
 function closeMobileMenu() {
+  const wasOpen = sidebar.classList.contains("is-open");
+  document.querySelectorAll(".prototype-banner, .app-main, #mobile-navigation").forEach((element) => { element.inert = false; });
   sidebar.classList.remove("is-open");
   sidebarBackdrop.classList.remove("is-visible");
   menuButton.setAttribute("aria-expanded", "false");
+  sidebar.removeAttribute("role");
+  sidebar.removeAttribute("aria-modal");
+  if (wasOpen && menuButton.getClientRects().length) menuButton.focus();
 }
 
 function renderScreen(id) {
   const screen = screens[id];
   if (!screen || !canViewScreen(id)) {
-    showToast("Esta tela não está disponível para o papel desta conta.");
+    showToast("Esta tela não está disponível para o papel desta conta.", "error");
     return;
   }
 
+  if (screenContent.querySelector('[data-login-action][data-action-state="success"]')) {
+    showToast("Simulação concluída. Nenhum login foi realizado.");
+  }
   screenContent.innerHTML = screen();
   if (id === "register") {
     const inviteToken = new URLSearchParams(window.location.search).get("convite");
@@ -1530,7 +1600,7 @@ function renderScreen(id) {
   }
   currentTitle.textContent = screenInfo[id].title;
   document.title = `${screenInfo[id].title} | Tatame`;
-  navigation.querySelectorAll("[data-screen-target]").forEach((item) => {
+  document.querySelectorAll("#screen-navigation [data-screen-target], #mobile-navigation [data-screen-target]").forEach((item) => {
     if (item.dataset.screenTarget === id) {
       item.setAttribute("aria-current", "page");
     } else {
@@ -1539,6 +1609,23 @@ function renderScreen(id) {
   });
   closeMobileMenu();
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function updateUserPanelProfile() {
+  const profile = demoProfiles[activeDemoAccount];
+  document.querySelector("#user-panel-profile-academy").textContent =
+    profile && profile.academyId === demoAcademy.id ? demoAcademy.name : "Sem academia vinculada";
+}
+
+function closeUserPanel(afterClose) {
+  if (!userPanel.open || userPanel.classList.contains("is-closing")) return;
+  userPanel.classList.add("is-closing");
+  const finish = () => {
+    userPanel.classList.remove("is-closing");
+    userPanel.close();
+    if (afterClose) afterClose();
+  };
+  window.setTimeout(finish, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 180);
 }
 
 function parseReceiptMock(file) {
@@ -1582,8 +1669,117 @@ function runLoadingAction(button, complete) {
   }, 900);
 }
 
-function showToast(message) {
+const actionResetTimers = new WeakMap();
+
+async function runButtonAction(button, { feedback, announcement, buttons, loadingText, loadingMessage, successMessage, errorMessage, afterSuccess }, action) {
+  if (button.disabled) return;
+  const label = button.querySelector("[data-action-label]");
+  if (!label || !feedback || !announcement) {
+    console.error("Não foi possível exibir o estado da ação.");
+    showToast("Não foi possível iniciar a ação. Tente novamente.", "error");
+    return;
+  }
+  const originalText = button.dataset.originalLabel || label.textContent;
+  button.dataset.originalLabel = originalText;
+  window.clearTimeout(actionResetTimers.get(button));
+  delete button.dataset.actionState;
+  button.removeAttribute("aria-label");
+  feedback.textContent = "";
+  const disabledStates = buttons.map((item) => item.disabled);
+  const hadFocus = document.activeElement === button;
+  buttons.forEach((item) => { item.disabled = true; });
+  button.setAttribute("aria-busy", "true");
+  label.textContent = loadingText;
+  announcement.textContent = loadingMessage;
+
+  try {
+    const outcome = await action();
+    if (outcome && outcome.errorMessage) {
+      if (button.isConnected) {
+        label.textContent = "Tentar de novo";
+        button.setAttribute("aria-label", `Tentar de novo: ${originalText}`);
+        announcement.textContent = "";
+        feedback.textContent = outcome.errorMessage;
+      } else {
+        showToast(outcome.errorMessage, "error");
+      }
+    } else if (button.isConnected) {
+      button.removeAttribute("aria-busy");
+      button.dataset.actionState = "success";
+      label.textContent = "✓ Concluído";
+      announcement.textContent = successMessage;
+      if (afterSuccess) {
+        await new Promise((resolve) => window.setTimeout(resolve, 2500));
+        if (button.isConnected) afterSuccess();
+        else showToast(successMessage);
+      } else {
+        actionResetTimers.set(button, window.setTimeout(() => {
+          delete button.dataset.actionState;
+          label.textContent = originalText;
+        }, 2500));
+      }
+    } else {
+      showToast(successMessage);
+    }
+  } catch (error) {
+    console.error("Falha ao executar a ação:", error);
+    if (button.isConnected) {
+      label.textContent = "Tentar de novo";
+      button.setAttribute("aria-label", `Tentar de novo: ${originalText}`);
+      announcement.textContent = "";
+      feedback.textContent = errorMessage;
+    } else {
+      showToast(errorMessage, "error");
+    }
+  } finally {
+    buttons.forEach((item, index) => { item.disabled = disabledStates[index]; });
+    button.removeAttribute("aria-busy");
+    if (hadFocus && button.isConnected && document.activeElement === document.body) button.focus();
+  }
+}
+
+function simulateLogin(button) {
+  const card = button.closest(".auth-card");
+  if (!card) {
+    console.error("Área de entrada não encontrada.");
+    showToast("Não foi possível iniciar a ação. Tente novamente.", "error");
+    return;
+  }
+  const feedback = card.querySelector(`#${button.getAttribute("aria-describedby")}`);
+  const announcement = card.querySelector("#login-action-status");
+  const buttons = [...card.querySelectorAll("[data-login-action]")];
+  runButtonAction(button, {
+    feedback,
+    announcement,
+    buttons,
+    loadingText: "Entrando...",
+    loadingMessage: "Simulando entrada. Nenhuma informação será enviada.",
+    successMessage: "Simulação concluída. Nenhum login foi realizado.",
+    errorMessage: "Falha na simulação. Tente novamente."
+  }, () => new Promise((resolve, reject) => {
+    window.setTimeout(() => {
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === "entrada") {
+        reject(new Error("Falha simulada de entrada."));
+      } else {
+        resolve();
+      }
+    }, 900);
+  }));
+}
+
+function updateToastPosition() {
+  const mobileNavigation = document.querySelector("#mobile-navigation");
+  if (mobileNavigation) {
+    toastRegion.style.setProperty("--mobile-navigation-height", `${mobileNavigation.getBoundingClientRect().height}px`);
+  }
+}
+
+function showToast(message, tone = "info") {
+  updateToastPosition();
+  toastRegion.textContent = "";
+  toastRegion.setAttribute("role", tone === "error" ? "alert" : "status");
   toastRegion.textContent = message;
+  toastRegion.classList.toggle("is-error", tone === "error");
   toastRegion.classList.add("is-visible");
   window.clearTimeout(toastTimeout);
   toastTimeout = window.setTimeout(() => {
@@ -1599,10 +1795,25 @@ function setTheme() {
 
 renderNavigation();
 renderScreen(new URLSearchParams(window.location.search).has("convite") ? "register" : "login");
+window.addEventListener("resize", updateToastPosition);
+if (window.ResizeObserver) {
+  new ResizeObserver(updateToastPosition).observe(document.querySelector("#mobile-navigation"));
+}
 
 document.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
+
+  const googleLogin = target.closest('button[data-login-action][type="button"]');
+  if (googleLogin instanceof HTMLButtonElement) {
+    simulateLogin(googleLogin);
+    return;
+  }
+
+  if (target.closest("[data-close-sidebar]")) {
+    closeMobileMenu();
+    return;
+  }
 
   const demoLogin = target.closest("[data-demo-login]");
   if (demoLogin) {
@@ -1611,13 +1822,14 @@ document.addEventListener("click", (event) => {
   }
 
   if (target.closest("[data-logout-role]")) {
-    endDemoRole();
+    if (userPanel.open) closeUserPanel(endDemoRole);
+    else endDemoRole();
     return;
   }
 
   if (target.closest("[data-open-tutorial]")) {
-    userPanel.close();
-    openTutorial(activeDemoAccount);
+    if (userPanel.open) closeUserPanel(() => openTutorial(activeDemoAccount));
+    else openTutorial(activeDemoAccount);
     return;
   }
 
@@ -1647,18 +1859,20 @@ document.addEventListener("click", (event) => {
 
   const screenButton = target.closest("[data-screen-target]");
   if (screenButton) {
-    if (userPanel.open) userPanel.close();
-    renderScreen(screenButton.dataset.screenTarget);
+    const screenId = screenButton.dataset.screenTarget;
+    if (userPanel.open) closeUserPanel(() => renderScreen(screenId));
+    else renderScreen(screenId);
     return;
   }
 
   if (target.closest("[data-open-user-panel]")) {
+    updateUserPanelProfile();
     userPanel.showModal();
     return;
   }
 
   if (target.closest("[data-close-user-panel]")) {
-    userPanel.close();
+    closeUserPanel();
     return;
   }
 
@@ -1695,39 +1909,105 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  if (target.closest("[data-check-link-code]")) {
+  const checkLinkCode = target.closest("[data-check-link-code]");
+  if (checkLinkCode instanceof HTMLButtonElement) {
     const input = document.querySelector("#link-code");
     const result = document.querySelector("#link-code-result");
     const preview = document.querySelector("#link-preview");
-    validateTeacherLinkCode(input.value.trim().toUpperCase(), result, preview);
+    const previewDetails = document.querySelector("#link-preview-details");
+    const code = input.value.trim().toUpperCase();
+    runButtonAction(checkLinkCode, {
+      feedback: result,
+      announcement: screenContent.querySelector("#link-action-status"),
+      buttons: [...screenContent.querySelectorAll("[data-link-action]")],
+      loadingText: "Enviando...",
+      loadingMessage: "Consultando código.",
+      successMessage: "Código consultado. Confira a prévia do vínculo.",
+      errorMessage: "Falha na simulação. Tente novamente."
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      if (["vinculo", "vinculo-consulta"].includes(new URLSearchParams(window.location.search).get("erro-simulado"))) {
+        throw new Error("Falha simulada de vínculo.");
+      }
+      if (!checkLinkCode.isConnected) return { errorMessage: "Consulta cancelada. Tente novamente." };
+      const valid = validateTeacherLinkCode(code, result, previewDetails);
+      preview.hidden = !valid;
+      if (!valid) return { errorMessage: result.textContent };
+    });
     return;
   }
 
-  if (target.closest("[data-request-link]")) {
+  const requestLink = target.closest("[data-request-link]");
+  if (requestLink instanceof HTMLButtonElement) {
     const profile = demoProfiles[activeDemoAccount];
     const result = document.querySelector("#link-code-result");
-    const preview = document.querySelector("#link-preview");
+    const preview = document.querySelector("#link-preview-details");
     const input = document.querySelector("#link-code");
-    if (!profile || !["student", "student-unregistered"].includes(activeRole) ||
-        !validateTeacherLinkCode(input.value.trim().toUpperCase(), result, preview)) {
-      if (result && profile && !["student", "student-unregistered"].includes(activeRole)) {
-        result.textContent = "Não foi possível validar este código. Confira e tente novamente.";
+    const account = activeDemoAccount;
+    const code = input.value.trim().toUpperCase();
+    runButtonAction(requestLink, {
+      feedback: screenContent.querySelector("#request-link-error"),
+      announcement: screenContent.querySelector("#link-action-status"),
+      buttons: [...screenContent.querySelectorAll("[data-link-action]")],
+      loadingText: "Enviando...",
+      loadingMessage: "Enviando pedido de vínculo.",
+      successMessage: "Pedido enviado; aguarde a aprovação do Professor.",
+      errorMessage: "Falha na simulação. Tente novamente.",
+      afterSuccess: () => {
+        renderScreen("link-teacher");
+        showToast("Pedido enviado; aguarde a aprovação do Professor.");
       }
-      return;
-    }
-    linkRequests.push({
-      id: `link-${Date.now()}`,
-      account: activeDemoAccount,
-      studentName: profile.name,
-      professorAccount: currentTeacherLinkPreview,
-      status: "pending"
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      if (["vinculo", "vinculo-solicitacao"].includes(new URLSearchParams(window.location.search).get("erro-simulado"))) {
+        throw new Error("Falha simulada de vínculo.");
+      }
+      if (!requestLink.isConnected || activeDemoAccount !== account) return { errorMessage: "Pedido cancelado. Tente novamente." };
+      if (!profile || !["student", "student-unregistered"].includes(activeRole) ||
+          !validateTeacherLinkCode(code, result, preview)) {
+        if (result && profile && !["student", "student-unregistered"].includes(activeRole)) {
+          result.textContent = "Não foi possível validar este código. Confira e tente novamente.";
+        }
+        return { errorMessage: result.textContent || "Não foi possível solicitar o vínculo. Tente novamente." };
+      }
+      linkRequests.push({
+        id: `link-${Date.now()}`,
+        account: activeDemoAccount,
+        studentName: profile.name,
+        professorAccount: currentTeacherLinkPreview,
+        status: "pending"
+      });
     });
-    renderScreen("link-teacher");
-    showToast("Pedido enviado; aguarde a aprovação do Professor.");
     return;
   }
 
-  if (target.closest("[data-cancel-link]")) {
+  const cancelLink = target.closest("[data-cancel-link]");
+  if (cancelLink instanceof HTMLButtonElement && cancelLink.hasAttribute("data-link-action")) {
+    const request = currentLinkRequest();
+    runButtonAction(cancelLink, {
+      feedback: screenContent.querySelector("#cancel-link-error"),
+      announcement: screenContent.querySelector("#link-action-status"),
+      buttons: [cancelLink],
+      loadingText: "Enviando...",
+      loadingMessage: "Cancelando pedido de vínculo.",
+      successMessage: "Pedido de vínculo cancelado.",
+      errorMessage: "Falha na simulação. Tente novamente.",
+      afterSuccess: () => {
+        renderScreen("link-teacher");
+        showToast("Pedido de vínculo cancelado.");
+      }
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      if (["vinculo", "vinculo-cancelamento"].includes(new URLSearchParams(window.location.search).get("erro-simulado"))) {
+        throw new Error("Falha simulada de vínculo.");
+      }
+      if (!cancelLink.isConnected || currentLinkRequest() !== request) return { errorMessage: "Não foi possível cancelar o pedido. Tente novamente." };
+      if (request) request.status = "cancelled";
+    });
+    return;
+  }
+
+  if (cancelLink) {
     const request = currentLinkRequest();
     if (request) request.status = "cancelled";
     renderScreen(currentTitle.textContent === "Meu vínculo" ? "student-link" : "link-teacher");
@@ -1739,7 +2019,7 @@ document.addEventListener("click", (event) => {
   if (linkDecision) {
     const request = linkRequests.find((item) => item.id === linkDecision.dataset.requestId);
     if (!request || activeRole !== "professor" || request.professorAccount !== activeDemoAccount) {
-      showToast("Este pedido não está disponível para sua conta.");
+      showToast("Este pedido não está disponível para sua conta.", "error");
       return;
     }
     request.status = linkDecision.dataset.linkDecision === "approve" ? "approved" : "rejected";
@@ -1771,7 +2051,7 @@ document.addEventListener("click", (event) => {
 
   if (target.closest("[data-change-teacher-code]")) {
     if (activeRole !== "professor" || !demoProfiles[activeDemoAccount].academyId) {
-      showToast("Não foi possível trocar o código.");
+      showToast("Não foi possível trocar o código.", "error");
       return;
     }
     teacherLinkCodes.set(activeDemoAccount, createUniqueTeacherLinkCode(activeDemoAccount));
@@ -1790,7 +2070,7 @@ document.addEventListener("click", (event) => {
       : activeRole === "professor" && profile &&
         demoRoster.some((student) => student.account === account && student.teacherAccount === activeDemoAccount);
     if (!allowed) {
-      showToast("Esta alteração de papel não está autorizada para sua conta.");
+      showToast("Esta alteração de papel não está autorizada para sua conta.", "error");
       return;
     }
     const record = roleTransition.closest("[data-role-record]");
@@ -1821,13 +2101,13 @@ document.addEventListener("click", (event) => {
 
   if (target.closest("[data-bind-professor-academy]")) {
     if (activeRole !== "adm") {
-      showToast("Somente o Adm pode vincular um Professor à academia.");
+      showToast("Somente o Adm pode vincular um Professor à academia.", "error");
       return;
     }
     const professorAccount = target.closest("[data-bind-professor-academy]").dataset.bindProfessorAcademy;
     const professor = demoProfiles[professorAccount];
     if (!professor || professor.role !== "professor") {
-      showToast("Não foi possível vincular esta conta.");
+      showToast("Não foi possível vincular esta conta.", "error");
       return;
     }
     professor.academyId = demoAcademy.id;
@@ -1848,7 +2128,7 @@ document.addEventListener("click", (event) => {
         demoProfiles[student.account] === instructorProfile && student.teacherAccount === activeDemoAccount);
     if (!instructorProfile || !["adm", "professor"].includes(activeRole) ||
         (activeRole === "professor" && !ownsInstructor)) {
-      showToast("Esta autorização não está disponível para sua conta.");
+      showToast("Esta autorização não está disponível para sua conta.", "error");
       return;
     }
     authorizedInstructorNames.add(instructorName);
@@ -1867,11 +2147,11 @@ document.addEventListener("click", (event) => {
     if (activeRole !== "professor" || !select || !select.value || !mode || !plan ||
         !instructorProfile || instructorProfile.teacherAccount !== activeDemoAccount ||
         !authorizedInstructorNames.has(instructorProfile.name)) {
-      showToast("Não foi possível delegar esta aula.");
+      showToast("Não foi possível delegar esta aula.", "error");
       return;
     }
     if (mode.value === "plan" && !plan.value.trim()) {
-      showToast("Informe o plano que você decidiu compartilhar.");
+      showToast("Informe o plano que você decidiu compartilhar.", "error");
       plan.focus();
       return;
     }
@@ -1889,7 +2169,7 @@ document.addEventListener("click", (event) => {
     const profile = demoProfiles[activeDemoAccount];
     const lesson = profile && delegatedLessons[profile.name];
     if (activeRole !== "instructor" || !profile || !authorizedInstructorNames.has(profile.name) || !lesson) {
-      showToast("Não há aula autorizada para registrar.");
+      showToast("Não há aula autorizada para registrar.", "error");
       return;
     }
     lesson.followed = classFollowed.dataset.classFollowed;
@@ -1904,7 +2184,7 @@ document.addEventListener("click", (event) => {
 
   if (target.closest("[data-toggle-grade]")) {
     if (activeRole !== "professor" || !demoProfiles[activeDemoAccount].academyId) {
-      showToast("Somente o Professor vinculado à academia pode publicar a grade.");
+      showToast("Somente o Professor vinculado à academia pode publicar a grade.", "error");
       return;
     }
     const isPublished = publishedAcademyGrades.has(activeDemoAccount);
@@ -1921,7 +2201,7 @@ document.addEventListener("click", (event) => {
     const receipt = receiptPayments.find((payment) => payment.id === row.dataset.receiptId);
     if (!receipt || receipt.status !== "pending" || activeRole !== "professor" ||
         receipt.professorAccount !== activeDemoAccount) {
-      showToast("Este comprovante não está disponível para sua conta.");
+      showToast("Este comprovante não está disponível para sua conta.", "error");
       return;
     }
     runLoadingAction(confirmPayment, () => {
@@ -1940,7 +2220,7 @@ document.addEventListener("click", (event) => {
     const receipt = receiptPayments.find((payment) => payment.id === row.dataset.receiptId);
     if (!receipt || receipt.status !== "pending" || activeRole !== "professor" ||
         receipt.professorAccount !== activeDemoAccount) {
-      showToast("Este comprovante não está disponível para sua conta.");
+      showToast("Este comprovante não está disponível para sua conta.", "error");
       return;
     }
     receipt.status = "rejected";
@@ -1955,7 +2235,7 @@ document.addEventListener("click", (event) => {
   if (cashDecision) {
     const payment = cashPayments.find((item) => item.id === cashDecision.dataset.cashId && item.status === "pending");
     if (!payment || activeRole !== "professor" || payment.professorAccount !== activeDemoAccount) {
-      showToast("Este aviso não está disponível para sua conta.");
+      showToast("Este aviso não está disponível para sua conta.", "error");
       return;
     }
     payment.status = cashDecision.dataset.cashDecision === "confirm" ? "confirmed" : "rejected";
@@ -1984,15 +2264,15 @@ document.addEventListener("click", (event) => {
     const dateInput = document.querySelector("#cash-date");
     const amountValue = Number(amountInput.value);
     if (!profile || activeRole !== "student" || !profile.teacherAccount || !profile.academyId) {
-      showToast("Não foi possível enviar o aviso. Confira o vínculo com seu Professor.");
+      showToast("Não foi possível enviar o aviso. Confira o vínculo com seu Professor.", "error");
       return;
     }
     if (!Number.isFinite(amountValue) || amountValue <= 0 || !dateInput.value) {
-      showToast("Informe um valor e uma data válidos.");
+      showToast("Informe um valor e uma data válidos.", "error");
       return;
     }
     if (cashPayments.some((payment) => payment.account === activeDemoAccount && payment.status === "pending")) {
-      showToast("Já existe um aviso em dinheiro aguardando confirmação.");
+      showToast("Já existe um aviso em dinheiro aguardando confirmação.", "error");
       return;
     }
     runLoadingAction(cashNotice, () => {
@@ -2016,7 +2296,7 @@ document.addEventListener("click", (event) => {
   if (sendReceipt) {
     if (receiptPayments.some((payment) => payment.account === activeDemoAccount)) {
       document.querySelector("#duplicate-receipt-warning").hidden = false;
-      showToast("Comprovante já enviado para esta cobrança fictícia.");
+      showToast("Comprovante já enviado para esta cobrança fictícia.", "error");
       return;
     }
     const fileInput = document.querySelector("[data-receipt-file]");
@@ -2024,11 +2304,11 @@ document.addEventListener("click", (event) => {
     const amountInput = document.querySelector("#receipt-amount");
     const dateInput = document.querySelector("#receipt-date");
     if (!profile || activeRole !== "student" || !profile.teacherAccount || !profile.academyId) {
-      showToast("Não foi possível enviar o comprovante. Confira seu vínculo com o Professor.");
+      showToast("Não foi possível enviar o comprovante. Confira seu vínculo com o Professor.", "error");
       return;
     }
     if (!fileInput.files.length || !amountInput.value.trim() || !dateInput.value.trim()) {
-      showToast("Escolha uma imagem ou PDF fictício antes de enviar.");
+      showToast("Escolha uma imagem ou PDF fictício antes de enviar.", "error");
       return;
     }
     runLoadingAction(sendReceipt, () => {
@@ -2075,7 +2355,7 @@ document.addEventListener("change", (event) => {
     const parsed = parseReceiptMock(target.files[0]);
     if (!parsed) {
       target.value = "";
-      showToast("O comprovante deve ser uma imagem ou PDF.");
+      showToast("O comprovante deve ser uma imagem ou PDF.", "error");
       return;
     }
     document.querySelector("#receipt-editor").hidden = false;
@@ -2152,18 +2432,18 @@ document.addEventListener("submit", (event) => {
   const recipientId = form.querySelector("#invite-link-recipient").value;
   const professor = demoProfiles[activeDemoAccount];
   if (activeRole !== "professor" || !professor || !professor.academyId) {
-    showToast("Não foi possível gerar o link. O Professor precisa estar vinculado a uma academia.");
+    showToast("Não foi possível gerar o link. O Professor precisa estar vinculado a uma academia.", "error");
     return;
   }
   if (!demoInviteRecipients.some((recipient) => recipient.id === recipientId && recipient.type === type)) {
-    showToast("Selecione uma pessoa pré-cadastrada válida.");
+    showToast("Selecione uma pessoa pré-cadastrada válida.", "error");
     return;
   }
   const submitButton = form.querySelector('button[type="submit"][data-loading-text]');
   runLoadingAction(submitButton, () => {
     const token = createDemoInvite(type, recipientId);
     if (!token) {
-      showToast("Não foi possível gerar o link para esta pessoa.");
+      showToast("Não foi possível gerar o link para esta pessoa.", "error");
       return;
     }
     document.querySelector("#invite-result").innerHTML = renderDemoInvites();
@@ -2176,16 +2456,11 @@ document.addEventListener("submit", (event) => {
   event.preventDefault();
   const form = event.target;
   const result = form.querySelector("#invite-validation-result");
+  const submitButton = form.querySelector("[data-register-action]");
   const email = form.querySelector("#register-email").value.trim();
   const token = form.querySelector("#invite-code").value.trim();
   const password = form.querySelector("#register-password").value;
   const passwordConfirmation = form.querySelector("#register-password-confirm").value;
-  if (!email || !token || !password || password !== passwordConfirmation) {
-    result.textContent = password && password !== passwordConfirmation
-      ? "As senhas não conferem."
-      : "Preencha e-mail, convite e senha.";
-    return;
-  }
   const invite = demoInvites.find((item) => item.token === token);
   const recipient = invite && demoInviteRecipients.find((item) => item.id === invite.recipientId && item.type === invite.type);
   const rosterStudent = invite && invite.type === "student"
@@ -2193,20 +2468,29 @@ document.addEventListener("submit", (event) => {
     : null;
   const isAvailable = invite && !invite.used && invite.expiresAt > Date.now() && recipient &&
     demoProfiles[invite.professorAccount] && invite.academyId === demoAcademy.id;
-  if (!isAvailable) {
-    result.textContent = "Não foi possível validar este convite. Confira o link e tente novamente.";
-    return;
-  }
-  if (invite.type === "student" && !rosterStudent) {
-    result.textContent = "Não foi possível validar este convite. Confira o link e tente novamente.";
-    return;
-  }
-  if (invite.type === "instructor" && demoProfiles.instructor.role !== "instructor") {
-    result.textContent = "Não foi possível validar este convite. Confira o link e tente novamente.";
-    return;
-  }
-  const submitButton = form.querySelector('button[type="submit"][data-loading-text]');
-  runLoadingAction(submitButton, () => {
+  result.textContent = "";
+  runButtonAction(submitButton, {
+    feedback: form.querySelector("#register-action-error"),
+    announcement: form.querySelector("#register-action-status"),
+    buttons: [submitButton],
+    loadingText: "Enviando...",
+    loadingMessage: "Validando convite.",
+    successMessage: "Convite validado; a conta fictícia foi preparada.",
+    errorMessage: "Falha na simulação. Tente novamente."
+  }, async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 900));
+    if (new URLSearchParams(window.location.search).get("erro-simulado") === "cadastro") {
+      throw new Error("Falha simulada de cadastro.");
+    }
+    if (!email || !token || !password || password !== passwordConfirmation) {
+      return { errorMessage: password && password !== passwordConfirmation
+        ? "As senhas não conferem."
+        : "Preencha e-mail, convite e senha." };
+    }
+    if (!isAvailable || (invite.type === "student" && !rosterStudent) ||
+        (invite.type === "instructor" && demoProfiles.instructor.role !== "instructor")) {
+      return { errorMessage: "Não foi possível validar este convite. Confira o link e tente novamente." };
+    }
     if (invite.type === "instructor") {
       demoProfiles.instructor.teacherAccount = invite.professorAccount;
       demoProfiles.instructor.academyId = demoProfiles[invite.professorAccount].academyId;
@@ -2246,7 +2530,7 @@ document.addEventListener("submit", (event) => {
   const dateValue = form.querySelector("#teacher-cash-date").value;
   const student = demoRoster.find((item) => item.name === studentName && item.teacherAccount === activeDemoAccount);
   if (activeRole !== "professor" || !student || !Number.isFinite(amountValue) || amountValue <= 0 || !dateValue) {
-    showToast("Não foi possível registrar o recebimento. Confira o aluno, o valor e a data.");
+    showToast("Não foi possível registrar o recebimento. Confira o aluno, o valor e a data.", "error");
     return;
   }
   const submitButton = form.querySelector('button[type="submit"]');
@@ -2271,6 +2555,12 @@ document.addEventListener("submit", (event) => {
   if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-demo-form]")) return;
   event.preventDefault();
   const form = event.target;
+  if (form.matches("[data-login-form]")) {
+    const loginButton = form.querySelector('button[data-login-action][type="submit"]');
+    if (loginButton instanceof HTMLButtonElement) simulateLogin(loginButton);
+    else showToast("Não foi possível iniciar a ação. Tente novamente.", "error");
+    return;
+  }
   const submitButton = form.querySelector('button[type="submit"][data-loading-text]');
   if (submitButton) {
     if (submitButton.disabled) return;
@@ -2290,12 +2580,63 @@ document.addEventListener("submit", (event) => {
 });
 
 menuButton.addEventListener("click", () => {
-  const isOpen = sidebar.classList.toggle("is-open");
-  sidebarBackdrop.classList.toggle("is-visible", isOpen);
-  menuButton.setAttribute("aria-expanded", String(isOpen));
+  if (sidebar.classList.contains("is-open")) {
+    closeMobileMenu();
+    return;
+  }
+  sidebar.classList.add("is-open");
+  sidebarBackdrop.classList.add("is-visible");
+  sidebar.setAttribute("role", "dialog");
+  sidebar.setAttribute("aria-modal", "true");
+  menuButton.setAttribute("aria-expanded", "true");
+  sidebar.querySelector("a, button").focus();
+  document.querySelectorAll(".prototype-banner, .app-main, #mobile-navigation").forEach((element) => { element.inert = true; });
 });
 
 sidebarBackdrop.addEventListener("click", closeMobileMenu);
+
+document.addEventListener("keydown", (event) => {
+  if (!sidebar.classList.contains("is-open")) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeMobileMenu();
+    menuButton.focus();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const focusable = [...sidebar.querySelectorAll('a[href], button:not([disabled])')];
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
+
+window.addEventListener("resize", () => {
+  if (!window.matchMedia("(max-width: 860px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse)").matches) closeMobileMenu();
+});
+
+function closeOnSwipe(element, direction, close) {
+  let start = null;
+  element.addEventListener("touchstart", (event) => {
+    start = event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
+  }, { passive: true });
+  element.addEventListener("touchend", (event) => {
+    if (!start || event.changedTouches.length !== 1) return;
+    const dx = event.changedTouches[0].clientX - start.x;
+    const dy = event.changedTouches[0].clientY - start.y;
+    start = null;
+    if (dx * direction > 70 && Math.abs(dx) > Math.abs(dy) * 1.25) close();
+  }, { passive: true });
+  element.addEventListener("touchcancel", () => { start = null; }, { passive: true });
+}
+
+closeOnSwipe(sidebar, -1, closeMobileMenu);
+closeOnSwipe(userPanel, 1, closeUserPanel);
 
 privacyDialog.addEventListener("click", (event) => {
   if (event.target === privacyDialog) privacyDialog.close();
@@ -2306,7 +2647,21 @@ termsDialog.addEventListener("click", (event) => {
 });
 
 userPanel.addEventListener("click", (event) => {
-  if (event.target === userPanel) userPanel.close();
+  if (event.target !== userPanel) return;
+  const rect = userPanel.getBoundingClientRect();
+  if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeUserPanel();
+});
+
+userPanel.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeUserPanel();
+});
+
+userPanel.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeUserPanel();
+  }
 });
 
 tutorialDialog.addEventListener("cancel", (event) => {
@@ -2315,6 +2670,11 @@ tutorialDialog.addEventListener("cancel", (event) => {
 });
 
 tutorialDialog.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeTutorial();
+    return;
+  }
   if (event.key !== "Tab") return;
   const focusable = [...tutorialDialog.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')];
   if (!focusable.length) return;

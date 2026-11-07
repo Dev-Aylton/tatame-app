@@ -1,12 +1,12 @@
 :root {
   color-scheme: dark;
   font-family: "Segoe UI", Arial, sans-serif;
-  background: #121316;
+  background: #0b0b0c;
   color: #f2f2f0;
-  --surface: #1a1c20;
-  --line: #2b2e34;
+  --surface: #18191c;
+  --line: #83878c;
   --gold: #c9a24b;
-  --muted: #9aa0a6;
+  --muted: #b0b3b8;
 }
 
 * {
@@ -17,9 +17,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(ellipse at 82% 0, rgb(201 162 75 / 8%), transparent 32rem),
-    #121316;
+  background: #0b0b0c;
 }
 
 .page {
@@ -106,7 +104,7 @@ h2 {
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 15px;
-  background: linear-gradient(145deg, rgb(255 255 255 / 2%), transparent 60%), var(--surface);
+  background: var(--surface);
 }
 
 .logo-card {

@@ -6,7 +6,7 @@ PWA de gestão de academia de jiu-jitsu, em desenvolvimento.
 
 Aplicativo web instalável para apoiar a rotina de uma academia de jiu-jitsu: gestão de alunos, pagamentos, graduações, aulas e comunicação. Os perfis incluem Adm, Professor, Instrutor e Aluno. O Instrutor é um aluno com função de apoio, vê uma única turma e só ministra aulas delegadas pelo Professor, que decide o conteúdo. Cada Professor tem uma única turma.
 
-O roadmap do produto é a especificação principal. As imagens de referência de estilo não são requisitos: quando houver divergência, vale o roadmap. A identidade proposta usa grafite, dourado e cartões arredondados. O app terá experiências de interface próprias para notebook e mobile, mantendo as funcionalidades disponíveis e utilizáveis em toda a faixa de telas.
+O roadmap do produto é a especificação principal. As imagens de referência de estilo não são requisitos: quando houver divergência, vale o roadmap. A interface usa preto, grafite neutro e dourado no tema escuro; branco e azul no tema claro. O vermelho da marca é um detalhe pequeno, distinto do vermelho de alerta. O app terá experiências de interface próprias para notebook e mobile, mantendo as funcionalidades disponíveis e utilizáveis em toda a faixa de telas.
 
 O estudo inicial de identidade visual fica em [`assets/identidade.html`](assets/identidade.html): o ícone Escudo aprovado, usado sozinho sem nome integrado, e dois avatares SVG (masculino e feminino), também aprovados pelo usuário. O símbolo tem insígnia circular, “T” personalizado e faixa preta com ponteira vermelha e três graus brancos. Os avatares têm silhuetas definidas e rostos angulosos. O ícone foi aplicado ao cabeçalho do painel de testes; será aplicado ao app quando sua interface for criada.
 
@@ -22,6 +22,33 @@ O estudo inicial de identidade visual fica em [`assets/identidade.html`](assets/
 - Conformidade com a LGPD é requisito do produto. Antes de definir ou implementar dados pessoais coletados, finalidades, hipóteses legais, consentimento, prazos de retenção, compartilhamento, atendimento aos direitos dos titulares ou conteúdo da política de privacidade, confirmar os fatos e obter aprovação do usuário. Não presumir práticas ou declarações legais, nem afirmar conformidade sem revisão apropriada.
 - A política de privacidade deverá estar em uma página HTML própria e ter um link clicável no app que abre um modal para leitura. Manter a página e o modal sincronizados quando houver mudanças; os testes devem verificar o acesso, leitura, fechamento, teclado, responsividade e consistência do conteúdo. A publicação da política depende de conteúdo confirmado pelo usuário.
 - Criar migrations sem executá-las. Só podem ser aplicadas após conferência do desenvolvedor; o app não pode depender de uma migration ainda não aplicada.
+
+## Padrão de ações pendente
+
+Os dois botões de entrada usam o padrão de processamento e mensagens em simulação. Os demais controles abaixo ainda não usam o padrão completo; estados de carregamento já existentes não significam conclusão dessa adaptação.
+
+Para testar a falha simulada dos dois botões de entrada, abra `index.html?erro-simulado=entrada`; remova o parâmetro para voltar ao resultado normal. Nenhum login é realizado.
+
+Para simular falha ao validar um convite de cadastro, abra `index.html?erro-simulado=cadastro`, entre em Cadastro e preencha os campos com dados fictícios.
+
+Para simular falha nas ações da tela de vínculo, use `?erro-simulado=vinculo-consulta`, `?erro-simulado=vinculo-solicitacao` ou `?erro-simulado=vinculo-cancelamento`; `?erro-simulado=vinculo` provoca falha em todas elas. Solicitação e cancelamento exigem os estados fictícios correspondentes.
+
+- **Acesso:** Tenho um código de convite; Entrar como Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro; Ver política e termo, Voltar para entrar; Voltar e Validar convite de instrutor.
+- **Aluno:** Ver histórico de graduações, Ver academia; Trocar de professor, Vincular a um professor, Cancelar pedido; Escolher comprovante Pix, Paguei em dinheiro, Enviar comprovante; Enviar na conversa.
+- **Painel do professor:** Cadastrar aluno, Papéis e autorizações, Importar extrato Pix, Confirmar pagamentos e Conversas.
+- **Alunos e ficha:** Novo aluno, filtros Todos, Ativos, Trancados e Sem acesso, Abrir ficha; abas Resumo, Pagamentos, Graduações, Feedbacks e Notas privadas.
+- **Novo aluno e convite:** Limpar campos, Prévia de cadastro e Pré-visualizar convite.
+- **Código e convites:** Trocar código, Gerar link, Aprovar e Recusar pedidos de vínculo.
+- **Papéis e autorizações:** Vincular à Academia Fictícia/Academia vinculada, Graduar a Professor, Promover a instrutor/Papel atualizado, Autorizar/Autorizado e Delegar aula.
+- **Importar extrato Pix:** seletor Arquivo do extrato Pix, Confirmar e Revisar sugestão.
+- **Pagamentos a confirmar:** Confirmar, Recusar, Desconto, Lançar saldo no mês seguinte, Isentar e Registrar recebido em dinheiro.
+- **Atrasados e cobrança:** Prévia de mensagem e Abrir WhatsApp.
+- **Ações rápidas:** Novo aluno, Papéis e autorizações, Importar extrato Pix, Confirmar pagamento, Cobrar manualmente, Ver alunos e Voltar ao painel.
+- **Conversas:** Enviar nas telas do Professor, Aluno e Instrutor.
+- **Adm e Instrutor:** Ver professores convidados, Prévia do convite; Segui e Não segui.
+- **Academia, preferências e privacidade:** Publicar grade/Voltar para rascunho; Alternar tema, Buscar versão, Consultar, Abrir ajuda; Continuar e Abrir aviso em modal.
+- **Navegação lateral e inferior:** Abrir/Fechar navegação; Entrar, Cadastro por convite, Vincular a um professor, Aguardando liberação, Convite de instrutor, Início, Meu vínculo, Meus pagamentos, Minhas graduações, Conversa com o professor, Painel do professor, Alunos, Ficha do aluno, Novo aluno e convite, Código e convites, Papéis e autorizações, Importar extrato Pix, Pagamentos a confirmar, Atrasados, Ações rápidas, Conversas, Treino compartilhado, Painel do Adm, Professores convidados, Academia, Preferências e Privacidade.
+- **Painéis e modais:** Abrir/Fechar painel do usuário, Preferências, Privacidade, Tutorial, Alternar tema e Sair; Termo de consentimento, Fechar modais e Voltar, Pular, Próximo/Concluir no tutorial.
 
 ## Acompanhar os testes
 
@@ -58,6 +85,8 @@ Resumo das fases; o acompanhamento detalhado fica na página visual do [plano do
 - [v] Criar dois avatares SVG genéricos (masculino e feminino), com silhuetas definidas e rostos menos arredondados. **Aprovados pelo usuário.**
 - [v] Ajustar o ícone Escudo: insígnia redonda, “T” redesenhado e faixa preta com ponteira vermelha e três graus brancos. **Correção solicitada aplicada; ícone aprovado pelo usuário.**
 - [ ] Preparar o ícone de instalação do iPhone nos formatos e dimensões exigidos pelo PWA e conferir sua leitura na tela inicial.
+- [ ] Aprimorar navegação, painel da conta e apresentação instalada no iPhone. **Interface ampliada, paletas dos dois temas aplicadas e logo existente configurado; faltam ícones 180/192 e versão maskable, testes responsivos e validação no iPhone e pelo usuário.**
+- [ ] Aplicar estados e mensagens acessíveis aos botões de ação. **Padrão reutilizável aplicado aos dois botões de login simulado; faltam os demais controles listados acima e a validação pelo usuário.**
 - [v] Validar os dois avatares placeholder. **Aprovados pelo usuário.**
 - [v] Exigir testes visuais e funcionais de todas as telas em diferentes tamanhos de viewport a cada lote, incluindo larguras de referência, limites dos breakpoints, retrato/paisagem, altura curta, zoom/texto aumentado, sobreposições, recortes e modais. **Critério obrigatório definido pelo usuário; os testes de cada lote devem registrar e passar por essas verificações.**
 - [v] Exigir conformidade com a LGPD e confirmar com o usuário informações e decisões sobre dados pessoais, finalidades, hipóteses legais, consentimento, retenção, compartilhamento, direitos dos titulares e declarações da política antes de implementá-las.

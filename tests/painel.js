@@ -81,7 +81,7 @@ const checks = [
         areas.has("Privacidade e LGPD") &&
         areas.has("Instrutor") &&
         areas.has("Segurança e publicação") &&
-        casesF1.length === 50 &&
+        casesF1.length === 52 &&
         casesF2.length === 3 &&
         casesF3.length === 1 &&
         cases.some((testCase) => testCase.id === "F1-ACC-06") &&

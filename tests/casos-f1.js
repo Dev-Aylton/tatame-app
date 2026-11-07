@@ -68,8 +68,8 @@ window.CASOS_ACEITE_F1 = [
     perfil: "Aluno convidado",
     regras: "RN03",
     precondicoes: "Há convites fictícios inválidos, expirados e já consumidos.",
-    passos: ["Tentar concluir o cadastro uma vez com cada convite."],
-    esperado: "Cada tentativa é recusada com mensagem clara; nenhum vínculo ou conta indevida é criado."
+    passos: ["Tentar concluir o cadastro uma vez com cada convite e conferir o aviso abaixo de Validar convite.", "Usar ?erro-simulado=cadastro com campos fictícios preenchidos; observar Enviando..., bloqueio de toque duplo, Tentar de novo e alerta, que desaparece ao repetir.", "Com convite válido, conferir ✓ Concluído por 2 a 3 segundos e o resultado original."],
+    esperado: "Cada tentativa inválida é recusada com mensagem clara; nenhum vínculo ou conta indevida é criado. Os estados são anunciados e o resultado bem-sucedido não muda."
   },
   {
     id: "F1-ACC-05",
@@ -433,7 +433,7 @@ window.CASOS_ACEITE_F1 = [
     perfil: "Aluno registrado ou sem registro",
     regras: "Vínculo por código; limitação de tentativas",
     precondicoes: "Há um código fictício associado a Professor com academia e um Professor sem academia.",
-    passos: ["Consultar um código válido e conferir a prévia antes de confirmar.", "Consultar um código inexistente e um código de Professor sem academia.", "Errar o código cinco vezes e tentar novamente antes de 15 minutos."],
+    passos: ["Consultar um código válido e conferir a prévia antes de confirmar.", "Consultar um código inexistente e um código de Professor sem academia.", "Errar o código cinco vezes e tentar novamente antes de 15 minutos.", "Verificar Enviando..., bloqueio de toque duplo e ✓ Concluído por 2 a 3 segundos em Consultar código; repetir com ?erro-simulado=vinculo-consulta e conferir Tentar de novo e o alerta abaixo do botão."],
     esperado: "A prévia válida mostra somente nome do Professor e da academia, sem foto; código inexistente ou sem academia responde com mensagem genérica. Após cinco erros seguidos, novas tentativas ficam bloqueadas por 15 minutos."
   },
   {
@@ -443,7 +443,7 @@ window.CASOS_ACEITE_F1 = [
     perfil: "Aluno e Professor",
     regras: "Vínculo por código e aprovação",
     precondicoes: "Um aluno fictício enviou um pedido de vínculo para a academia do Professor.",
-    passos: ["Como aluno, cancelar o pedido pendente.", "Criar outro pedido.", "Como Professor, aprovar ou recusar o pedido."],
+    passos: ["Como aluno, cancelar o pedido pendente.", "Criar outro pedido.", "Como Professor, aprovar ou recusar o pedido.", "Em Solicitar vínculo e Cancelar pedido, verificar Enviando..., bloqueio de toque duplo e ✓ Concluído por 2 a 3 segundos; repetir respectivamente com ?erro-simulado=vinculo-solicitacao e ?erro-simulado=vinculo-cancelamento e conferir Tentar de novo e o alerta abaixo do botão."],
     esperado: "O aluno cancela o próprio pedido; pedidos ativos aparecem na fila do Professor, que pode aprovar ou recusar. Sem aprovação não há novo vínculo."
   },
   {
@@ -499,11 +499,31 @@ window.CASOS_ACEITE_F1 = [
   {
     id: "F1-UX-08",
     area: "Interface responsiva",
-    titulo: "Contraste do modo claro conferido no iPhone",
+    titulo: "Contraste dos temas conferido no iPhone",
     perfil: "Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro",
-    regras: "Acessibilidade: contraste mínimo de 4,5:1 para texto e 3:1 para texto grande e ícones",
-    precondicoes: "iPhone com o tema claro ativo (Ajustes do iPhone ou item “Alternar tema” do painel do usuário), versão atual do protótipo carregada e brilho em nível normal; repetir em ambiente com luz forte.",
-    passos: ["Em cada conta fictícia, percorrer todas as telas do menu e a barra inferior, o tutorial, o painel do usuário e os modais de privacidade e termo de consentimento.", "Conferir a leitura de títulos, rótulos de campo, textos de apoio, placeholders, rodapé, links, abas, filtros, avisos, selos de status (dourado, verde, âmbar e vermelho) e resultado “Confere com a cobrança” ou “Diverge”.", "Conferir o texto dos botões primário (sobre dourado) e de perigo, e os ícones dourados dos atalhos.", "Aumentar o tamanho do texto do iPhone e repetir nas telas de login, pagamentos e vínculo."],
-    esperado: "Nenhum texto, ícone ou selo fica apagado ou difícil de ler: texto comum atinge 4,5:1 e texto grande ou ícone atinge 3:1 sobre o fundo em que é usado. A barra inferior permanece legível e o tema escuro não muda."
+    regras: "Acessibilidade: contraste mínimo de 4,5:1 para texto e 3:1 para texto grande, ícones e bordas de campos; estados de alerta acompanhados de ícone e texto.",
+    precondicoes: "iPhone com a versão atual do protótipo e brilho em nível normal; repetir nos temas claro e escuro e em ambiente com luz forte.",
+    passos: ["Em cada conta fictícia, percorrer todas as telas do menu e a barra inferior, o tutorial, o painel do usuário e os modais de privacidade e termo de consentimento.", "Conferir títulos, rótulos, textos de apoio, placeholders, links, abas, filtros, bordas dos campos, avisos e selos de status; verificar ícone e texto nos alertas, atrasos e ações de perigo.", "Conferir botão primário e itens ativos dourados no escuro e azuis no claro; verificar que o botão Google permanece neutro e o logo mantém suas cores.", "Aumentar o tamanho do texto do iPhone e repetir nas telas de login, pagamentos e vínculo."],
+    esperado: "Texto comum atinge 4,5:1 e texto grande, ícone e bordas de campos atingem 3:1 sobre os fundos adjacentes; estados de alerta não dependem apenas de cor. A navegação e os controles permanecem legíveis nos dois temas."
+  },
+  {
+    id: "F1-UX-09",
+    area: "Interface responsiva",
+    titulo: "Navegação e conta em telas responsivas e no iPhone instalado",
+    perfil: "Visitante, Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro",
+    regras: "Destinos e permissões preservados, acessibilidade e áreas seguras",
+    precondicoes: "Protótipo atualizado, contas fictícias disponíveis e iPhone com o app adicionado à tela de início; verificar também com teclado e leitor de tela.",
+    passos: ["Em cada perfil, percorrer os atalhos inferiores, o menu lateral e o painel de conta; conferir destinos, rótulos, item ativo, ícones de 24 px e áreas de toque de pelo menos 48 × 48 px.", "Abrir e fechar menu e painel pelo botão, toque fora, deslizamento e Escape; conferir foco, leitura e acesso às ações permitidas.", "No iPhone, remover o atalho antigo, reinstalar e conferir o logo; testar retrato e paisagem, rolagem, teclado, campos, áreas seguras e retorno ao app instalado; repetir nos temas claro e escuro e com texto aumentado.", "Verificar também as larguras e limites responsivos previstos no plano, incluindo 430 px, sem cortes nem rolagem horizontal inesperada."],
+    esperado: "Cada perfil conserva os mesmos destinos e permissões; os atalhos têm ícones de 24 px e rótulos de pelo menos 12 px, o estado ativo não depende só de cor, menus operam com toque e teclado, o foco retorna ao controle de abertura e nenhuma área segura ou barra fixa encobre conteúdo. O logo instalado corresponde ao projeto e campos não provocam zoom automático no iPhone."
+  },
+  {
+    id: "F1-UX-10",
+    area: "Interface responsiva",
+    titulo: "Estados e mensagens dos botões de login simulado",
+    perfil: "Visitante",
+    regras: "Ações com foco, processamento, bloqueio contra toque duplo e mensagens acessíveis de resultado.",
+    precondicoes: "Protótipo local aberto na tela de entrada, sem conexão real de login; repetir com teclado e leitor de tela.",
+    passos: ["Acionar Fazer login com o Google e Entrar separadamente; observar indicador e texto de processamento no botão, anúncio acessível e ambos os botões desabilitados durante a simulação.", "Tentar um segundo acionamento durante o processamento e conferir que não há nova operação.", "Ao concluir, verificar ✓ Concluído por 2 a 3 segundos no botão, sem caixa de sucesso, e depois o rótulo original; trocar de tela durante a conclusão e conferir o aviso global.", "Abrir index.html?erro-simulado=entrada e acionar cada botão; conferir Tentar de novo, mensagem abaixo do botão em role=alert sem mudança de layout, e desaparecimento da mensagem ao tentar novamente. Remover o parâmetro e conferir o sucesso."],
+    esperado: "Cada ação informa processamento, conclusão ou erro sem depender apenas de cor; os estados são anunciados, o erro aparece abaixo do botão sem deslocar o conteúdo, toques duplicados são evitados e nenhum login ou envio é realizado."
   }
 ];

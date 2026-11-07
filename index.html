@@ -3,8 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#121316">
+  <meta name="theme-color" content="#0b0b0c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Tatame">
   <title>Tatame | Protótipo F1</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="512x512" href="assets/logos/tatame-icone-escudo-512.png">
   <link rel="stylesheet" href="css/app.css">
   <script src="js/app.js" defer></script>
 </head>
@@ -16,10 +21,13 @@
 
   <div class="app-frame">
     <aside class="app-sidebar" id="app-sidebar" aria-label="Navegação do protótipo">
-      <a class="brand-mark" href="index.html" aria-label="Tatame — início do protótipo">
-        <img src="assets/logos/tatame-icone-escudo.svg" alt="">
-        <span class="brand-caption">F1 · TELAS</span>
-      </a>
+      <div class="sidebar-heading">
+        <a class="brand-mark" href="index.html" aria-label="Tatame — início do protótipo">
+          <img src="assets/logos/tatame-icone-escudo.svg" alt="">
+          <span class="brand-caption">F1 · TELAS</span>
+        </a>
+        <button class="icon-button sidebar-close" type="button" data-close-sidebar aria-label="Fechar navegação">×</button>
+      </div>
       <div class="sidebar-intro">
         <span class="eyebrow">VISUALIZAÇÃO</span>
         <p>As telas disponíveis seguem o papel da conta ativa.</p>
@@ -37,7 +45,7 @@
       <header class="app-header">
         <div class="header-context">
           <button class="icon-button mobile-menu-button" id="mobile-menu-button" type="button" aria-label="Abrir navegação" aria-expanded="false" aria-controls="app-sidebar">
-            <span aria-hidden="true">☰</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
           </button>
           <img class="mobile-header-logo" src="assets/logos/tatame-icone-escudo.svg" alt="">
           <div class="header-titles">
@@ -45,8 +53,8 @@
             <h1 id="current-screen-title">Acesso</h1>
           </div>
         </div>
-        <button class="profile-button" id="profile-button" type="button" data-open-user-panel aria-haspopup="dialog" aria-controls="user-panel" hidden>
-          <span class="profile-orb" aria-hidden="true">T</span>
+        <button class="profile-button" id="profile-button" type="button" data-open-user-panel aria-label="Abrir painel do usuário" aria-haspopup="dialog" aria-controls="user-panel" hidden>
+          <span class="profile-orb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>
           <span class="profile-button-copy"><strong>Visualizar perfil</strong><small>Sem sessão ativa</small></span>
           <span class="chevron" aria-hidden="true">⌄</span>
         </button>
@@ -77,26 +85,30 @@
       <button class="icon-button" type="button" data-close-user-panel aria-label="Fechar painel do usuário">×</button>
     </div>
     <div class="user-panel-profile">
-      <span class="profile-orb" aria-hidden="true">T</span>
-      <span><strong id="user-panel-profile-name">Sem sessão ativa</strong><small id="user-panel-profile-role">Perfil demonstrativo</small></span>
+      <span class="user-panel-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>
+      <span><strong id="user-panel-profile-name">Sem sessão ativa</strong><small id="user-panel-profile-role">Perfil demonstrativo</small><small id="user-panel-profile-academy">Sem academia vinculada</small></span>
     </div>
-    <nav class="user-panel-links" aria-label="Opções da conta">
-      <button class="user-panel-link" type="button" data-open-tutorial>
-        <span aria-hidden="true">?</span><span><strong>Tutorial</strong><small>Ajuda para esta conta</small></span><span aria-hidden="true">›</span>
-      </button>
+    <nav class="user-panel-links" aria-label="Navegação da conta">
+      <h3 class="user-panel-group-title">Navegação</h3>
       <button class="user-panel-link" type="button" data-screen-target="user-settings">
-        <span aria-hidden="true">◎</span><span><strong>Preferências</strong><small>Conta e visualização</small></span><span aria-hidden="true">›</span>
+        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg></span><span><strong>Preferências</strong><small>Conta e visualização</small></span><span aria-hidden="true">›</span>
       </button>
       <button class="user-panel-link" type="button" data-screen-target="privacy">
-        <span aria-hidden="true">◇</span><span><strong>Privacidade</strong><small>Conteúdo pendente de revisão</small></span><span aria-hidden="true">›</span>
-      </button>
-      <button class="user-panel-link" type="button" data-theme-toggle>
-        <span aria-hidden="true">◐</span><span><strong>Alternar tema</strong><small>Apenas para visualização</small></span><span aria-hidden="true">›</span>
-      </button>
-      <button class="user-panel-link" type="button" data-logout-role>
-        <span aria-hidden="true">↗</span><span><strong>Sair</strong><small>Encerrar esta sessão demonstrativa</small></span><span aria-hidden="true">›</span>
+        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 19 6v5c0 4.5-2.7 7.7-7 10-4.3-2.3-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span><span><strong>Privacidade</strong><small>Conteúdo pendente de revisão</small></span><span aria-hidden="true">›</span>
       </button>
     </nav>
+    <div class="user-panel-links" aria-label="Ações da conta" role="group">
+      <h3 class="user-panel-group-title">Ações da conta</h3>
+      <button class="user-panel-link" type="button" data-open-tutorial>
+        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 17h.01"/></svg></span><span><strong>Tutorial</strong><small>Ajuda para esta conta</small></span><span aria-hidden="true">›</span>
+      </button>
+      <button class="user-panel-link" type="button" data-theme-toggle>
+        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v16M12 4a8 8 0 0 1 0 16"/></svg></span><span><strong>Alternar tema</strong><small>Apenas para visualização</small></span><span aria-hidden="true">›</span>
+      </button>
+      <button class="user-panel-link" type="button" data-logout-role>
+        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H5v16h5M13 8l4 4-4 4M8 12h9"/></svg></span><span><strong>Sair</strong><small>Encerrar esta sessão demonstrativa</small></span><span aria-hidden="true">›</span>
+      </button>
+    </div>
     <p class="user-panel-note">O perfil e as permissões são definidos pelo banco na versão funcional.</p>
   </dialog>
 
