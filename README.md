@@ -25,7 +25,7 @@ O estudo inicial de identidade visual fica em [`assets/identidade.html`](assets/
 
 ## Padrão de ações pendente
 
-Os dois botões de entrada usam o padrão de processamento e mensagens em simulação. Os demais controles abaixo ainda não usam o padrão completo; estados de carregamento já existentes não significam conclusão dessa adaptação.
+Os botões adaptados de entrada, cadastro, vínculo, aluno e pagamentos do Professor usam o padrão de processamento e mensagens em simulação. Os controles abaixo ainda não usam o padrão completo; estados de carregamento já existentes não significam conclusão dessa adaptação.
 
 Para testar a falha simulada dos dois botões de entrada, abra `index.html?erro-simulado=entrada`; remova o parâmetro para voltar ao resultado normal. Nenhum login é realizado.
 
@@ -33,18 +33,21 @@ Para simular falha ao validar um convite de cadastro, abra `index.html?erro-simu
 
 Para simular falha nas ações da tela de vínculo, use `?erro-simulado=vinculo-consulta`, `?erro-simulado=vinculo-solicitacao` ou `?erro-simulado=vinculo-cancelamento`; `?erro-simulado=vinculo` provoca falha em todas elas. Solicitação e cancelamento exigem os estados fictícios correspondentes.
 
+Para simular falha nas ações do aluno, use `?erro-simulado=aluno-dinheiro`, `?erro-simulado=aluno-comprovante` ou `?erro-simulado=aluno-mensagem`. Para enviar comprovante, primeiro selecione um arquivo fictício.
+
+Para simular falhas nas ações de pagamentos do Professor, use `?erro-simulado=professor-pagamento-dinheiro-lancar`, `professor-pagamento-dinheiro-confirmar`, `professor-pagamento-dinheiro-recusar`, `professor-pagamento-comprovante-confirmar`, `professor-pagamento-comprovante-recusar`, `professor-pagamento-desconto`, `professor-pagamento-saldo`, `professor-pagamento-isencao`, `professor-pagamento-pix-confirmar` ou `professor-pagamento-pix-revisar`, sempre como valor de `erro-simulado`. As decisões exigem os avisos ou sugestões fictícios correspondentes.
+
 - **Acesso:** Tenho um código de convite; Entrar como Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro; Ver política e termo, Voltar para entrar; Voltar e Validar convite de instrutor.
-- **Aluno:** Ver histórico de graduações, Ver academia; Trocar de professor, Vincular a um professor, Cancelar pedido; Escolher comprovante Pix, Paguei em dinheiro, Enviar comprovante; Enviar na conversa.
+- **Aluno:** Ver histórico de graduações, Ver academia; Trocar de professor, Vincular a um professor, Cancelar pedido; Escolher comprovante Pix.
 - **Painel do professor:** Cadastrar aluno, Papéis e autorizações, Importar extrato Pix, Confirmar pagamentos e Conversas.
 - **Alunos e ficha:** Novo aluno, filtros Todos, Ativos, Trancados e Sem acesso, Abrir ficha; abas Resumo, Pagamentos, Graduações, Feedbacks e Notas privadas.
 - **Novo aluno e convite:** Limpar campos, Prévia de cadastro e Pré-visualizar convite.
 - **Código e convites:** Trocar código, Gerar link, Aprovar e Recusar pedidos de vínculo.
 - **Papéis e autorizações:** Vincular à Academia Fictícia/Academia vinculada, Graduar a Professor, Promover a instrutor/Papel atualizado, Autorizar/Autorizado e Delegar aula.
-- **Importar extrato Pix:** seletor Arquivo do extrato Pix, Confirmar e Revisar sugestão.
-- **Pagamentos a confirmar:** Confirmar, Recusar, Desconto, Lançar saldo no mês seguinte, Isentar e Registrar recebido em dinheiro.
+- **Importar extrato Pix:** seletor Arquivo do extrato Pix.
 - **Atrasados e cobrança:** Prévia de mensagem e Abrir WhatsApp.
 - **Ações rápidas:** Novo aluno, Papéis e autorizações, Importar extrato Pix, Confirmar pagamento, Cobrar manualmente, Ver alunos e Voltar ao painel.
-- **Conversas:** Enviar nas telas do Professor, Aluno e Instrutor.
+- **Conversas:** Enviar nas telas do Professor e Instrutor.
 - **Adm e Instrutor:** Ver professores convidados, Prévia do convite; Segui e Não segui.
 - **Academia, preferências e privacidade:** Publicar grade/Voltar para rascunho; Alternar tema, Buscar versão, Consultar, Abrir ajuda; Continuar e Abrir aviso em modal.
 - **Navegação lateral e inferior:** Abrir/Fechar navegação; Entrar, Cadastro por convite, Vincular a um professor, Aguardando liberação, Convite de instrutor, Início, Meu vínculo, Meus pagamentos, Minhas graduações, Conversa com o professor, Painel do professor, Alunos, Ficha do aluno, Novo aluno e convite, Código e convites, Papéis e autorizações, Importar extrato Pix, Pagamentos a confirmar, Atrasados, Ações rápidas, Conversas, Treino compartilhado, Painel do Adm, Professores convidados, Academia, Preferências e Privacidade.

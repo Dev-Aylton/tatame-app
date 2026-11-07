@@ -518,6 +518,13 @@ function saveDemoInvites() {
   localStorage.setItem("tatame-demo-invites", JSON.stringify(demoInvites));
 }
 
+function teacherPaymentButton(label, action, className, attributes = "") {
+  return `<div class="student-action-control">
+    <button class="${className} button--action" type="button" data-professor-payment-action="${action}" ${attributes}><span data-action-label>${label}</span></button>
+    <p class="login-action-error student-action-error" role="alert"></p>
+  </div>`;
+}
+
 function renderCashPaymentRow(payment) {
   const statusLabel = payment.status === "pending" ? "PENDENTE" : payment.status === "confirmed" ? "CONFIRMADO" : "RECUSADO";
   const badgeClass = payment.status === "pending" ? "badge--amber" : payment.status === "confirmed" ? "badge--green" : "badge--red";
@@ -533,9 +540,10 @@ function renderCashPaymentRow(payment) {
       </div>
       ${payment.status === "pending" ? `
         <div class="row-actions">
-          <button class="button button--small button--primary" type="button" data-cash-decision="confirm" data-cash-id="${escapeHtml(payment.id)}">Confirmar</button>
-          <button class="button button--small button--danger" type="button" data-cash-decision="reject" data-cash-id="${escapeHtml(payment.id)}">Recusar</button>
+          ${teacherPaymentButton("Confirmar", "dinheiro-confirmar", "button button--small button--primary", `data-cash-decision="confirm" data-cash-id="${escapeHtml(payment.id)}"`)}
+          ${teacherPaymentButton("Recusar", "dinheiro-recusar", "button button--small button--danger", `data-cash-decision="reject" data-cash-id="${escapeHtml(payment.id)}"`)}
         </div>
+        <p class="visually-hidden" role="status" aria-live="polite"></p>
       ` : `<p class="field-help payment-history-entry">${payment.status === "confirmed" ? `Recebido: ${escapeHtml(payment.amount)} · ${escapeHtml(formatDemoDate(payment.date))}.` : "Aviso recusado; nenhum recebimento foi registrado."}</p>`}
     </article>
   `;
@@ -561,10 +569,11 @@ function renderReceiptPaymentRow(payment) {
       </div>
       ${pending ? `<p class="payment-proof" data-proof>Comprovante temporário recebido; será apagado após a confirmação.</p>
         <div class="row-actions">
-          <button class="button button--small button--primary" type="button" data-confirm-payment>Confirmar</button>
-          <button class="button button--small button--danger" type="button" data-reject-payment>Recusar</button>
-          ${matches ? "" : '<button class="button button--small button--quiet" type="button" data-demo-action>Desconto</button><button class="button button--small button--quiet" type="button" data-demo-action>Lançar saldo no mês seguinte</button><button class="button button--small button--quiet" type="button" data-demo-action>Isentar</button>'}
-        </div>` : ""}
+          ${teacherPaymentButton("Confirmar", "comprovante-confirmar", "button button--small button--primary", "data-confirm-payment")}
+          ${teacherPaymentButton("Recusar", "comprovante-recusar", "button button--small button--danger", "data-reject-payment")}
+          ${matches ? "" : `${teacherPaymentButton("Desconto", "desconto", "button button--small button--quiet")}${teacherPaymentButton("Lançar saldo no mês seguinte", "saldo", "button button--small button--quiet")}${teacherPaymentButton("Isentar", "isencao", "button button--small button--quiet")}`}
+        </div>
+        <p class="visually-hidden" role="status" aria-live="polite"></p>` : ""}
       <p class="field-help payment-history-entry" data-payment-history ${confirmed ? "" : "hidden"}>${confirmed ? `Histórico mantido: ${escapeHtml(payment.amount)} · ${escapeHtml(payment.date)}. Comprovante apagado.` : ""}</p>
     </article>
   `;
@@ -965,11 +974,16 @@ const screens = {
           <div class="stack" style="margin-top:12px">
             <label class="button button--primary file-action" for="receipt-file">Escolher comprovante Pix (imagem ou PDF)</label>
             <input id="receipt-file" class="visually-hidden" type="file" accept="image/*,application/pdf,.pdf" data-receipt-file ${receiptAlreadySent ? "disabled" : ""}>
-            <div class="form-grid cash-entry-fields">
+            <div class="form-grid cash-entry-fields${activeRole === "student" ? " cash-entry-fields--student" : ""}">
               <div class="field"><label for="cash-amount">Valor recebido</label><input id="cash-amount" type="number" min="0.01" step="0.01" value="150.00"></div>
               <div class="field"><label for="cash-date">Data de recebimento</label><input id="cash-date" type="date" value="2026-11-07"></div>
             </div>
-            <button class="button button--quiet" type="button" data-cash-notice data-loading-text="Enviando…">Paguei em dinheiro</button>
+            ${activeRole === "student" ? `
+              <div class="student-action-control">
+                <button class="button button--quiet button--action" type="button" data-cash-notice data-student-action aria-describedby="student-cash-error"><span data-action-label>Paguei em dinheiro</span></button>
+                <div class="login-action-error student-action-error" id="student-cash-error" role="alert" aria-atomic="true"></div>
+              </div>
+            ` : `<button class="button button--quiet" type="button" data-cash-notice data-loading-text="Enviando…">Paguei em dinheiro</button>`}
           </div>
           <p class="field-help" id="cash-notice-result" aria-live="polite">${escapeHtml(cashResult)}</p>
           <div class="receipt-editor" id="receipt-editor" hidden>
@@ -980,8 +994,14 @@ const screens = {
             </div>
             <p class="receipt-result" id="receipt-result" aria-live="polite"></p>
             <p class="field-help" id="receipt-status" aria-live="polite">${receiptAlreadySent ? "Comprovante enviado; aguardando confirmação do professor." : ""}</p>
-            <button class="button button--primary" type="button" data-send-receipt data-loading-text="Enviando…" ${receiptAlreadySent ? "disabled" : ""}>Enviar comprovante</button>
+            ${activeRole === "student" ? `
+              <div class="student-action-control">
+                <button class="button button--primary button--action" type="button" data-send-receipt data-student-action aria-describedby="student-receipt-error" ${receiptAlreadySent ? "disabled" : ""}><span data-action-label>Enviar comprovante</span></button>
+                <div class="login-action-error student-action-error" id="student-receipt-error" role="alert" aria-atomic="true"></div>
+              </div>
+            ` : `<button class="button button--primary" type="button" data-send-receipt data-loading-text="Enviando…" ${receiptAlreadySent ? "disabled" : ""}>Enviar comprovante</button>`}
           </div>
+          ${activeRole === "student" ? '<div class="visually-hidden" id="student-payment-status" role="status" aria-live="polite" aria-atomic="true"></div>' : ""}
           <div class="notice notice--pending" id="duplicate-receipt-warning" style="margin-top:10px" ${receiptAlreadySent ? "" : "hidden"}>Comprovante já enviado para esta cobrança fictícia. Avisos duplicados ficam bloqueados.</div>
           <p class="field-help" style="margin-top:8px">Parser de comprovante: pendente de teste real no iPhone.</p>
           <p class="field-help" style="margin-top:12px">O protótipo não envia nem guarda arquivos.</p>
@@ -998,9 +1018,13 @@ const screens = {
           <div class="chat-bubble chat-bubble--in"><strong>Professor</strong><p>Mensagem fictícia recebida.</p></div>
           <div class="chat-bubble chat-bubble--out"><strong>Você</strong><p>Mensagem fictícia enviada.</p></div>
         </div>
-        <form data-demo-form class="chat-form">
+        <form data-demo-form data-student-chat class="chat-form">
           <input class="search-input" type="text" placeholder="Escreva ao professor (demonstração)" aria-label="Mensagem ao professor">
-          <button class="button button--primary" type="submit" data-loading-text="Enviando…">Enviar</button>
+          <div class="student-action-control">
+            <button class="button button--primary button--action" type="submit" data-student-action aria-describedby="student-chat-error"><span data-action-label>Enviar</span></button>
+            <div class="login-action-error student-action-error" id="student-chat-error" role="alert" aria-atomic="true"></div>
+          </div>
+          <div class="visually-hidden" id="student-chat-status" role="status" aria-live="polite" aria-atomic="true"></div>
         </form>
       `)}
     `;
@@ -1269,11 +1293,13 @@ const screens = {
             <div class="panel-heading"><h3>Sugestões de correspondência</h3></div>
             <div class="pix-match-row" data-pix-match>
               <div><strong>ALUNO FICTÍCIO 01</strong><small>Valor lido: R$ 150,00 · Data lida: 01/11/2026</small><small>Cobrança sugerida: mensalidade · R$ 150,00</small></div>
-              <button class="button button--small button--primary" type="button" data-confirm-pix>Confirmar</button>
+              ${teacherPaymentButton("Confirmar", "pix-confirmar", "button button--small button--primary", "data-confirm-pix")}
+              <p class="visually-hidden" role="status" aria-live="polite"></p>
             </div>
             <div class="pix-match-row" data-pix-match>
               <div><strong>ALUNO FICTÍCIO 02</strong><small>Valor lido: R$ 120,00 · Data lida: 02/11/2026</small><small>Cobrança sugerida: mensalidade · R$ 150,00</small></div>
-              <button class="button button--small button--quiet" type="button" data-review-pix>Revisar sugestão</button>
+              ${teacherPaymentButton("Revisar sugestão", "pix-revisar", "button button--small button--quiet", "data-review-pix")}
+              <p class="visually-hidden" role="status" aria-live="polite"></p>
             </div>
           </section>
         </div>
@@ -1310,7 +1336,10 @@ const screens = {
                 <div class="field"><label for="teacher-cash-amount">Valor recebido</label><input id="teacher-cash-amount" type="number" min="0.01" step="0.01" value="150.00" required></div>
                 <div class="field"><label for="teacher-cash-date">Data de recebimento</label><input id="teacher-cash-date" type="date" value="2026-11-07" required></div>
               </div>
-              <div class="form-actions"><button class="button button--primary" type="submit" data-loading-text="Registrando…">Registrar recebido em dinheiro</button></div>
+              <div class="form-actions"><div class="student-action-control">
+                <button class="button button--primary button--action" type="submit" data-professor-payment-action="dinheiro-lancar"><span data-action-label>Registrar recebido em dinheiro</span></button>
+                <p class="login-action-error student-action-error" role="alert"></p>
+              </div></div>
               <p class="field-help" id="teacher-cash-result" role="status" aria-live="polite"></p>
             </form>
           `)}
@@ -1671,7 +1700,7 @@ function runLoadingAction(button, complete) {
 
 const actionResetTimers = new WeakMap();
 
-async function runButtonAction(button, { feedback, announcement, buttons, loadingText, loadingMessage, successMessage, errorMessage, afterSuccess }, action) {
+async function runButtonAction(button, { feedback, announcement, buttons, loadingText, loadingMessage, successMessage, errorMessage, afterSuccess, disableAfterSuccess = false }, action) {
   if (button.disabled) return;
   const label = button.querySelector("[data-action-label]");
   if (!label || !feedback || !announcement) {
@@ -1687,6 +1716,7 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
   feedback.textContent = "";
   const disabledStates = buttons.map((item) => item.disabled);
   const hadFocus = document.activeElement === button;
+  let succeeded = false;
   buttons.forEach((item) => { item.disabled = true; });
   button.setAttribute("aria-busy", "true");
   label.textContent = loadingText;
@@ -1704,6 +1734,7 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
         showToast(outcome.errorMessage, "error");
       }
     } else if (button.isConnected) {
+      succeeded = true;
       button.removeAttribute("aria-busy");
       button.dataset.actionState = "success";
       label.textContent = "✓ Concluído";
@@ -1732,7 +1763,7 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
       showToast(errorMessage, "error");
     }
   } finally {
-    buttons.forEach((item, index) => { item.disabled = disabledStates[index]; });
+    buttons.forEach((item, index) => { item.disabled = item === button && succeeded && disableAfterSuccess ? true : disabledStates[index]; });
     button.removeAttribute("aria-busy");
     if (hadFocus && button.isConnected && document.activeElement === document.body) button.focus();
   }
@@ -2195,65 +2226,76 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const confirmPayment = target.closest("[data-confirm-payment]");
-  if (confirmPayment) {
-    const row = confirmPayment.closest("[data-payment-row]");
-    const receipt = receiptPayments.find((payment) => payment.id === row.dataset.receiptId);
-    if (!receipt || receipt.status !== "pending" || activeRole !== "professor" ||
-        receipt.professorAccount !== activeDemoAccount) {
-      showToast("Este comprovante não está disponível para sua conta.", "error");
-      return;
-    }
-    runLoadingAction(confirmPayment, () => {
-      receipt.status = "confirmed";
-      receipt.file = null;
-      if (receipt.fileInput) receipt.fileInput.value = "";
-      renderScreen("payment-review");
-      showToast("Pagamento confirmado; somente valor e data ficam no histórico.");
+  const paymentAction = target.closest("button[data-professor-payment-action]");
+  if (paymentAction && paymentAction.type === "button" && paymentAction.closest(".payment-review-row")) {
+    const row = paymentAction.closest(".payment-review-row");
+    const action = paymentAction.dataset.professorPaymentAction;
+    const isReceiptDecision = paymentAction.hasAttribute("data-confirm-payment") || paymentAction.hasAttribute("data-reject-payment");
+    const isCashDecision = paymentAction.hasAttribute("data-cash-decision");
+    const successMessage = isReceiptDecision
+      ? (paymentAction.hasAttribute("data-confirm-payment") ? "Pagamento confirmado; somente valor e data ficam no histórico." : "Aviso recusado nesta demonstração.")
+      : isCashDecision
+        ? (paymentAction.dataset.cashDecision === "confirm" ? "Recebimento confirmado; valor e data ficaram no histórico." : "Aviso em dinheiro recusado.")
+        : "Demonstração visual: nada foi gravado ou enviado.";
+    runButtonAction(paymentAction, {
+      feedback: paymentAction.parentElement.querySelector('[role="alert"]'),
+      announcement: row.querySelector('[role="status"]'),
+      buttons: Array.from(screenContent.querySelectorAll("[data-professor-payment-action]")),
+      loadingText: "Salvando...",
+      loadingMessage: "Processando ação de pagamento.",
+      successMessage,
+      errorMessage: "Não foi possível concluir. Tente novamente.",
+      afterSuccess: isReceiptDecision || isCashDecision ? () => {
+        renderScreen("payment-review");
+        showToast(successMessage);
+      } : undefined
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === `professor-pagamento-${action}`) {
+        throw new Error("Falha simulada de pagamento do Professor.");
+      }
+      if (isReceiptDecision) {
+        const receipt = receiptPayments.find((payment) => payment.id === row.dataset.receiptId);
+        if (!receipt || receipt.status !== "pending" || activeRole !== "professor" || receipt.professorAccount !== activeDemoAccount) {
+          return { errorMessage: "Comprovante indisponível. Confira sua conta." };
+        }
+        receipt.status = paymentAction.hasAttribute("data-confirm-payment") ? "confirmed" : "rejected";
+        receipt.file = null;
+        if (receipt.fileInput) receipt.fileInput.value = "";
+      } else if (isCashDecision) {
+        const payment = cashPayments.find((item) => item.id === paymentAction.dataset.cashId && item.status === "pending");
+        if (!payment || activeRole !== "professor" || payment.professorAccount !== activeDemoAccount) {
+          return { errorMessage: "Aviso indisponível. Confira sua conta." };
+        }
+        payment.status = paymentAction.dataset.cashDecision === "confirm" ? "confirmed" : "rejected";
+      } else {
+        showToast(successMessage);
+      }
     });
     return;
   }
 
-  const rejectPayment = target.closest("[data-reject-payment]");
-  if (rejectPayment) {
-    const row = rejectPayment.closest("[data-payment-row]");
-    const receipt = receiptPayments.find((payment) => payment.id === row.dataset.receiptId);
-    if (!receipt || receipt.status !== "pending" || activeRole !== "professor" ||
-        receipt.professorAccount !== activeDemoAccount) {
-      showToast("Este comprovante não está disponível para sua conta.", "error");
-      return;
-    }
-    receipt.status = "rejected";
-    receipt.file = null;
-    if (receipt.fileInput) receipt.fileInput.value = "";
-    renderScreen("payment-review");
-    showToast("Aviso recusado nesta demonstração.");
-    return;
-  }
-
-  const cashDecision = target.closest("[data-cash-decision]");
-  if (cashDecision) {
-    const payment = cashPayments.find((item) => item.id === cashDecision.dataset.cashId && item.status === "pending");
-    if (!payment || activeRole !== "professor" || payment.professorAccount !== activeDemoAccount) {
-      showToast("Este aviso não está disponível para sua conta.", "error");
-      return;
-    }
-    payment.status = cashDecision.dataset.cashDecision === "confirm" ? "confirmed" : "rejected";
-    renderScreen("payment-review");
-    showToast(payment.status === "confirmed" ? "Recebimento confirmado; valor e data ficaram no histórico." : "Aviso em dinheiro recusado.");
-    return;
-  }
-
-  const confirmPix = target.closest("[data-confirm-pix]");
-  if (confirmPix) {
-    confirmPix.disabled = true;
-    confirmPix.textContent = "Correspondência confirmada";
-    showToast("Correspondência confirmada pelo professor; nenhum pagamento foi processado.");
-    return;
-  }
-
-  if (target.closest("[data-review-pix]")) {
-    showToast("Confira manualmente a sugestão antes de confirmar.");
+  const pixAction = target.closest("[data-confirm-pix], [data-review-pix]");
+  if (pixAction) {
+    const confirmed = pixAction.hasAttribute("data-confirm-pix");
+    const message = confirmed ? "Correspondência confirmada pelo professor; nenhum pagamento foi processado." : "Confira manualmente a sugestão antes de confirmar.";
+    runButtonAction(pixAction, {
+      feedback: pixAction.parentElement.querySelector('[role="alert"]'),
+      announcement: pixAction.closest("[data-pix-match]").querySelector('[role="status"]'),
+      buttons: Array.from(screenContent.querySelectorAll("[data-professor-payment-action]")),
+      loadingText: "Salvando...",
+      loadingMessage: "Processando sugestão.",
+      successMessage: message,
+      errorMessage: "Não foi possível concluir. Tente novamente.",
+      disableAfterSuccess: confirmed,
+      afterSuccess: confirmed ? () => { pixAction.querySelector("[data-action-label]").textContent = "Correspondência confirmada"; } : undefined
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === `professor-pagamento-${pixAction.dataset.professorPaymentAction}`) {
+        throw new Error("Falha simulada de sugestão Pix.");
+      }
+      showToast(message);
+    });
     return;
   }
 
@@ -2263,19 +2305,16 @@ document.addEventListener("click", (event) => {
     const amountInput = document.querySelector("#cash-amount");
     const dateInput = document.querySelector("#cash-date");
     const amountValue = Number(amountInput.value);
+    let validationMessage = "";
     if (!profile || activeRole !== "student" || !profile.teacherAccount || !profile.academyId) {
-      showToast("Não foi possível enviar o aviso. Confira o vínculo com seu Professor.", "error");
-      return;
+      validationMessage = "Não foi possível enviar o aviso. Confira o vínculo com seu Professor.";
+    } else if (!Number.isFinite(amountValue) || amountValue <= 0 || !dateInput.value) {
+      validationMessage = "Informe um valor e uma data válidos.";
+    } else if (cashPayments.some((payment) => payment.account === activeDemoAccount && payment.status === "pending")) {
+      validationMessage = "Já existe um aviso em dinheiro aguardando confirmação.";
     }
-    if (!Number.isFinite(amountValue) || amountValue <= 0 || !dateInput.value) {
-      showToast("Informe um valor e uma data válidos.", "error");
-      return;
-    }
-    if (cashPayments.some((payment) => payment.account === activeDemoAccount && payment.status === "pending")) {
-      showToast("Já existe um aviso em dinheiro aguardando confirmação.", "error");
-      return;
-    }
-    runLoadingAction(cashNotice, () => {
+    const result = document.querySelector("#cash-notice-result");
+    const completeCashNotice = () => {
       cashPayments.push({
         id: `cash-${Date.now()}`,
         account: activeDemoAccount,
@@ -2286,32 +2325,52 @@ document.addEventListener("click", (event) => {
         source: "student",
         status: "pending"
       });
-      document.querySelector("#cash-notice-result").textContent = "Pagamento em dinheiro lançado e PENDENTE até a confirmação do Professor.";
-      showToast("Aviso de pagamento em dinheiro ficou pendente.");
-    });
+      result.textContent = "Pagamento em dinheiro lançado e PENDENTE até a confirmação do Professor.";
+      if (cashNotice.isConnected) showToast("Aviso de pagamento em dinheiro ficou pendente.");
+    };
+    if (cashNotice instanceof HTMLButtonElement && cashNotice.hasAttribute("data-student-action")) {
+      runButtonAction(cashNotice, {
+        feedback: document.querySelector("#student-cash-error"),
+        announcement: document.querySelector("#student-payment-status"),
+        buttons: [cashNotice],
+        loadingText: "Enviando...",
+        loadingMessage: "Enviando aviso de pagamento.",
+        successMessage: "Aviso de pagamento em dinheiro ficou pendente.",
+        errorMessage: "Não foi possível enviar o aviso. Tente novamente."
+      }, async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 900));
+        if (new URLSearchParams(window.location.search).get("erro-simulado") === "aluno-dinheiro") {
+          throw new Error("Falha simulada de aviso em dinheiro.");
+        }
+        if (validationMessage) return { errorMessage: validationMessage };
+        completeCashNotice();
+      });
+      return;
+    }
+    if (validationMessage) {
+      showToast(validationMessage, "error");
+      return;
+    }
+    runLoadingAction(cashNotice, completeCashNotice);
     return;
   }
 
   const sendReceipt = target.closest("[data-send-receipt]");
   if (sendReceipt) {
-    if (receiptPayments.some((payment) => payment.account === activeDemoAccount)) {
-      document.querySelector("#duplicate-receipt-warning").hidden = false;
-      showToast("Comprovante já enviado para esta cobrança fictícia.", "error");
-      return;
-    }
     const fileInput = document.querySelector("[data-receipt-file]");
     const profile = demoProfiles[activeDemoAccount];
     const amountInput = document.querySelector("#receipt-amount");
     const dateInput = document.querySelector("#receipt-date");
-    if (!profile || activeRole !== "student" || !profile.teacherAccount || !profile.academyId) {
-      showToast("Não foi possível enviar o comprovante. Confira seu vínculo com o Professor.", "error");
-      return;
+    let validationMessage = "";
+    if (receiptPayments.some((payment) => payment.account === activeDemoAccount)) {
+      document.querySelector("#duplicate-receipt-warning").hidden = false;
+      validationMessage = "Comprovante já enviado para esta cobrança fictícia.";
+    } else if (!profile || activeRole !== "student" || !profile.teacherAccount || !profile.academyId) {
+      validationMessage = "Não foi possível enviar o comprovante. Confira seu vínculo com o Professor.";
+    } else if (!fileInput.files.length || !amountInput.value.trim() || !dateInput.value.trim()) {
+      validationMessage = "Escolha uma imagem ou PDF fictício antes de enviar.";
     }
-    if (!fileInput.files.length || !amountInput.value.trim() || !dateInput.value.trim()) {
-      showToast("Escolha uma imagem ou PDF fictício antes de enviar.", "error");
-      return;
-    }
-    runLoadingAction(sendReceipt, () => {
+    const saveReceipt = () => {
       receiptPayments.push({
         id: `receipt-${Date.now()}`,
         account: activeDemoAccount,
@@ -2323,8 +2382,38 @@ document.addEventListener("click", (event) => {
         fileInput,
         status: "pending"
       });
+    };
+    const showReceiptResult = () => {
       renderScreen("student-payments");
       showToast("Comprovante enviado para conferência.");
+    };
+    if (sendReceipt instanceof HTMLButtonElement && sendReceipt.hasAttribute("data-student-action")) {
+      runButtonAction(sendReceipt, {
+        feedback: document.querySelector("#student-receipt-error"),
+        announcement: document.querySelector("#student-payment-status"),
+        buttons: [sendReceipt],
+        loadingText: "Enviando...",
+        loadingMessage: "Enviando comprovante.",
+        successMessage: "Comprovante enviado para conferência.",
+        errorMessage: "Não foi possível enviar o comprovante. Tente novamente.",
+        afterSuccess: showReceiptResult
+      }, async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 900));
+        if (new URLSearchParams(window.location.search).get("erro-simulado") === "aluno-comprovante") {
+          throw new Error("Falha simulada de envio do comprovante.");
+        }
+        if (validationMessage) return { errorMessage: validationMessage };
+        saveReceipt();
+      });
+      return;
+    }
+    if (validationMessage) {
+      showToast(validationMessage, "error");
+      return;
+    }
+    runLoadingAction(sendReceipt, () => {
+      saveReceipt();
+      showReceiptResult();
     });
     return;
   }
@@ -2529,12 +2618,23 @@ document.addEventListener("submit", (event) => {
   const amountValue = Number(form.querySelector("#teacher-cash-amount").value);
   const dateValue = form.querySelector("#teacher-cash-date").value;
   const student = demoRoster.find((item) => item.name === studentName && item.teacherAccount === activeDemoAccount);
-  if (activeRole !== "professor" || !student || !Number.isFinite(amountValue) || amountValue <= 0 || !dateValue) {
-    showToast("Não foi possível registrar o recebimento. Confira o aluno, o valor e a data.", "error");
-    return;
-  }
   const submitButton = form.querySelector('button[type="submit"]');
-  runLoadingAction(submitButton, () => {
+  runButtonAction(submitButton, {
+    feedback: submitButton.parentElement.querySelector('[role="alert"]'),
+    announcement: form.querySelector("#teacher-cash-result"),
+    buttons: Array.from(screenContent.querySelectorAll("[data-professor-payment-action]")),
+    loadingText: "Salvando...",
+    loadingMessage: "Registrando recebimento.",
+    successMessage: "Recebimento lançado e confirmado no histórico.",
+    errorMessage: "Não foi possível registrar. Tente novamente."
+  }, async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 900));
+    if (new URLSearchParams(window.location.search).get("erro-simulado") === "professor-pagamento-dinheiro-lancar") {
+      throw new Error("Falha simulada de lançamento em dinheiro.");
+    }
+    if (activeRole !== "professor" || !student || student.teacherAccount !== activeDemoAccount || !Number.isFinite(amountValue) || amountValue <= 0 || !dateValue) {
+      return { errorMessage: "Confira o aluno, o valor e a data." };
+    }
     cashPayments.push({
       id: `cash-${Date.now()}`,
       account: student.account,
@@ -2545,8 +2645,8 @@ document.addEventListener("submit", (event) => {
       source: "teacher",
       status: "confirmed"
     });
-    form.querySelector("#teacher-cash-result").textContent = "Recebimento lançado e confirmado no histórico.";
-    document.querySelector("#teacher-cash-history").innerHTML = renderTeacherCashHistory();
+    const history = document.querySelector("#teacher-cash-history");
+    if (history) history.innerHTML = renderTeacherCashHistory();
     showToast("Dinheiro recebido lançado como confirmado.");
   });
 });
@@ -2559,6 +2659,29 @@ document.addEventListener("submit", (event) => {
     const loginButton = form.querySelector('button[data-login-action][type="submit"]');
     if (loginButton instanceof HTMLButtonElement) simulateLogin(loginButton);
     else showToast("Não foi possível iniciar a ação. Tente novamente.", "error");
+    return;
+  }
+  if (form.matches("[data-student-chat]")) {
+    const chatButton = form.querySelector("[data-student-action]");
+    if (!(chatButton instanceof HTMLButtonElement)) {
+      showToast("Não foi possível iniciar o envio. Tente novamente.", "error");
+      return;
+    }
+    runButtonAction(chatButton, {
+      feedback: form.querySelector("#student-chat-error"),
+      announcement: form.querySelector("#student-chat-status"),
+      buttons: [chatButton],
+      loadingText: "Enviando...",
+      loadingMessage: "Enviando mensagem de demonstração.",
+      successMessage: "Protótipo visual: nenhum dado foi gravado ou enviado.",
+      errorMessage: "Não foi possível enviar a mensagem. Tente novamente."
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 1200));
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === "aluno-mensagem") {
+        throw new Error("Falha simulada de envio da mensagem.");
+      }
+      if (chatButton.isConnected) showToast("Protótipo visual: nenhum dado foi gravado ou enviado.");
+    });
     return;
   }
   const submitButton = form.querySelector('button[type="submit"][data-loading-text]');

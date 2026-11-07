@@ -223,7 +223,7 @@ window.CASOS_ACEITE_F1 = [
     perfil: "Aluno",
     regras: "RN06",
     precondicoes: "Aluno autenticado com cobrança própria em aberto.",
-    passos: ["Usar a ação de avisar que pagou.", "Consultar o status como aluno e como professor."],
+    passos: ["Usar as ações Paguei em dinheiro e Enviar comprovante com dados fictícios; conferir Enviando..., bloqueio de toque duplo e ✓ Concluído por 2 a 3 segundos.", "Consultar o status como aluno e como professor.", "Repetir com ?erro-simulado=aluno-dinheiro e ?erro-simulado=aluno-comprovante; conferir Tentar de novo, alerta abaixo do botão e remoção do aviso ao repetir."],
     esperado: "O aviso aparece na fila real do Professor responsável com nome do aluno, valor e data; fica pendente até confirmação ou recusa e não é contado como recebido antes da confirmação."
   },
   {
@@ -519,11 +519,11 @@ window.CASOS_ACEITE_F1 = [
   {
     id: "F1-UX-10",
     area: "Interface responsiva",
-    titulo: "Estados e mensagens dos botões de login simulado",
-    perfil: "Visitante",
+    titulo: "Estados e mensagens de entrada e conversa simuladas",
+    perfil: "Visitante e aluno",
     regras: "Ações com foco, processamento, bloqueio contra toque duplo e mensagens acessíveis de resultado.",
     precondicoes: "Protótipo local aberto na tela de entrada, sem conexão real de login; repetir com teclado e leitor de tela.",
-    passos: ["Acionar Fazer login com o Google e Entrar separadamente; observar indicador e texto de processamento no botão, anúncio acessível e ambos os botões desabilitados durante a simulação.", "Tentar um segundo acionamento durante o processamento e conferir que não há nova operação.", "Ao concluir, verificar ✓ Concluído por 2 a 3 segundos no botão, sem caixa de sucesso, e depois o rótulo original; trocar de tela durante a conclusão e conferir o aviso global.", "Abrir index.html?erro-simulado=entrada e acionar cada botão; conferir Tentar de novo, mensagem abaixo do botão em role=alert sem mudança de layout, e desaparecimento da mensagem ao tentar novamente. Remover o parâmetro e conferir o sucesso."],
+    passos: ["Acionar Fazer login com o Google e Entrar separadamente; observar indicador e texto de processamento no botão, anúncio acessível e ambos os botões desabilitados durante a simulação.", "Tentar um segundo acionamento durante o processamento e conferir que não há nova operação.", "Ao concluir, verificar ✓ Concluído por 2 a 3 segundos no botão, sem caixa de sucesso, e depois o rótulo original; trocar de tela durante a conclusão e conferir o aviso global.", "Abrir index.html?erro-simulado=entrada e acionar cada botão; conferir Tentar de novo, mensagem abaixo do botão em role=alert sem mudança de layout, e desaparecimento da mensagem ao tentar novamente. Remover o parâmetro e conferir o sucesso.", "Na conversa do aluno, verificar os mesmos estados em Enviar e repetir com ?erro-simulado=aluno-mensagem."],
     esperado: "Cada ação informa processamento, conclusão ou erro sem depender apenas de cor; os estados são anunciados, o erro aparece abaixo do botão sem deslocar o conteúdo, toques duplicados são evitados e nenhum login ou envio é realizado."
   }
 ];

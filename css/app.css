@@ -681,7 +681,7 @@ body[data-theme="light"] .button--google:focus-visible {
   cursor: progress;
 }
 
-.button--action:is([data-login-action], [data-register-action], [data-link-action])[aria-busy="true"]::after {
+.button--action:is([data-login-action], [data-register-action], [data-link-action], [data-student-action], [data-professor-payment-action])[aria-busy="true"]::after {
   content: "";
   width: 14px;
   height: 14px;
@@ -709,16 +709,22 @@ body[data-theme="light"] .button--google:focus-visible {
 }
 
 .register-action-control,
-.link-action-control {
+.link-action-control,
+.student-action-control {
   display: flex;
   flex-direction: column;
 }
 
 .register-action-error,
-.link-action-error {
+.link-action-error,
+.student-action-error {
   max-width: 260px;
   height: 4.2em;
   overflow-y: auto;
+}
+
+form[data-register-teacher-cash] .form-grid {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 form[data-accept-demo-invite] .form-actions {
@@ -1175,6 +1181,10 @@ form[data-accept-demo-invite] .register-action-error {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+}
+
+.cash-entry-fields--student {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .field {
@@ -1921,6 +1931,16 @@ form[data-accept-demo-invite] .register-action-error {
 
 .chat-form .search-input {
   flex: 1;
+}
+
+.chat-form[data-student-chat] {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.chat-form[data-student-chat] .search-input {
+  min-width: 0;
+  flex: 1 1 200px;
 }
 
 .schedule-list {
