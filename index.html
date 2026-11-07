@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#121316">
+  <title>Tatame | Protótipo F1</title>
+  <link rel="stylesheet" href="css/app.css">
+  <script src="js/app.js" defer></script>
+</head>
+<body class="tatame-app" data-theme="dark">
+  <div class="prototype-banner">
+    <span><strong>PROTÓTIPO F1</strong><span class="banner-separator">·</span> dados fictícios; sem autenticação real ou envio ao servidor</span>
+    <span class="fictional-note">Somente conteúdo fictício</span>
+  </div>
+
+  <div class="app-frame">
+    <aside class="app-sidebar" id="app-sidebar" aria-label="Navegação do protótipo">
+      <a class="brand-mark" href="index.html" aria-label="Tatame — início do protótipo">
+        <img src="assets/logos/tatame-icone-escudo.svg" alt="">
+        <span class="brand-caption">F1 · TELAS</span>
+      </a>
+      <div class="sidebar-intro">
+        <span class="eyebrow">VISUALIZAÇÃO</span>
+        <p>As telas disponíveis seguem o papel da conta ativa.</p>
+      </div>
+      <nav class="screen-navigation" id="screen-navigation" aria-label="Telas por perfil"></nav>
+      <div class="sidebar-footer">
+        <span class="demo-dot" aria-hidden="true"></span>
+        <span>Dados de demonstração</span>
+      </div>
+    </aside>
+
+    <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Fechar menu"></button>
+
+    <main class="app-main">
+      <header class="app-header">
+        <div class="header-context">
+          <button class="icon-button mobile-menu-button" id="mobile-menu-button" type="button" aria-label="Abrir navegação" aria-expanded="false" aria-controls="app-sidebar">
+            <span aria-hidden="true">☰</span>
+          </button>
+          <img class="mobile-header-logo" src="assets/logos/tatame-icone-escudo.svg" alt="">
+          <div class="header-titles">
+            <span class="eyebrow">TATAME <span class="eyebrow-divider">/</span> PROTÓTIPO</span>
+            <h1 id="current-screen-title">Acesso</h1>
+          </div>
+        </div>
+        <button class="profile-button" id="profile-button" type="button" data-open-user-panel aria-haspopup="dialog" aria-controls="user-panel" hidden>
+          <span class="profile-orb" aria-hidden="true">T</span>
+          <span class="profile-button-copy"><strong>Visualizar perfil</strong><small>Sem sessão ativa</small></span>
+          <span class="chevron" aria-hidden="true">⌄</span>
+        </button>
+      </header>
+
+      <section class="screen-content" id="screen-content" aria-live="polite" aria-relevant="additions text">
+        <p class="loading-note">Carregando telas do protótipo…</p>
+      </section>
+
+      <footer class="app-footer">
+        <span>Protótipo visual · alguns estados demonstrativos ficam no navegador</span>
+        <span class="app-footer-links">
+          <button class="text-link" type="button" data-open-terms>Termo de consentimento</button>
+          <a href="tests/plano.html">Plano da F1 <span aria-hidden="true">↗</span></a>
+        </span>
+      </footer>
+    </main>
+  </div>
+
+  <nav class="mobile-navigation" id="mobile-navigation" aria-label="Atalhos da conta"></nav>
+
+  <dialog class="user-panel" id="user-panel" aria-labelledby="user-panel-title">
+    <div class="user-panel-heading">
+      <div>
+        <span class="eyebrow">CONTA</span>
+        <h2 id="user-panel-title">Painel do usuário</h2>
+      </div>
+      <button class="icon-button" type="button" data-close-user-panel aria-label="Fechar painel do usuário">×</button>
+    </div>
+    <div class="user-panel-profile">
+      <span class="profile-orb" aria-hidden="true">T</span>
+      <span><strong id="user-panel-profile-name">Sem sessão ativa</strong><small id="user-panel-profile-role">Perfil demonstrativo</small></span>
+    </div>
+    <nav class="user-panel-links" aria-label="Opções da conta">
+      <button class="user-panel-link" type="button" data-open-tutorial>
+        <span aria-hidden="true">?</span><span><strong>Tutorial</strong><small>Ajuda para esta conta</small></span><span aria-hidden="true">›</span>
+      </button>
+      <button class="user-panel-link" type="button" data-screen-target="user-settings">
+        <span aria-hidden="true">◎</span><span><strong>Preferências</strong><small>Conta e visualização</small></span><span aria-hidden="true">›</span>
+      </button>
+      <button class="user-panel-link" type="button" data-screen-target="privacy">
+        <span aria-hidden="true">◇</span><span><strong>Privacidade</strong><small>Conteúdo pendente de revisão</small></span><span aria-hidden="true">›</span>
+      </button>
+      <button class="user-panel-link" type="button" data-theme-toggle>
+        <span aria-hidden="true">◐</span><span><strong>Alternar tema</strong><small>Apenas para visualização</small></span><span aria-hidden="true">›</span>
+      </button>
+      <button class="user-panel-link" type="button" data-logout-role>
+        <span aria-hidden="true">↗</span><span><strong>Sair</strong><small>Encerrar esta sessão demonstrativa</small></span><span aria-hidden="true">›</span>
+      </button>
+    </nav>
+    <p class="user-panel-note">O perfil e as permissões são definidos pelo banco na versão funcional.</p>
+  </dialog>
+
+  <dialog class="privacy-dialog" id="privacy-modal" aria-labelledby="privacy-modal-title">
+    <div class="dialog-heading">
+      <div>
+        <span class="eyebrow">PRIVACIDADE</span>
+        <h2 id="privacy-modal-title">Conteúdo pendente</h2>
+      </div>
+      <button class="icon-button" type="button" data-close-dialog aria-label="Fechar">×</button>
+    </div>
+    <p class="notice notice--pending">O texto da política e do termo ainda precisa ser revisado e aprovado. Este protótipo não registra consentimento.</p>
+    <a class="text-link" href="privacidade.html">Abrir página independente de privacidade <span aria-hidden="true">↗</span></a>
+  </dialog>
+
+  <dialog class="privacy-dialog" id="terms-modal" aria-labelledby="terms-modal-title">
+    <div class="dialog-heading">
+      <div>
+        <span class="eyebrow">TERMO</span>
+        <h2 id="terms-modal-title">Termo de consentimento</h2>
+      </div>
+      <button class="icon-button" type="button" data-close-dialog aria-label="Fechar">×</button>
+    </div>
+    <p class="notice notice--pending">Texto em elaboração.</p>
+  </dialog>
+
+  <dialog class="tutorial-dialog" id="tutorial-modal" role="dialog" aria-modal="true" aria-labelledby="tutorial-title" aria-describedby="tutorial-copy">
+    <div class="tutorial-heading">
+      <div>
+        <span class="eyebrow" id="tutorial-progress"></span>
+        <h2 id="tutorial-title">Tutorial</h2>
+      </div>
+      <button class="icon-button" type="button" data-tutorial-skip aria-label="Pular tutorial">×</button>
+    </div>
+    <div class="tutorial-illustration" id="tutorial-illustration"></div>
+    <h3 id="tutorial-step-title"></h3>
+    <p id="tutorial-copy"></p>
+    <div class="tutorial-actions">
+      <button class="button button--quiet" type="button" data-tutorial-back>Voltar</button>
+      <button class="button button--quiet" type="button" data-tutorial-skip>Pular</button>
+      <button class="button button--primary" type="button" data-tutorial-next>Próximo</button>
+    </div>
+  </dialog>
+
+  <div class="toast-region" id="toast-region" role="status" aria-live="polite"></div>
+</body>
+</html>
