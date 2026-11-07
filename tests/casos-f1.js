@@ -495,5 +495,15 @@ window.CASOS_ACEITE_F1 = [
     precondicoes: "Há contas fictícias dos cinco tipos e tutorial com passos próprios.",
     passos: ["Entrar pela primeira vez em cada conta.", "Usar Voltar, Próximo e Pular.", "Reabrir Tutorial pelo painel do usuário e operar por toque, teclado e Escape."],
     esperado: "O primeiro acesso abre o tutorial correspondente; os passos explicam as funcionalidades disponíveis, têm ilustração SVG inline, foco acessível e não cortam texto. Pular fecha o tutorial e o painel permite reabri-lo."
+  },
+  {
+    id: "F1-UX-08",
+    area: "Interface responsiva",
+    titulo: "Contraste do modo claro conferido no iPhone",
+    perfil: "Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro",
+    regras: "Acessibilidade: contraste mínimo de 4,5:1 para texto e 3:1 para texto grande e ícones",
+    precondicoes: "iPhone com o tema claro ativo (Ajustes do iPhone ou item “Alternar tema” do painel do usuário), versão atual do protótipo carregada e brilho em nível normal; repetir em ambiente com luz forte.",
+    passos: ["Em cada conta fictícia, percorrer todas as telas do menu e a barra inferior, o tutorial, o painel do usuário e os modais de privacidade e termo de consentimento.", "Conferir a leitura de títulos, rótulos de campo, textos de apoio, placeholders, rodapé, links, abas, filtros, avisos, selos de status (dourado, verde, âmbar e vermelho) e resultado “Confere com a cobrança” ou “Diverge”.", "Conferir o texto dos botões primário (sobre dourado) e de perigo, e os ícones dourados dos atalhos.", "Aumentar o tamanho do texto do iPhone e repetir nas telas de login, pagamentos e vínculo."],
+    esperado: "Nenhum texto, ícone ou selo fica apagado ou difícil de ler: texto comum atinge 4,5:1 e texto grande ou ícone atinge 3:1 sobre o fundo em que é usado. A barra inferior permanece legível e o tema escuro não muda."
   }
 ];
