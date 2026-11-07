@@ -177,7 +177,7 @@ const tutorialStepsByRole = {
     ["student-home", "Início pessoal", "Consulte seu perfil e seus próprios avisos, separados das informações dos alunos da turma."],
     ["student-payments", "Meus pagamentos", "Consulte somente suas cobranças e seus próprios pagamentos. Nunca verá pagamentos de outros alunos."],
     ["student-grades", "Minhas graduações", "Acompanhe sua própria faixa e seu histórico de graduações."],
-    ["instructor-class", "Aula delegada", "Veja nome e graduação atual da turma e a aula que o Professor decidiu compartilhar, ou “Treino livre”. Registre se seguiu; pagamentos de outros alunos e notas privadas não aparecem."],
+    ["instructor-class", "Aula delegada", "Veja nome e graduação atual da turma e a aula que o Professor decidiu compartilhar, ou “Treino livre”. Registre “Segui” ou “Não segui”; pagamentos de outros alunos e notas privadas não aparecem."],
     ["instructor-chat", "Conversa com o Professor", "Converse somente com o Professor. Não há conversas com alunos ou terceiros."],
     ["academy", "Academia", "Consulte o quadro e os horários publicados da academia."],
     ["user-settings", "Preferências", "Confira tema e opções demonstrativas da conta."],
@@ -186,7 +186,7 @@ const tutorialStepsByRole = {
   student: [
     ["student-home", "Início", "Consulte seu perfil, o status da mensalidade e atalhos pessoais."],
     ["student-link", "Meu vínculo", "Veja seu Professor e academia, troque de Professor por código e acompanhe pedidos pendentes."],
-    ["student-payments", "Meus pagamentos", "Consulte suas cobranças, envie comprovante ou registre pagamento em dinheiro."],
+    ["student-payments", "Meus pagamentos", "Consulte suas cobranças, envie comprovante ou informe um pagamento em dinheiro, que fica pendente até a confirmação do Professor."],
     ["student-grades", "Minhas graduações", "Acompanhe sua faixa e seu histórico de graduações."],
     ["student-chat", "Conversa com o Professor", "Envie mensagens somente ao seu Professor."],
     ["link-teacher", "Vincular a um Professor", "Confira o nome do Professor e da academia antes de pedir vínculo."],
