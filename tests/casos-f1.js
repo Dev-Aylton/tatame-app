@@ -262,9 +262,9 @@ window.CASOS_ACEITE_F1 = [
     titulo: "Desconto e isenção são aplicados à cobrança",
     perfil: "Professor",
     regras: "RN08–RN09",
-    precondicoes: "Aluno fictício e cobrança com valor-base simbólico V; desconto ou isenção configurados.",
-    passos: ["Gerar a cobrança com desconto.", "Gerar outra cobrança com isenção.", "Conferir os valores apresentados."],
-    esperado: "O valor devido corresponde à regra configurada; a isenção resulta em valor devido zero sem criar recebimento fictício."
+    precondicoes: "Professor da turma com regras de cobrança disponíveis e mês selecionado.",
+    passos: ["Definir valor-base e vencimento de um aluno.", "Aplicar desconto fixo e percentual com duração de um mês e de N meses; testar também até remover.", "Gerar cobranças e conferir os valores-base, descontos e valores finais no histórico.", "Aplicar isenção com e sem motivo; conferir o alerta para não registrar dados sensíveis."],
+    esperado: "Desconto fixo ou percentual reduz o valor-base sem valor final negativo; a duração segue o mês inicial selecionado e as regras não alteram cobranças já geradas. A isenção zera a cobrança sem criar recebimento."
   },
   {
     id: "F1-PAG-06",
@@ -272,9 +272,9 @@ window.CASOS_ACEITE_F1 = [
     titulo: "Pagamento parcial mantém o saldo em aberto",
     perfil: "Professor",
     regras: "RN09",
-    precondicoes: "Cobrança fictícia com saldo devido maior que zero.",
-    passos: ["Registrar um pagamento parcial válido.", "Consultar pagamentos associados e saldo restante."],
-    esperado: "O valor pago fica registrado, o saldo restante é calculado corretamente e a cobrança não aparece integralmente paga."
+    precondicoes: "Cobrança fictícia aberta com saldo devido maior que zero.",
+    passos: ["Vincular aviso em dinheiro ou comprovante à cobrança com valor inferior ao saldo.", "Conferir que o aviso fica pendente e o saldo só muda depois da confirmação do Professor.", "Registrar outro pagamento parcial confirmado e conferir o saldo final."],
+    esperado: "Avisos pendentes não marcam a cobrança como paga. Pagamentos parciais confirmados reduzem o saldo e a cobrança só passa a paga quando o total confirmado cobre o valor final."
   },
   {
     id: "F1-PAG-07",
@@ -282,9 +282,9 @@ window.CASOS_ACEITE_F1 = [
     titulo: "Status de vencimento respeita carência configurada",
     perfil: "Professor",
     regras: "RN10",
-    precondicoes: "Cobrança fictícia em aberto, data de vencimento e carência configuráveis no ambiente de teste.",
-    passos: ["Consultar antes do vencimento.", "Consultar no vencimento e durante a carência.", "Avançar o relógio de teste além da carência."],
-    esperado: "O status segue pendente/a vencer antes do atraso e só passa a atrasado depois da carência definida."
+    precondicoes: "Cobrança fictícia aberta, vencimento de 1 a 28 e carência configurável entre 0 e 30 dias.",
+    passos: ["Consultar antes e no dia do vencimento.", "Consultar durante a carência e no dia exato de vencimento + carência.", "Consultar depois desse limite.", "Recarregar e conferir que o atraso continua calculado, sem campo de atraso gravado."],
+    esperado: "A cobrança só fica atrasada quando hoje é maior que vencimento + carência. O padrão é 5 dias; carência e status atrasado não são gravados como estado da cobrança."
   },
   {
     id: "F1-PAG-08",
@@ -304,17 +304,37 @@ window.CASOS_ACEITE_F1 = [
     regras: "RN11",
     precondicoes: "Aluno fictício com status trancado e período de trancamento registrado.",
     passos: ["Executar o fluxo de geração de cobranças do período.", "Consultar as cobranças do aluno."],
-    esperado: "Nenhuma cobrança é gerada para o período trancado; cobranças anteriores preservam seu histórico."
+    esperado: "Aluno marcado trancado não pode ser selecionado para o lote; cobranças anteriores preservam seu histórico."
   },
   {
     id: "F1-FIN-01",
     area: "Painel financeiro",
-    titulo: "Resumo separa previsto, recebido, pendente e atrasado",
+    titulo: "Resumo mensal separa os seis estados financeiros",
     perfil: "Professor",
     regras: "RN13",
     precondicoes: "Conjunto fictício de cobranças e pagamentos com estados conhecidos.",
-    passos: ["Abrir o painel do professor.", "Comparar os indicadores aos registros de teste."],
-    esperado: "Cada indicador corresponde aos registros do período e distingue valores previstos, confirmados, pendentes e atrasados."
+    passos: ["Abrir o painel do Professor e selecionar o mês.", "Comparar previsto, confirmado, aguardando confirmação, em aberto, atrasado e isento aos registros de teste."],
+    esperado: "Os seis indicadores correspondem às cobranças e pagamentos do mês selecionado; atrasos seguem vencimento + carência e o estado de Instrutor nunca exibe valores."
+  },
+  {
+    id: "F1-PAG-10",
+    area: "Pagamentos",
+    titulo: "Instrutor não vê valores de cobrança",
+    perfil: "Instrutor",
+    regras: "RN11",
+    precondicoes: "Instrutor vinculado a uma academia com cobrança fictícia própria.",
+    passos: ["Abrir Início e Meus pagamentos.", "Consultar status e vencimento da própria cobrança."],
+    esperado: "O Instrutor vê somente o status e o vencimento próprios; nenhum valor ou pagamento de outros alunos aparece."
+  },
+  {
+    id: "F1-PAG-11",
+    area: "Pagamentos",
+    titulo: "Cancelamento mantém histórico e exclui a cobrança dos indicadores",
+    perfil: "Professor",
+    regras: "RN10, RN13",
+    precondicoes: "Há cobranças fictícias abertas do Professor, incluindo uma com aviso pendente ou pagamento confirmado.",
+    passos: ["Tentar cancelar a cobrança com aviso/pagamento associado e conferir o bloqueio com instrução para rejeitar ou estornar.", "Rejeitar o aviso ou estornar o pagamento e tentar novamente.", "Confirmar o cancelamento de uma cobrança sem pagamento ativo.", "Consultar o painel, atrasos e histórico após recarregar."],
+    esperado: "A ação aparece somente ao Professor e apenas para cobranças abertas, após confirmação. Avisos pendentes e pagamentos confirmados bloqueiam a ação até rejeição ou estorno; a cobrança cancelada permanece no histórico e não entra no painel nem em atrasos."
   },
   {
     id: "F1-FIN-02",
@@ -449,12 +469,22 @@ window.CASOS_ACEITE_F1 = [
   {
     id: "F1-PRIV-04",
     area: "Privacidade e LGPD",
-    titulo: "Botão provisório não apaga conta ou dados",
+    titulo: "Exclusão demonstrativa remove dados pessoais e anonimiza registros",
     perfil: "Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro",
-    regras: "Protótipo sem exclusão; confirmação provisória e erro simulado",
+    regras: "Exclusão somente dos dados fictícios locais; nenhuma conta ou dado real é alterado",
     precondicoes: "Contas fictícias disponíveis; nenhum serviço externo conectado.",
-    passos: ["Em cada conta, abrir Área de risco e conferir botão desabilitado até digitar exatamente EXCLUIR.", "Acionar e tentar toque duplo; conferir processamento e depois Em construção no botão e aviso de que nada foi apagado, sem ✓ Concluído.", "Fechar e reabrir o painel e confirmar que a palavra precisa ser digitada novamente; conferir os dados após recarregar.", "Repetir com ?erro-simulado=painel-excluir e conferir Tentar de novo, alerta próximo e dados preservados.", "Conferir nos temas claro e escuro, em 360, 390, 430 e 768 px, sem corte ou sobreposição."],
-    esperado: "Nenhuma conta ou dado é apagado; a ação provisória não anuncia sucesso e o erro só aparece quando ocorre."
+    passos: ["Em cada conta, abrir Área de risco e conferir botão desabilitado até digitar exatamente EXCLUIR.", "Acionar e tentar toque duplo; conferir Excluindo..., ✓ Concluído e retorno à entrada.", "Recarregar e confirmar que a conta removida não reaparece; verificar pagamentos, vínculos e graduações preservados com Conta excluída e conversas apagadas.", "Repetir com ?erro-simulado=painel-excluir e conferir Tentar de novo, alerta próximo e dados preservados.", "Bloquear ou preencher o armazenamento e confirmar erro explícito, sem sessão encerrada ou mensagem de sucesso.", "Conferir nos temas claro e escuro, em 360, 390, 430 e 768 px, sem corte ou sobreposição."],
+    esperado: "Apenas os dados pessoais fictícios da conta demonstrativa são removidos; os registros compartilhados permanecem anonimizados, as conversas são removidas e a sessão demonstrativa termina. Dados reais não são tocados; erros não indicam sucesso."
+  },
+  {
+    id: "F1-COM-01",
+    area: "Conversas",
+    titulo: "Mensagens fictícias persistem somente entre aluno/instrutor e professor",
+    perfil: "Aluno, Instrutor e Professor",
+    regras: "Conversa individual vinculada; persistência local da demonstração",
+    precondicoes: "Contas demonstrativas relacionadas; armazenamento local disponível; sem login real.",
+    passos: ["Como Aluno, enviar uma mensagem ao Professor e recarregar a página; conferir a conversa no perfil de ambos.", "Repetir como Instrutor e Professor, selecionando no painel do Professor somente contas vinculadas.", "Tentar abrir conversa com outro aluno, Instrutor ou Professor não vinculado.", "Usar ?erro-simulado=conversa-salvar e simular armazenamento cheio ou bloqueado; conferir alerta, bloqueio de toque duplo, ausência de mensagem de sucesso e dados anteriores preservados.", "Excluir uma conta demonstrativa relacionada e confirmar que a conversa correspondente não retorna."],
+    esperado: "As mensagens fictícias são persistidas localmente e compartilhadas somente pelo par aluno/instrutor e Professor vinculado; falhas são informadas sem quebrar a tela, e a exclusão demonstrativa remove a conversa."
   },
   {
     id: "F1-ACAD-01",
@@ -473,8 +503,8 @@ window.CASOS_ACEITE_F1 = [
     perfil: "Adm, Professor, Instrutor, Aluno e aluno sem registro",
     regras: "Menores usam avatar; Adm vê Professores, nunca alunos; nenhuma foto sai do navegador",
     precondicoes: "Contas e alunos fictícios; sem armazenamento, chamadas de rede para fotos ou integração com Supabase Storage.",
-    passos: ["No primeiro acesso, escolher 18 anos ou mais ou menor de 18, sem data de nascimento; para adulto, aceitar ou recusar o consentimento com texto provisório.", "Conferir que recusa mantém avatar e aceite mostra apenas o avatar local demonstrativo como cópia Google simulada; menores não têm controles de foto.", "Como adulto, selecionar imagem própria, ajustar zoom e enquadramento, salvar e substituir uma foto; cancelar a escolha ou edição sem alterar a foto anterior.", "Como Professor, marcar a idade de aluno sem registro na ficha; conferir avatar para menor ou idade desconhecida e foto somente ao Professor responsável.", "Como Adm, conferir fotos de Professores e ausência de fotos de alunos em todas as telas; no painel, confirmar que a exclusão menciona a foto, permanece Em construção e não apaga dados.", "Testar ?erro-simulado=perfil-idade, perfil-foto-consentimento, perfil-foto-selecao, perfil-foto-salvar, perfil-foto-remover e perfil-idade-aluno; conferir alerta, bloqueio de toque duplo e estado preservado.", "Recarregar e confirmar que idade, consentimento e fotos temporárias não persistem; conferir tema claro/escuro e larguras de referência."],
-    esperado: "Declaração de idade não pede data de nascimento; recusa e menores usam somente avatar. Consentimento e fotos são simulados em memória, sem rede ou armazenamento persistente; a foto própria permite enquadramento e substitui a anterior. O Adm nunca vê fotos de alunos e a exclusão continua sem apagar dados."
+    passos: ["No primeiro acesso, escolher 18 anos ou mais ou menor de 18, sem data de nascimento; para adulto, aceitar ou recusar o consentimento com texto provisório.", "Conferir que recusa mantém avatar e aceite mostra apenas o avatar local demonstrativo como cópia Google simulada; menores não têm controles de foto.", "Como adulto, selecionar imagem própria, ajustar zoom e enquadramento, salvar e substituir uma foto; cancelar a escolha ou edição sem alterar a foto anterior.", "Como Professor, marcar a idade de aluno sem registro na ficha; conferir avatar para menor ou idade desconhecida e foto somente ao Professor responsável.", "Como Adm, conferir fotos de Professores e ausência de fotos de alunos em todas as telas; no painel, confirmar que a exclusão remove a foto fictícia e que a exclusão real continua em construção.", "Testar ?erro-simulado=perfil-idade, perfil-foto-consentimento, perfil-foto-selecao, perfil-foto-salvar, perfil-foto-remover e perfil-idade-aluno; conferir alerta, bloqueio de toque duplo e estado preservado.", "Recarregar e confirmar que idade, consentimento e fotos temporárias não persistem; conferir tema claro/escuro e larguras de referência."],
+    esperado: "Declaração de idade não pede data de nascimento; recusa e menores usam somente avatar. Consentimento e fotos são simulados em memória, sem rede ou armazenamento persistente; a foto própria permite enquadramento e substitui a anterior. O Adm nunca vê fotos de alunos; a exclusão demonstrativa remove a foto local, mas não apaga dados reais."
   },
   {
     id: "F1-ACC-08",

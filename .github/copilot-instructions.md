@@ -48,3 +48,10 @@ Projeto: PWA de gestão de academia de jiu-jitsu (nome Tatame). Interface e comm
 4. Dúvida real (conflito entre o prompt e uma regra do projeto): relate no resumo e siga com o resto. Pergunte só se for impossível continuar.
 5. Não faça melhorias, refatorações ou verificações extras que o prompt não pediu.
 6. Mantenha todas as regras existentes: branch, sem commit/push sem pedido, fechar abas/servidores/shells, resumo final de até 10 linhas (feito / parcial / não feito por item).
+
+## Regras acrescentadas em 08/11/2026
+
+1. **`js/config.js`:** nunca ler, exibir ou commitar; manter no `.gitignore` e fora do índice Git.
+2. **Comandos:** é proibido executar comandos vazios ou em loop.
+3. **Execução:** não fazer perguntas interativas ao usuário, salvo se o prompt pedir; sem teste com conta real; o navegador pode ser aberto para conferir a demonstração.
+4. **Dúvidas:** se houver dúvida sobre o escopo, parar e reportar em vez de decidir.
