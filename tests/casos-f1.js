@@ -32,6 +32,16 @@ window.CASOS_ACEITE_F1 = [
     esperado: "A sessão é encerrada; conteúdo protegido não reaparece e o usuário precisa autenticar-se novamente."
   },
   {
+    id: "F1-AUTH-04",
+    area: "Autenticação",
+    titulo: "Login Google real, sessão e ausência de perfil",
+    perfil: "Pessoa de teste sem perfil",
+    regras: "RN01–RN03",
+    precondicoes: "Ambiente de teste configurado com chave pública e provedor Google, conta de teste autorizada sem perfil e migration de perfis aplicada.",
+    passos: ["Testar chave vazia e erro simulado sem iniciar login.", "Entrar com Google e retornar ao app no Live Server e no Pages configurados.", "Conferir a mensagem de perfil ausente, o e-mail no painel e a persistência após recarregar.", "Sair da conta Google, recarregar e verificar o encerramento.", "Testar cancelamento, falha de rede, falha na consulta de perfil e as contas de demonstração independentes."],
+    esperado: "O retorno usa a página atual, a sessão é recuperada e nenhum perfil é criado. Falhas são informadas sem confundi-las com perfil ausente; a saída encerra a sessão local e a demonstração continua independente. O caso permanece pendente de execução e validação."
+  },
+  {
     id: "F1-ACC-01",
     area: "Acesso e convites",
     titulo: "Professor convidado consegue entrar",
@@ -363,7 +373,7 @@ window.CASOS_ACEITE_F1 = [
     perfil: "Professor e aluno",
     regras: "Novo requisito de compatibilidade visual",
     precondicoes: "Build candidata, layouts para notebook e iPhone 13 ou superior, menor largura suportada (mínimo 320 px) e breakpoints responsivos do lote documentados.",
-    passos: ["Percorrer todas as telas principais nas larguras de referência de celular, tablet e notebook: 320 px, 360 px, 390 px, 768 px, 1024 px, 1280 px, 1440 px e 1920 px.", "Verificar iPhone 13 (390 × 844 CSS px) e iPhone 13 Pro Max (428 × 926 CSS px), incluindo áreas seguras e navegação inferior.", "Testar também 1 px abaixo, no breakpoint e 1 px acima de cada breakpoint responsivo definido.", "Repetir em retrato e paisagem e com altura curta de viewport; redimensionar continuamente dentro da faixa suportada.", "Conferir sidebar à esquerda e painel de usuário oculto à direita na web; no mobile, navegação inferior e acesso ao menu, sem perder funcionalidades.", "Abrir o painel do usuário pelo cabeçalho web e pelo atalho Perfil mobile; navegar a uma opção e fechar por botão, fundo e tecla Esc."],
+    passos: ["Percorrer todas as telas principais nas larguras de referência de celular, tablet e notebook: 320 px, 360 px, 390 px, 430 px, 768 px, 1024 px, 1280 px, 1440 px e 1920 px.", "Verificar iPhone 13 (390 × 844 CSS px) e iPhone 13 Pro Max (428 × 926 CSS px), incluindo áreas seguras e navegação inferior.", "Testar também 1 px abaixo, no breakpoint e 1 px acima de cada breakpoint responsivo definido.", "Repetir em retrato e paisagem e com altura curta de viewport; redimensionar continuamente dentro da faixa suportada.", "Conferir sidebar à esquerda e painel de usuário oculto à direita na web; no mobile, navegação inferior e acesso ao menu, sem perder funcionalidades.", "Abrir o painel do usuário pelo cabeçalho web e pelo atalho Perfil mobile; navegar a uma opção e fechar por botão, fundo e tecla Esc.", "Em notebook e dois navegadores, usar a roda do mouse em todas as telas, login, cada papel, sidebar, painel e modais com conteúdo rolável; fechar os modais e repetir na página."],
     esperado: "Notebook oferece layout otimizado com sidebar e painel de usuário oculto; iPhone oferece composição móvel própria com navegação inferior e áreas seguras. As mesmas funcionalidades permanecem disponíveis em toda a faixa suportada e nos limites dos breakpoints, sem elementos inacessíveis, layout quebrado ou rolagem horizontal inesperada."
   },
   {
@@ -435,6 +445,36 @@ window.CASOS_ACEITE_F1 = [
     precondicoes: "Há contas fictícias e, quando aplicável, pagamentos, vínculos e graduações compartilhados.",
     passos: ["Para cada tipo de conta, abrir a área de risco e verificar aviso, descrição e confirmação digitada EXCLUIR.", "Acionar a exclusão, tentar toque duplo e verificar Excluindo..., ✓ Concluído e retorno à entrada.", "Recarregar e conferir que a conta excluída, seus dados pessoais, mensagens e conversas não retornam, inclusive por convite já usado.", "Entrar na conta da outra parte e verificar pagamentos, vínculos e graduações preservados com Conta excluída, inclusive após recarregar.", "Conferir também os dados persistidos e as telas de demonstração que usam nomes e conversas fixos.", "Repetir com erro simulado e verificar Tentar de novo, alerta próximo ao botão e preservação dos dados.", "Simular falha de armazenamento durante a exclusão e verificar que o erro é informado sem indicar sucesso.", "Conferir área de risco e confirmação nos temas claro e escuro, sem corte ou sobreposição."],
     esperado: "A exclusão simulada não acontece sem a confirmação; em sucesso, os dados pessoais deixam de estar disponíveis, os registros compartilhados permanecem anonimizados após recarregar e o usuário retorna à entrada. Em erro, nenhum dado é apagado."
+  },
+  {
+    id: "F1-PRIV-04",
+    area: "Privacidade e LGPD",
+    titulo: "Botão provisório não apaga conta ou dados",
+    perfil: "Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro",
+    regras: "Protótipo sem exclusão; confirmação provisória e erro simulado",
+    precondicoes: "Contas fictícias disponíveis; nenhum serviço externo conectado.",
+    passos: ["Em cada conta, abrir Área de risco e conferir botão desabilitado até digitar exatamente EXCLUIR.", "Acionar e tentar toque duplo; conferir processamento e depois Em construção no botão e aviso de que nada foi apagado, sem ✓ Concluído.", "Fechar e reabrir o painel e confirmar que a palavra precisa ser digitada novamente; conferir os dados após recarregar.", "Repetir com ?erro-simulado=painel-excluir e conferir Tentar de novo, alerta próximo e dados preservados.", "Conferir nos temas claro e escuro, em 360, 390, 430 e 768 px, sem corte ou sobreposição."],
+    esperado: "Nenhuma conta ou dado é apagado; a ação provisória não anuncia sucesso e o erro só aparece quando ocorre."
+  },
+  {
+    id: "F1-ACAD-01",
+    area: "Academia",
+    titulo: "Cadastro e edição demonstrativos de academia",
+    perfil: "Adm, Professor, Instrutor e Aluno",
+    regras: "Adm e Professores vinculados editam; vários Professores por academia e uma turma por Professor",
+    precondicoes: "Dados exclusivamente fictícios, academia inicial e contas de demonstração; sem Supabase.",
+    passos: ["Como Adm, alterar nome, telefone e e-mail fictícios e trocar a representação da foto; recarregar e conferir a persistência sem arquivo.", "Vincular Professor e alterar os mesmos campos; conferir nome na prévia de vínculo e nas demais telas sem modificar sua forma.", "Verificar que Professor sem vínculo não edita e que Instrutor e Aluno não têm controles de edição.", "Verificar mais de um Professor vinculado à academia e que cada um continua com uma turma.", "Testar ?erro-simulado=academia-salvar e ?erro-simulado=academia-foto; conferir alerta, bloqueio de toque duplo e dados inalterados após recarregar.", "Conferir e-mail longo no cadastro, login, convite de Professor e academia, e testar os temas e larguras de referência."],
+    esperado: "Dados fictícios persistem somente após sucesso; permissões da simulação são respeitadas, prévias mantêm a forma, nenhum arquivo é guardado e erros não alteram dados."
+  },
+  {
+    id: "F1-AVATAR-01",
+    area: "Fotos e avatar",
+    titulo: "Consentimento, idade e fotos simuladas respeitam as permissões",
+    perfil: "Adm, Professor, Instrutor, Aluno e aluno sem registro",
+    regras: "Menores usam avatar; Adm vê Professores, nunca alunos; nenhuma foto sai do navegador",
+    precondicoes: "Contas e alunos fictícios; sem armazenamento, chamadas de rede para fotos ou integração com Supabase Storage.",
+    passos: ["No primeiro acesso, escolher 18 anos ou mais ou menor de 18, sem data de nascimento; para adulto, aceitar ou recusar o consentimento com texto provisório.", "Conferir que recusa mantém avatar e aceite mostra apenas o avatar local demonstrativo como cópia Google simulada; menores não têm controles de foto.", "Como adulto, selecionar imagem própria, ajustar zoom e enquadramento, salvar e substituir uma foto; cancelar a escolha ou edição sem alterar a foto anterior.", "Como Professor, marcar a idade de aluno sem registro na ficha; conferir avatar para menor ou idade desconhecida e foto somente ao Professor responsável.", "Como Adm, conferir fotos de Professores e ausência de fotos de alunos em todas as telas; no painel, confirmar que a exclusão menciona a foto, permanece Em construção e não apaga dados.", "Testar ?erro-simulado=perfil-idade, perfil-foto-consentimento, perfil-foto-selecao, perfil-foto-salvar, perfil-foto-remover e perfil-idade-aluno; conferir alerta, bloqueio de toque duplo e estado preservado.", "Recarregar e confirmar que idade, consentimento e fotos temporárias não persistem; conferir tema claro/escuro e larguras de referência."],
+    esperado: "Declaração de idade não pede data de nascimento; recusa e menores usam somente avatar. Consentimento e fotos são simulados em memória, sem rede ou armazenamento persistente; a foto própria permite enquadramento e substitui a anterior. O Adm nunca vê fotos de alunos e a exclusão continua sem apagar dados."
   },
   {
     id: "F1-ACC-08",
@@ -529,11 +569,11 @@ window.CASOS_ACEITE_F1 = [
   {
     id: "F1-UX-10",
     area: "Interface responsiva",
-    titulo: "Estados e mensagens de entrada e conversa simuladas",
+    titulo: "Estados e mensagens de entrada e conversa",
     perfil: "Visitante e aluno",
     regras: "Ações com foco, processamento, bloqueio contra toque duplo e mensagens acessíveis de resultado.",
-    precondicoes: "Protótipo local aberto na tela de entrada, sem conexão real de login; repetir com teclado e leitor de tela.",
-    passos: ["Acionar Fazer login com o Google e Entrar separadamente; observar indicador e texto de processamento no botão, anúncio acessível e ambos os botões desabilitados durante a simulação.", "Tentar um segundo acionamento durante o processamento e conferir que não há nova operação.", "Ao concluir, verificar ✓ Concluído por 2 a 3 segundos no botão, sem caixa de sucesso, e depois o rótulo original; trocar de tela durante a conclusão e conferir o aviso global.", "Abrir index.html?erro-simulado=entrada e acionar cada botão; conferir Tentar de novo, mensagem abaixo do botão em role=alert sem mudança de layout, e desaparecimento da mensagem ao tentar novamente. Remover o parâmetro e conferir o sucesso.", "Na conversa do aluno, verificar os mesmos estados em Enviar e repetir com ?erro-simulado=aluno-mensagem."],
-    esperado: "Cada ação informa processamento, conclusão ou erro sem depender apenas de cor; os estados são anunciados, o erro aparece abaixo do botão sem deslocar o conteúdo, toques duplicados são evitados e nenhum login ou envio é realizado."
+    precondicoes: "Protótipo local aberto na tela de entrada; usar apenas dados fictícios e repetir com teclado e leitor de tela.",
+    passos: ["Acionar Entrar por e-mail e observar indicador e texto de processamento no botão, anúncio acessível e botões desabilitados durante a simulação.", "Tentar um segundo acionamento durante o processamento e conferir que não há nova operação.", "Ao concluir a simulação, verificar ✓ Concluído por 2 a 3 segundos no botão, sem caixa de sucesso, e depois o rótulo original; trocar de tela durante a conclusão e conferir o aviso global.", "Abrir index.html?erro-simulado=entrada e acionar Google e Entrar; conferir Tentar de novo e mensagem em role=alert perto de cada botão. A autenticação real é tratada no caso F1-AUTH-04.", "Na conversa do aluno, verificar os mesmos estados em Enviar e repetir com ?erro-simulado=aluno-mensagem."],
+    esperado: "Cada ação informa processamento, conclusão ou erro sem depender apenas de cor; os estados são anunciados, o erro aparece perto do botão, toques duplicados são evitados e a entrada por e-mail e a conversa permanecem simuladas."
   }
 ];

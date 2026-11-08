@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "0.1.2";
+const APP_VERSION = "0.1.6";
 const diagnosticEvents = [];
 let versionClicks = 0;
 
@@ -113,6 +113,7 @@ const screenInfo = Object.fromEntries(
     group.items.map(([id, title]) => [id, { title, group: group.title }])
   )
 );
+screenInfo["real-account"] = { title: "Conta Google", group: "Conta" };
 const roleScreens = {
   adm: ["admin-home", "teacher-invites", "role-management", "academy", "user-settings", "privacy"],
   professor: ["teacher-home", "students", "student-detail", "student-create", "teacher-code", "role-management", "pix-import", "payment-review", "overdue", "quick-actions", "teacher-chat", "academy", "user-settings", "privacy"],
@@ -127,7 +128,7 @@ const demoProfiles = {
   student: { role: "student", label: "Aluno registrado", name: "ALUNO FICTÍCIO 01", start: "student-home", teacherAccount: null, academyId: null, grade: "Faixa azul · 2 graus", gradeHistory: ["Graduação fictícia preservada"] },
   "student-unregistered": { role: "student-unregistered", label: "Aluno sem registro", name: "ALUNO FICTÍCIO 04", start: "link-teacher", grade: "Faixa branca", gradeHistory: ["Histórico fictício preservado"] }
 };
-const demoAcademy = { id: "academia-ficticia-01", name: "Academia Fictícia" };
+const demoAcademy = { id: "academia-ficticia-01", name: "Academia Fictícia", phone: "", email: "", photo: "initials" };
 const defaultProfessorSchedule = [
   ["Segunda e quarta", "19h às 20h30"],
   ["Terça e quinta", "6h30 às 8h"]
@@ -139,6 +140,13 @@ const demoRoster = [
   { account: null, name: "ALUNO FICTÍCIO 02", grade: "Faixa branca", teacherAccount: "professor" },
   { account: null, name: "ALUNO FICTÍCIO 03", grade: "Faixa roxa · 1 grau", teacherAccount: "professor" }
 ];
+const photoProfiles = new Map();
+const replacedPhotoUrls = [];
+let onboardingAccount = null;
+let onboardingFromSettings = false;
+let photoEditorAccount = null;
+let photoEditorUrl = "";
+let photoEditorFile = null;
 const demoBelts = ["Branca", "Azul", "Roxa", "Marrom", "Preta", "Coral vermelha e preta", "Coral vermelha e branca", "Vermelha"];
 const demoGradeHistory = new Map();
 let selectedGradeStudent = null;
@@ -245,13 +253,14 @@ demoInvites.filter((invite) => invite.used && invite.academyId === demoAcademy.i
   student.account = account;
   student.teacherAccount = invite.professorAccount;
 });
-const DEMO_DATA_VERSION = 1;
+const DEMO_DATA_VERSION = 2;
 const demoDataKeys = {
   profiles: "tatame-demo-profiles",
   roster: "tatame-demo-roster",
   links: "tatame-demo-links",
   grades: "tatame-demo-grades",
-  invites: "tatame-demo-invites"
+  invites: "tatame-demo-invites",
+  academy: "tatame-demo-academy"
 };
 
 function readDemoData(key, validate) {
@@ -259,7 +268,7 @@ function readDemoData(key, validate) {
     const stored = localStorage.getItem(key);
     if (stored === null) return null;
     const record = JSON.parse(stored);
-    if (!record || record.version !== DEMO_DATA_VERSION || !validate(record.data)) {
+    if (!record || (record.version !== DEMO_DATA_VERSION && !(record.version === 1 && key !== demoDataKeys.academy)) || !validate(record.data)) {
       throw new TypeError("Formato ou versão dos dados fictícios inválidos.");
     }
     return record.data;
@@ -280,6 +289,7 @@ function writeDemoData(key, data) {
 }
 
 function saveDemoProfiles() { writeDemoData(demoDataKeys.profiles, demoProfiles); }
+function saveDemoAcademy(academy) { writeDemoData(demoDataKeys.academy, academy); }
 function saveDemoRoster() { writeDemoData(demoDataKeys.roster, demoRoster); }
 function saveLinkRequests() { writeDemoData(demoDataKeys.links, linkRequests); }
 function saveDemoGradeHistory() {
@@ -289,6 +299,11 @@ function saveDemoGradeHistory() {
 }
 
 const isStringOrNull = (value) => value === null || typeof value === "string";
+const storedAcademy = readDemoData(demoDataKeys.academy, (value) =>
+  value && value.id === demoAcademy.id && typeof value.name === "string" && value.name.trim() &&
+  typeof value.phone === "string" && typeof value.email === "string" && ["initials", "icon"].includes(value.photo)
+);
+if (storedAcademy) Object.assign(demoAcademy, storedAcademy);
 const storedProfiles = readDemoData(demoDataKeys.profiles, (value) =>
   value && typeof value === "object" && !Array.isArray(value) &&
   ["adm", "professor", "instructor", "student", "student-unregistered"].every((key) => Object.hasOwn(value, key)) &&
@@ -370,7 +385,8 @@ const tutorialStepsByRole = {
     ["admin-home", "Painel do Adm", "Acompanhe os dados administrativos fictícios e os avisos gerais. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
     ["teacher-invites", "Professores convidados", "Convide professores. Só o Adm define quem será Professor."],
     ["role-management", "Papéis e academia", "Defina o papel de Professor, vincule-o a uma academia e, quando necessário, gradue um Instrutor a Professor."],
-    ["academy", "Academia", "Consulte o quadro da equipe e os horários publicados da academia."],
+    ["academy", "Academia", "Cadastre ou altere nome, telefone e e-mail fictícios; a foto é apenas um símbolo simulado, sem arquivo. Consulte equipe e horários e vincule Professores na tela de papéis."],
+    ["user-settings", "Fotos e privacidade", "O Adm pode ver fotos de Professores, nunca de alunos. A idade é declarada sem data de nascimento; menores usam somente avatar. Consentimento e fotos são simulados e não persistem."],
     ["user-settings", "Preferências", "Confira tema e opções demonstrativas da conta."],
     ["privacy", "Privacidade", "Consulte os avisos de privacidade e o estado do conteúdo pendente."]
   ],
@@ -379,6 +395,7 @@ const tutorialStepsByRole = {
     ["students", "Alunos", "Consulte somente os alunos da sua turma."],
     ["student-detail", "Ficha do aluno", "Veja perfil, pagamentos, graduações e notas privadas. Em Graduações, escolha um aluno da sua turma, faixa e grau superiores e a data; confirme para registrar. Notas privadas não são compartilhadas com o Instrutor."],
     ["student-create", "Novo aluno", "Cadastre um aluno fictício com sua faixa e grau atuais. Nome e graduação ficam neste navegador; os demais campos não são salvos e nenhum login ou convite é criado."],
+    ["student-detail", "Idade e foto do aluno", "Para aluno sem registro, marque a faixa etária declarada sem pedir data de nascimento. Menores usam avatar; fotos de alunos adultos ficam visíveis somente ao Professor responsável."],
     ["teacher-code", "Código e convites", "Veja pedidos de vínculo, aprove ou recuse e gere links de uso único com validade de três dias."],
     ["role-management", "Papéis e aula delegada", "Promova somente seus alunos a Instrutor, autorize-o e decida se compartilha o plano ou deixa o treino livre. O Instrutor é um aluno com função de apoio: vê nome e graduação da turma, nunca pagamentos alheios, notas privadas ou conversas de terceiros; você decide o conteúdo."],
     ["pix-import", "Importar extrato Pix", "Importe um extrato para sugerir correspondências. Nada é pago ou confirmado automaticamente."],
@@ -386,8 +403,9 @@ const tutorialStepsByRole = {
     ["overdue", "Atrasados", "Revise cobranças atrasadas antes de enviar um lembrete."],
     ["quick-actions", "Ações rápidas", "Use os atalhos e limite lotes de mensalidades a 24 cobranças."],
     ["teacher-chat", "Conversas", "Converse somente com seus alunos e Instrutores autorizados."],
-    ["academy", "Academia", "Consulte equipe e horários; publique ou retorne a grade para rascunho."],
+    ["academy", "Academia", "Se estiver vinculado, altere nome, telefone e e-mail fictícios e simule a troca da foto sem arquivo. Consulte equipe e horários; publique ou retorne sua grade para rascunho."],
     ["user-settings", "Preferências", "Confira tema, atualização e acesso à privacidade."],
+    ["user-settings", "Sua foto", "Escolha uma foto, ajuste zoom e enquadramento e salve a prévia local. Consentimento para a foto do Google pode ser recusado; menores usam somente avatar. Nada é enviado ou guardado após esta sessão."],
     ["privacy", "Privacidade", "Leia os avisos de privacidade e o estado do conteúdo pendente."]
   ],
   instructor: [
@@ -398,6 +416,7 @@ const tutorialStepsByRole = {
     ["instructor-chat", "Conversa com o Professor", "Converse somente com o Professor. Não há conversas com alunos ou terceiros."],
     ["academy", "Academia", "Consulte o quadro e os horários publicados da academia."],
     ["user-settings", "Preferências", "Confira tema e opções demonstrativas da conta."],
+    ["user-settings", "Sua foto", "A cópia simulada da foto do Google só aparece após consentimento. Menores usam somente avatar; a foto escolhida fica apenas nesta sessão do navegador."],
     ["privacy", "Privacidade", "Consulte os avisos de privacidade."]
   ],
   student: [
@@ -409,17 +428,24 @@ const tutorialStepsByRole = {
     ["link-teacher", "Vincular a um Professor", "Confira o nome do Professor e da academia antes de pedir vínculo."],
     ["academy", "Academia", "Veja professores, Instrutores e horários publicados da sua academia."],
     ["user-settings", "Preferências", "Confira tema e opções demonstrativas da conta."],
+    ["user-settings", "Sua foto", "A cópia simulada da foto do Google só aparece após consentimento. Menores usam somente avatar; a foto escolhida fica apenas nesta sessão do navegador."],
     ["privacy", "Privacidade", "Consulte os avisos de privacidade."]
   ],
   "student-unregistered": [
-    ["link-teacher", "Vincular a um Professor", "Informe o código de seis caracteres, confira somente o nome do Professor e da academia e envie o pedido. O vínculo depende da aprovação. Abra a conta para rever o tutorial ou sair."]
+    ["link-teacher", "Vincular a um Professor", "Informe o código de seis caracteres, confira somente o nome do Professor e da academia e envie o pedido. O vínculo depende da aprovação. Abra a conta para rever o tutorial ou sair."],
+    ["link-teacher", "Idade e avatar", "Como aluno sem registro, a faixa etária é marcada pelo Professor, sem data de nascimento. Até essa marcação, você usa somente o avatar."]
   ]
 };
 Object.entries(tutorialStepsByRole).forEach(([role, steps]) => {
   steps.push([
     role === "student-unregistered" ? "link-teacher" : "user-settings",
+    "Sessão Google",
+    "O login Google real é separado desta demonstração. Quando conectado, veja o e-mail e saia da conta Google pelo painel; sair da demonstração não encerra a sessão Google."
+  ]);
+  steps.push([
+    role === "student-unregistered" ? "link-teacher" : "user-settings",
     "Área de risco",
-    "No painel da conta, abra Área de risco para consultar o aviso. A exclusão ainda não está disponível nesta simulação."
+    "No painel da conta, abra Área de risco e digite EXCLUIR para liberar o botão. A exclusão ainda está em construção; nenhum dado é apagado."
   ]);
 });
 const tutorialIllustrations = [
@@ -430,9 +456,16 @@ const tutorialIllustrations = [
 let tutorialAccount = null;
 let tutorialStepIndex = 0;
 let tutorialReturnFocus = null;
-const publicScreens = ["login", "register", "link-teacher", "no-access", "instructor-invite"];
+const publicScreens = ["login", "register", "link-teacher", "no-access", "instructor-invite", "real-account"];
 let activeRole = null;
 let activeDemoAccount = null;
+let realUser = null;
+let realProfileState = "checking";
+let authClient = null;
+let authCheckSequence = 0;
+let loginNotice = "";
+let realSignoutInProgress = false;
+let currentScreen = "";
 
 const navigation = document.querySelector("#screen-navigation");
 const screenContent = document.querySelector("#screen-content");
@@ -444,6 +477,8 @@ const toastRegion = document.querySelector("#toast-region");
 const privacyDialog = document.querySelector("#privacy-modal");
 const termsDialog = document.querySelector("#terms-modal");
 const tutorialDialog = document.querySelector("#tutorial-modal");
+const profileOnboardingDialog = document.querySelector("#profile-onboarding");
+const photoEditorDialog = document.querySelector("#photo-editor");
 const userPanel = document.querySelector("#user-panel");
 let toastTimeout;
 
@@ -529,6 +564,7 @@ function renderMobileNavigation() {
 }
 
 function canViewScreen(id) {
+  if (id === "real-account") return Boolean(realUser) && !activeRole;
   if (activeRole === null) return publicScreens.includes(id);
   if (id === "academy" && activeRole !== "adm" && !demoProfiles[activeDemoAccount].academyId) return false;
   if (activeRole === "instructor") {
@@ -538,6 +574,121 @@ function canViewScreen(id) {
     }
   }
   return (roleScreens[activeRole] || []).includes(id);
+}
+
+function updatePhotoProfile(key, changes) {
+  const previous = getPhotoProfile(key);
+  const next = { ...previous, ...changes };
+  if (changes.photo !== undefined && previous.photo && previous.photo.kind === "upload" &&
+      previous.photo.url.startsWith("blob:") && (!next.photo || previous.photo.url !== next.photo.url)) {
+    replacedPhotoUrls.push(previous.photo.url);
+  }
+  photoProfiles.set(key, next);
+  if (key === activeDemoAccount) updateProfileAvatars(key, activeRole);
+  return next;
+}
+
+function revokeReplacedPhotoUrls() {
+  const activeUrls = new Set(Array.from(photoProfiles.values(), (profile) => profile.photo && profile.photo.url).filter(Boolean));
+  const displayedUrls = new Set(Array.from(document.images, (image) => image.src));
+  for (let index = replacedPhotoUrls.length - 1; index >= 0; index -= 1) {
+    const url = replacedPhotoUrls[index];
+    if (activeUrls.has(url) || displayedUrls.has(url)) continue;
+    URL.revokeObjectURL(url);
+    replacedPhotoUrls.splice(index, 1);
+  }
+}
+
+function profilePhotoIsVisible(key) {
+  const profile = getPhotoProfile(key);
+  return profile.age === "adult" && profile.photo &&
+    (profile.photo.kind !== "google" || profile.googleConsent);
+}
+
+function updateProfileAvatars(account, role) {
+  const profile = getPhotoProfile(account);
+  const photo = profilePhotoIsVisible(account) ? profile.photo : null;
+  const defaultIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>';
+  ["#profile-button-avatar", "#user-panel-avatar"].forEach((selector) => {
+    const element = document.querySelector(selector);
+    if (!element) return;
+    if (!photo) {
+      element.innerHTML = defaultIcon;
+      return;
+    }
+    element.innerHTML = `<img src="${escapeHtml(photo.url)}" alt="" style="object-position:${photo.x}% ${photo.y}%;transform:scale(${photo.zoom})">`;
+  });
+  const panelRole = document.querySelector("#user-panel-profile-role");
+  if (panelRole && account && role) panelRole.textContent = demoProfiles[account].label;
+}
+
+function renderProfileOnboarding(stage) {
+  const content = document.querySelector("#profile-onboarding-content");
+  const commonAction = (label, action) => `
+    <div class="student-action-control">
+      <button class="button button--primary button--action" type="button" ${action}><span data-action-label>${label}</span></button>
+      <p class="login-action-error" id="profile-onboarding-error" role="alert"></p>
+      <p class="field-help" id="profile-onboarding-status" role="status" aria-live="polite"></p>
+    </div>
+  `;
+  if (stage === "age") {
+    content.innerHTML = `
+      <p id="profile-onboarding-copy" class="profile-onboarding-copy">No primeiro acesso desta demonstração, informe somente se tem 18 anos ou mais. Não pedimos data de nascimento.</p>
+      <fieldset class="profile-onboarding-options">
+        <legend class="field-label">Declaração de idade</legend>
+        <label class="profile-onboarding-option"><input type="radio" name="profile-age" value="adult"><span>Tenho 18 anos ou mais</span></label>
+        <label class="profile-onboarding-option"><input type="radio" name="profile-age" value="minor"><span>Sou menor de 18 anos</span></label>
+      </fieldset>
+      ${commonAction("Continuar", "data-confirm-profile-age")}
+    `;
+  } else if (stage === "consent") {
+    content.innerHTML = `
+      <p id="profile-onboarding-copy" class="profile-onboarding-copy"><strong>TEXTO PROVISÓRIO, pendente de revisão jurídica.</strong> Esta demonstração não baixa nem envia uma foto do Google. Se aceitar, exibiremos um avatar local como cópia simulada; se recusar, seu perfil usa o avatar padrão. Você pode recusar sem perder acesso.</p>
+      <div class="profile-onboarding-actions">
+        <button class="button button--primary button--action" type="button" data-consent-google="accept"><span data-action-label>Aceitar cópia simulada</span></button>
+        <button class="button button--quiet button--action" type="button" data-consent-google="decline"><span data-action-label>Recusar e usar avatar</span></button>
+        <p class="login-action-error" id="profile-onboarding-error" role="alert"></p>
+        <p class="field-help" id="profile-onboarding-status" role="status" aria-live="polite"></p>
+      </div>
+    `;
+  } else {
+    content.innerHTML = `
+      <p id="profile-onboarding-copy" class="profile-onboarding-copy">Este perfil não tem registro. O Professor informa se o aluno tem 18 anos ou mais ou é menor de 18, sem pedir data de nascimento. Até essa marcação, só aparece o avatar.</p>
+      ${commonAction("Continuar com avatar", "data-continue-unregistered")}
+    `;
+  }
+  profileOnboardingDialog.showModal();
+  const firstControl = content.querySelector('input, button');
+  if (firstControl) firstControl.focus();
+}
+
+function beginProfileOnboarding(account) {
+  onboardingAccount = account;
+  const profile = getPhotoProfile(account);
+  const isUnregistered = account === "student-unregistered";
+  if (isUnregistered) renderProfileOnboarding("unregistered");
+  else if (profile.onboardingComplete) maybeOpenFirstTutorial(account);
+  else if (profile.age === "adult") renderProfileOnboarding("consent");
+  else if (profile.age === "minor") {
+    updatePhotoProfile(account, { photo: null, googleConsent: false, onboardingComplete: true });
+    maybeOpenFirstTutorial(account);
+  } else renderProfileOnboarding("age");
+}
+
+function finishProfileOnboarding() {
+  const account = onboardingAccount;
+  const openedFromSettings = onboardingFromSettings;
+  onboardingAccount = null;
+  onboardingFromSettings = false;
+  if (profileOnboardingDialog.open) profileOnboardingDialog.close();
+  if (account) updateProfileAvatars(account, activeRole);
+  if (openedFromSettings) {
+    if (activeDemoAccount === account && currentScreen === "user-settings") renderScreen("user-settings");
+  } else if (account) {
+    if (currentScreen) renderScreen(currentScreen);
+    maybeOpenFirstTutorial(account);
+  }
+  revokeReplacedPhotoUrls();
 }
 
 function startDemoRole(account) {
@@ -558,9 +709,11 @@ function startDemoRole(account) {
       !link.hasAttribute("data-logout-role");
   });
   document.querySelector(".user-panel-links[aria-label='Navegação da conta']").hidden = activeRole === "student-unregistered";
+  syncRealSessionPanel();
+  updateProfileAvatars(account, activeRole);
   renderNavigation();
   renderScreen(profile.start);
-  maybeOpenFirstTutorial(account);
+  beginProfileOnboarding(account);
 }
 
 function endDemoRole() {
@@ -571,15 +724,17 @@ function endDemoRole() {
   const roleBadge = document.querySelector(".profile-button-copy");
   if (profileName) profileName.textContent = "Sem sessão ativa";
   if (profileRole) profileRole.textContent = "Perfil demonstrativo";
+  updateProfileAvatars(null, null);
   if (roleBadge) roleBadge.innerHTML = "<strong>Entrar</strong><small>Sem sessão ativa</small>";
-  document.querySelector("#profile-button").hidden = true;
+  document.querySelector("#profile-button").hidden = !realUser;
   document.querySelectorAll(".user-panel-link").forEach((link) => {
     link.hidden = false;
   });
   document.querySelector(".user-panel-links[aria-label='Navegação da conta']").hidden = false;
+  syncRealSessionPanel();
   userPanel.close();
   renderNavigation();
-  renderScreen("login");
+  renderScreen(realUser ? "real-account" : "login");
 }
 
 function heading(eyebrow, title, copy, actions = "") {
@@ -627,18 +782,144 @@ function metric(label, value, note, tone = "") {
   `;
 }
 
-function avatar(image = "avatar-masculino.svg", alt = "Avatar genérico de demonstração") {
-  return `<span class="avatar"><img src="assets/avatars/${image}" alt="${alt}"></span>`;
+function getPhotoProfile(key) {
+  return key ? photoProfiles.get(key) || { age: "unknown", googleConsent: false, photo: null } : { age: "unknown", googleConsent: false, photo: null };
 }
 
-function personRow(name, detail, image = "avatar-masculino.svg", badge = "") {
+function avatar(image = "avatar-masculino.svg", alt = "Avatar genérico de demonstração", photoKey = null, personKind = "student", className = "") {
+  const profile = getPhotoProfile(photoKey);
+  const photoIsVisible = !(activeRole === "adm" && personKind === "student") &&
+    profile.age === "adult" && profile.photo &&
+    (profile.photo.kind !== "google" || profile.googleConsent);
+  const source = photoIsVisible ? profile.photo.url : `assets/avatars/${image}`;
+  const photoStyle = photoIsVisible
+    ? ` style="object-position:${profile.photo.x}% ${profile.photo.y}%;transform:scale(${profile.photo.zoom})"`
+    : "";
+  return `<span class="avatar ${className}"><img src="${escapeHtml(source)}" alt="${escapeHtml(photoIsVisible ? "Foto de perfil demonstrativa" : alt)}"${photoStyle}></span>`;
+}
+
+function personRow(name, detail, image = "avatar-masculino.svg", badge = "", photoKey = null, personKind = "student") {
   return `
     <div class="person-row">
-      ${avatar(image)}
+      ${avatar(image, "Avatar genérico de demonstração", photoKey, personKind)}
       <span class="person-copy"><strong>${name}</strong><small>${detail}</small></span>
       ${badge}
     </div>
   `;
+}
+
+function studentAcademyDetails(account, student = null) {
+  const profile = demoProfiles[account];
+  const rosterProfile = student || demoRoster.find((item) => item.account === account);
+  const teacherAccount = profile && profile.teacherAccount || rosterProfile && rosterProfile.teacherAccount;
+  const teacher = teacherAccount && demoProfiles[teacherAccount];
+  return `
+    <div class="student-academy-details">
+      ${listRow("Academia", teacher ? escapeHtml(demoAcademy.name) : "Sem academia vinculada")}
+      ${listRow("Professor", teacher ? escapeHtml(teacher.name) : "Sem Professor vinculado")}
+    </div>
+  `;
+}
+
+function profilePhotoCard(account, role) {
+  const photoProfile = getPhotoProfile(account);
+  const photoDescription = photoProfile.photo
+    ? photoProfile.photo.kind === "google" ? "Foto Google simulada, sem imagem externa." : "Foto própria temporária, somente nesta sessão."
+    : "Avatar de demonstração.";
+  return panel("Foto e idade", `
+    <div class="profile-photo-card">
+      ${avatar(role === "instructor" ? "avatar-feminino.svg" : "avatar-masculino.svg", "Avatar do perfil", account, "self", "avatar--large")}
+      <div class="profile-photo-copy">
+        <strong>${photoProfile.age === "adult" ? "Declaração: 18 anos ou mais" : photoProfile.age === "minor" ? "Declaração: menor de 18 anos" : "Idade ainda não informada"}</strong>
+        <small>${photoDescription}</small>
+      </div>
+    </div>
+    ${photoProfile.age === "adult" ? `
+      <div class="profile-photo-actions">
+        <div class="profile-photo-control">
+          <input id="profile-photo-file" class="visually-hidden" type="file" accept="image/*" aria-label="Escolher foto própria" aria-describedby="profile-photo-select-error profile-photo-select-status">
+          <button class="button button--primary button--action" type="button" data-open-photo-file><span data-action-label>Escolher foto própria</span></button>
+          <p class="login-action-error" id="profile-photo-select-error" role="alert"></p>
+          <p class="field-help" id="profile-photo-select-status" role="status" aria-live="polite"></p>
+        </div>
+        <div class="profile-photo-control">
+          <button class="button button--quiet button--action" type="button" data-review-photo-consent><span data-action-label>Rever consentimento Google</span></button>
+          <p class="login-action-error" id="profile-photo-consent-error" role="alert"></p>
+          <p class="field-help" id="profile-photo-consent-status" role="status" aria-live="polite"></p>
+        </div>
+        <div class="profile-photo-control">
+          <button class="button button--quiet button--action" type="button" data-remove-profile-photo ${photoProfile.photo ? "" : "disabled"}><span data-action-label>Remover foto</span></button>
+          <p class="login-action-error" id="profile-photo-remove-error" role="alert"></p>
+          <p class="field-help" id="profile-photo-remove-status" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+      <p class="field-help">A foto escolhida fica só na memória desta sessão, sem envio ou armazenamento permanente.</p>
+    ` : `<div class="notice notice--info profile-photo-restriction">${photoProfile.age === "minor" ? "Menores de 18 anos usam somente avatar; não há envio nem cópia de foto." : "Sem data de nascimento. Alunos sem registro têm a idade marcada pelo Professor."}</div>`}
+    <p class="field-help">A declaração de idade e o consentimento são demonstrativos e não ficam salvos após esta sessão.</p>
+  `);
+}
+
+function updatePhotoCropPreview() {
+  const image = document.querySelector("#photo-editor-image");
+  const zoomInput = document.querySelector("#photo-editor-zoom");
+  const xInput = document.querySelector("#photo-editor-x");
+  const yInput = document.querySelector("#photo-editor-y");
+  if (!image || !zoomInput || !xInput || !yInput) return;
+  image.style.objectPosition = `${xInput.value}% ${yInput.value}%`;
+  image.style.transform = `scale(${zoomInput.value})`;
+  zoomInput.setAttribute("aria-valuetext", `Zoom ${Number(zoomInput.value).toFixed(2)}x`);
+}
+
+function openPhotoEditor(file) {
+  if (photoEditorUrl) URL.revokeObjectURL(photoEditorUrl);
+  photoEditorUrl = URL.createObjectURL(file);
+  photoEditorFile = file;
+  photoEditorAccount = activeDemoAccount;
+  document.querySelector("#photo-editor-image").src = photoEditorUrl;
+  document.querySelector("#photo-editor-zoom").value = "1";
+  document.querySelector("#photo-editor-x").value = "50";
+  document.querySelector("#photo-editor-y").value = "50";
+  document.querySelector("#photo-editor-error").textContent = "";
+  document.querySelector("#photo-editor-status").textContent = "";
+  updatePhotoCropPreview();
+  photoEditorDialog.showModal();
+  document.querySelector("#photo-editor-zoom").focus();
+}
+
+function closePhotoEditor() {
+  if (photoEditorDialog.open) photoEditorDialog.close();
+  if (photoEditorUrl) URL.revokeObjectURL(photoEditorUrl);
+  photoEditorUrl = "";
+  photoEditorFile = null;
+  photoEditorAccount = null;
+}
+
+function chooseImageFile(input) {
+  input.value = "";
+  return new Promise((resolve) => {
+    let settled = false;
+    let focusTimer = 0;
+    const finish = (file) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("focus", onFocus);
+      input.removeEventListener("change", onChange);
+      input.removeEventListener("cancel", onCancel);
+      resolve(file);
+    };
+    const onChange = () => finish(input.files && input.files[0] || null);
+    const onCancel = () => finish(null);
+    const onFocus = () => {
+      focusTimer = window.setTimeout(() => {
+        if (!input.files || !input.files.length) finish(null);
+      }, 250);
+    };
+    input.addEventListener("change", onChange, { once: true });
+    input.addEventListener("cancel", onCancel, { once: true });
+    window.addEventListener("focus", onFocus, { once: true });
+    input.click();
+  });
 }
 
 function listRow(title, detail, value = "", badge = "") {
@@ -652,9 +933,10 @@ function listRow(title, detail, value = "", badge = "") {
 }
 
 function studentEntry(name, detail, image, status, rosterIndex = demoRoster.findIndex((student) => student.name === name && student.teacherAccount === activeDemoAccount)) {
+  const student = demoRoster[rosterIndex] || null;
   return `
     <div class="student-entry">
-      ${personRow(escapeHtml(name), "Perfil fictício", image, `<span class="badge ${status}">${detail}</span>`)}
+      ${personRow(escapeHtml(name), "Perfil fictício", image, `<span class="badge ${status}">${detail}</span>`, student, "student")}
       <span class="student-entry-note">Mensalidade e vencimento: —</span>
       <button class="button button--small button--quiet" type="button" data-screen-target="student-detail" data-roster-index="${rosterIndex}"><span>Abrir ficha</span></button>
     </div>
@@ -713,6 +995,7 @@ function field(id, label, placeholder, type = "text", help = "") {
     <div class="field">
       <label for="${id}">${label}</label>
       <input id="${id}" name="${id}" type="${type}" placeholder="${placeholder}">
+      ${type === "email" ? '<span class="email-preview" aria-hidden="true" hidden></span>' : ""}
       ${help ? `<small class="field-help">${help}</small>` : ""}
     </div>
   `;
@@ -1103,7 +1386,7 @@ const privacyPlaceholder = "O texto da política e do termo ainda precisa ser re
 const screens = {
   login() {
     return `
-      ${heading("ACESSO", "Entre na sua conta", "A tela de login prevista no roadmap, em uma visualização demonstrativa.")}
+      ${heading("ACESSO", "Entre na sua conta", "Use o Google quando configurado ou explore as contas de demonstração.")}
       <div class="auth-layout">
         <section class="auth-visual">
           <div>
@@ -1117,13 +1400,13 @@ const screens = {
           <img class="auth-mobile-mark" src="assets/logos/tatame-icone-escudo.svg" alt="">
           <p class="eyebrow">BEM-VINDO AO TATAME</p>
           <h2>Continuar</h2>
-          <p>Use a forma de acesso habilitada para sua conta. Nenhum login é realizado neste protótipo.</p>
+          <p>O Google inicia uma autenticação real quando configurado. A entrada por e-mail e as contas de demonstração são apenas simulações.</p>
           <div class="visually-hidden" id="login-action-status" role="status" aria-live="polite" aria-atomic="true"></div>
           <button class="button button--google button--action" type="button" data-login-action aria-describedby="google-login-error">
             <img class="google-icon" src="assets/logos/google-g.svg" alt="" aria-hidden="true">
             <span data-action-label>Fazer login com o Google</span>
           </button>
-          <div class="login-action-error" id="google-login-error" role="alert" aria-atomic="true"></div>
+          <div class="login-action-error" id="google-login-error" role="alert" aria-atomic="true">${escapeHtml(loginNotice)}</div>
           <div class="auth-divider">ou entre com e-mail</div>
           <form data-demo-form data-login-form>
             ${field("login-email", "E-mail", "seu e-mail", "email")}
@@ -1143,9 +1426,25 @@ const screens = {
               ${Object.entries(demoProfiles).map(([account, profile]) => `<button class="button button--quiet" type="button" data-demo-login="${account}">Entrar como ${profile.label} · ${profile.name}</button>`).join("")}
             </div>
           </section>
+          <div class="login-version"><span>Versão do app</span><span class="version-badge">${APP_VERSION}</span></div>
         </section>
       </div>
     `;
+  },
+
+  "real-account"() {
+    const text = realProfileState === "checking"
+      ? ["Verificando seu perfil", "Aguarde a consulta da conta."]
+      : realProfileState === "missing"
+        ? ["Sua conta ainda não tem perfil", "Nenhum perfil foi criado automaticamente. Entre em contato com o responsável pelo aplicativo."]
+        : realProfileState === "found"
+          ? ["Perfil encontrado", "A integração das telas com o perfil real ainda está em construção. As contas de demonstração continuam separadas."]
+          : ["Não foi possível consultar seu perfil", "Confira a conexão e tente novamente. Não é possível determinar se existe um perfil."];
+    return `${heading("CONTA GOOGLE", text[0], text[1])}
+      ${panel("Sessão", `<p>A conta Google está conectada. Abra o painel da conta para ver o e-mail ou sair.</p>
+        <button class="button button--quiet" type="button" data-open-user-panel>Abrir painel da conta</button>
+        ${realProfileState === "error" ? '<button class="button button--quiet" type="button" data-retry-profile>Tentar consultar novamente</button>' : ""}
+        ${button("Voltar à entrada de demonstração", "login", "button button--quiet")}`)}`;
   },
 
   register() {
@@ -1257,11 +1556,12 @@ const screens = {
   },
 
   "student-home"() {
+    const profile = demoProfiles[activeDemoAccount];
     return `
       ${heading("VISÃO DO ALUNO", "Início", "Resumo pessoal da conta fictícia.")}
       <div class="content-grid">
         <div class="stack">
-          ${panel("Meu perfil", personRow("ALUNO FICTÍCIO 01", "Aluno · perfil de demonstração") + `
+          ${panel("Meu perfil", personRow(escapeHtml(profile.name), `${escapeHtml(profile.label)} · perfil de demonstração`, "avatar-masculino.svg", "", activeDemoAccount, "self") + studentAcademyDetails(activeDemoAccount) + `
             <div class="student-belt"><span class="belt-swatch"></span><span><strong>Faixa cadastrada</strong><small>Graus e histórico em Minhas graduações</small></span></div>
           `, "panel-card--highlight")}
           <div class="card-grid card-grid--two">
@@ -1289,7 +1589,7 @@ const screens = {
       ${heading("VISÃO DO ALUNO", "Meu vínculo", "Professor e academia aos quais sua conta está vinculada.")}
       <div class="content-grid">
         ${panel("Vínculo atual", `
-          ${teacher ? personRow(teacher.name, `Professor · ${demoAcademy.name}`, "avatar-masculino.svg", '<span class="badge badge--green">ATIVO</span>') : emptyState("Sem Professor vinculado", "Use um código de seis caracteres para solicitar vínculo.")}
+          ${teacher ? personRow(escapeHtml(teacher.name), `Professor · ${escapeHtml(demoAcademy.name)}`, "avatar-masculino.svg", '<span class="badge badge--green">ATIVO</span>', profile.teacherAccount, "professor") : emptyState("Sem Professor vinculado", "Use um código de seis caracteres para solicitar vínculo.")}
           <div class="belt-display" style="margin-top:14px"><span class="belt-swatch"></span><span class="belt-copy"><strong>Sua faixa e graduações acompanham a conta</strong><small>O histórico de pagamentos fica com o Professor anterior</small></span></div>
           <div class="form-actions">
             ${button(teacher ? "Trocar de professor" : "Vincular a um professor", "link-teacher", "button button--quiet", "⌁")}
@@ -1495,7 +1795,26 @@ const screens = {
       ${heading("VISÃO DO PROFESSOR", "Ficha do aluno", "Resumo e registros do aluno fictício; notas privadas aparecem apenas nesta visualização de professor.")}
       ${panel("Perfil", `
         <div class="profile-summary">
-          ${personRow(student ? escapeHtml(student.name) : "Nenhum aluno da turma", "Cadastro demonstrativo · perfil de aluno")}
+          ${personRow(student ? escapeHtml(student.name) : "Nenhum aluno da turma", "Cadastro demonstrativo · perfil de aluno", "avatar-masculino.svg", "", student, "student")}
+          ${student ? studentAcademyDetails(student.account, student) : ""}
+          ${student && !student.account ? `
+            <form class="student-age-form" data-student-age-form>
+              <div class="field">
+                <label for="student-age-status">Idade declarada ao Professor</label>
+                <select id="student-age-status">
+                  <option value="unknown" ${getPhotoProfile(student).age === "unknown" ? "selected" : ""}>Ainda não informada</option>
+                  <option value="adult" ${getPhotoProfile(student).age === "adult" ? "selected" : ""}>18 anos ou mais</option>
+                  <option value="minor" ${getPhotoProfile(student).age === "minor" ? "selected" : ""}>Menor de 18 anos</option>
+                </select>
+                <small class="field-help">Sem data de nascimento. Menor de 18 anos usa somente avatar.</small>
+              </div>
+              <div class="student-action-control">
+                <button class="button button--primary button--action" type="button" data-save-student-age><span data-action-label>Salvar classificação</span></button>
+                <p class="login-action-error" role="alert"></p>
+                <p class="field-help" role="status" aria-live="polite"></p>
+              </div>
+            </form>
+          ` : ""}
           <div class="belt-display belt-display--rank">${student ? gradeVisual(student.grade) : ""}<span class="belt-copy"><strong>${student ? escapeHtml(student.grade) : "Faixa não disponível"}</strong><small>Último registro: ${latestGrade ? escapeHtml(formatDemoDate(latestGrade.date)) : "—"}</small></span></div>
         </div>
       `, "panel-card--highlight")}
@@ -1508,7 +1827,7 @@ const screens = {
       </div>
       <section class="tab-panel panel-card" id="panel-summary" role="tabpanel" aria-labelledby="tab-summary" data-tab-panel="summary">
         <div class="card-grid card-grid--two">${metric("STATUS", "—", "Conforme os registros", "gold")}${metric("MENSALIDADE", "R$ —", "Valor configurado no cadastro")}</div>
-        <p class="panel-copy" style="margin-top:16px">Contato, aniversário e outros dados só aparecem conforme o escopo definido para cada perfil.</p>
+        <p class="panel-copy" style="margin-top:16px">Contato e outros dados só aparecem conforme o escopo definido para cada perfil.</p>
       </section>
       <section class="tab-panel panel-card" id="panel-payments" role="tabpanel" aria-labelledby="tab-payments" data-tab-panel="payments" hidden>${listRow("Cobrança", "Vencimento: —", "R$ —", '<span class="badge badge--pending">PENDENTE</span>')}${emptyState("Sem registros adicionais", "O histórico é demonstrativo.")}</section>
       <section class="tab-panel panel-card" id="panel-grades" role="tabpanel" aria-labelledby="tab-grades" data-tab-panel="grades" hidden>${gradeForm}</section>
@@ -1526,7 +1845,11 @@ const screens = {
             <div class="form-grid">
               <div class="field"><label for="student-name">Nome fictício</label><input id="student-name" type="text" placeholder="Nome fictício do aluno" required></div>
               ${field("student-contact", "Contato", "Contato (opcional)")}
-              ${field("student-birthday", "Aniversário", "dd/mm/aaaa", "text")}
+              <div class="field" id="student-age-field" hidden>
+                <label for="student-age-status">Idade declarada pelo Professor</label>
+                <select id="student-age-status"><option value="unknown">Ainda não informada</option><option value="adult">18 anos ou mais</option><option value="minor">Menor de 18 anos</option></select>
+                <small class="field-help">Sem data de nascimento. Menor de 18 anos usa somente avatar.</small>
+              </div>
               <div class="field">
                 <label for="student-plan">Plano</label>
                 <select id="student-plan"><option>Selecione</option><option>Mensalidade</option><option>Avulso</option></select>
@@ -1540,11 +1863,12 @@ const screens = {
               <div class="field"><label for="student-degree">Grau atual</label><select id="student-degree" required disabled><option value="">Selecione a faixa</option></select></div>
               <div class="field">
                 <label for="student-access">Acesso</label>
-                <select id="student-access"><option>Convite para conta</option><option>Perfil sem login</option></select>
+                <select id="student-access"><option value="invite">Convite para conta</option><option value="no-login">Perfil sem login</option></select>
                 <small class="field-help">Aluno sem telefone pode permanecer gerenciado pelo professor.</small>
               </div>
             </div>
-            <div class="notice notice--info" style="margin-top:16px">O cadastro fictício não cria login nem convite. Contato, aniversário, plano, valor, vencimento e acesso não são salvos.</div>
+            <p class="field-help" id="student-age-help">Com convite, a pessoa declara a idade no primeiro acesso. Para perfil sem login, o Professor faz essa marcação, sem data de nascimento.</p>
+            <div class="notice notice--info" style="margin-top:16px">O cadastro fictício não cria login nem convite. Contato, plano, valor, vencimento e acesso não são salvos; a idade declarada fica apenas nesta sessão.</div>
             <div class="form-actions"><button class="button button--quiet" type="reset">Limpar campos</button><div class="student-action-control"><button class="button button--primary button--action" type="submit" data-student-create-action><span data-action-label>Cadastrar aluno fictício</span></button><p class="login-action-error student-action-error" role="alert"></p></div></div>
             <p class="field-help" role="status" aria-live="polite"></p>
           </form>
@@ -1615,7 +1939,7 @@ const screens = {
             ${professorAccounts.map(([account, profile]) => `
               <div class="role-change-row">
                 <div><strong>${escapeHtml(profile.name)}</strong><small>${profile.academyId ? escapeHtml(demoAcademy.name) : "Professor sem academia"}</small></div>
-                <button class="button button--small button--primary" type="button" data-bind-professor-academy="${escapeHtml(account)}" ${profile.academyId ? "disabled" : ""}>${profile.academyId ? "Academia vinculada" : "Vincular à Academia Fictícia"}</button>
+                <button class="button button--small button--primary" type="button" data-bind-professor-academy="${escapeHtml(account)}" ${profile.academyId ? "disabled" : ""}>${profile.academyId ? "Academia vinculada" : `Vincular à ${escapeHtml(demoAcademy.name)}`}</button>
               </div>
             `).join("")}
             <p class="field-help">Só o Adm atribui o papel de Professor e vincula sua academia. Antes do vínculo, o código não cria pedidos de aluno.</p>
@@ -1787,8 +2111,8 @@ const screens = {
       ${heading("VISÃO DO PROFESSOR", "Conversas", "Conversas individuais com seus alunos e instrutores. Não há conversa entre outros usuários.")}
       <div class="content-grid">
         ${panel("Conversas", `
-          ${personRow("ALUNO FICTÍCIO 01", "Aluno · última mensagem: —", "avatar-masculino.svg")}
-          ${personRow("INSTRUTOR FICTÍCIO 01", "Instrutor · última mensagem: —", "avatar-feminino.svg")}
+          ${personRow("ALUNO FICTÍCIO 01", "Aluno · última mensagem: —", "avatar-masculino.svg", "", "student", "student")}
+          ${personRow("INSTRUTOR FICTÍCIO 01", "Instrutor · última mensagem: —", "avatar-feminino.svg", "", "instructor", "student")}
         `)}
         ${panel("Mensagens", `
           <div class="chat-thread">
@@ -1831,8 +2155,8 @@ const screens = {
       ${heading("VISÃO DO ADMINISTRADOR", "Professores convidados", "Apenas o Adm gerencia a lista de professores autorizados.")}
       <div class="content-grid">
         ${panel("Lista de convites", `
-          ${listRow("PROFESSOR FICTÍCIO 01", "Estado demonstrativo · sem e-mail ou dado real", "", '<span class="badge badge--green">ATIVO</span>')}
-          ${listRow("PROFESSOR FICTÍCIO 02", "Convite demonstrativo", "", '<span class="badge badge--amber">CONVIDADO</span>')}
+          ${personRow("PROFESSOR FICTÍCIO 01", "Estado demonstrativo · sem e-mail ou dado real", "avatar-masculino.svg", '<span class="badge badge--green">ATIVO</span>', "professor", "professor")}
+          ${personRow("PROFESSOR FICTÍCIO 02", "Convite demonstrativo", "avatar-masculino.svg", '<span class="badge badge--amber">CONVIDADO</span>', "professor-convidado", "professor")}
           ${emptyState("Sem outros registros", "Esta lista não contém pessoas reais.")}
         `)}
         ${panel("Convidar professor", `
@@ -1904,6 +2228,7 @@ const screens = {
   },
 
   academy() {
+    const canEdit = canEditAcademy();
     const academyProfessors = Object.entries(demoProfiles).filter(([, profile]) =>
       profile.role === "professor" && profile.academyId === demoAcademy.id
     );
@@ -1912,17 +2237,36 @@ const screens = {
     );
     return `
       ${heading("ACADEMIA", "Academia", "Página pública para usuários vinculados: equipe e horários de treino.")}
+      ${canEdit ? panel("Dados da academia", `
+        <p class="field-help">Use somente dados fictícios. Campos e foto são provisórios; nenhum arquivo é guardado.</p>
+        <div class="academy-photo-row">
+          <div class="academy-photo" id="academy-photo" aria-label="Foto simulada da academia">${academyPhotoText()}</div>
+          <div>
+            <button class="button button--quiet button--action" type="button" data-academy-photo aria-describedby="academy-photo-error academy-photo-status"><span data-action-label>Trocar foto</span></button>
+            <div class="login-action-error" id="academy-photo-error" role="alert"></div>
+            <div class="field-help" id="academy-photo-status" role="status"></div>
+          </div>
+        </div>
+        <form data-academy-form>
+          <div class="form-grid">
+            <div class="field field--wide"><label for="academy-name">Nome da academia</label><input id="academy-name" name="name" value="${escapeHtml(demoAcademy.name)}" required maxlength="120"></div>
+            <div class="field"><label for="academy-phone">Telefone fictício</label><input id="academy-phone" name="phone" type="tel" value="${escapeHtml(demoAcademy.phone)}" maxlength="40"></div>
+            <div class="field"><label for="academy-email">E-mail fictício</label><input id="academy-email" name="email" type="email" value="${escapeHtml(demoAcademy.email)}" maxlength="254"><span class="email-preview" aria-hidden="true" hidden></span></div>
+          </div>
+          <div class="form-actions"><div class="academy-save-action"><button class="button button--primary button--action" type="submit" data-academy-save aria-describedby="academy-save-error academy-save-status"><span data-action-label>Salvar academia</span></button><div class="login-action-error" id="academy-save-error" role="alert"></div><div class="field-help" id="academy-save-status" role="status"></div></div></div>
+        </form>
+      `, "academy-details") : ""}
       <div class="content-grid">
         ${academyProfessors.length ? `<div class="stack">
           ${academyProfessors.map(([account, profile]) => panel("Professor e horários", `
-            ${personRow(escapeHtml(profile.name), "Professor · uma turma", "avatar-masculino.svg")}
+            ${personRow(escapeHtml(profile.name), "Professor · uma turma", "avatar-masculino.svg", "", account, "professor")}
             <div class="schedule-list">
               ${defaultProfessorSchedule.map(([day, hours]) => listRow(day, hours)).join("")}
             </div>
             <p class="field-help">Grade: ${publishedAcademyGrades.has(account) ? "Publicada" : "Rascunho"}.</p>
           `)).join("")}
           ${panel("Instrutores", academyInstructors.length
-            ? academyInstructors.map((profile) => personRow(escapeHtml(profile.name), "Aluno com função de apoio", "avatar-feminino.svg")).join("")
+            ? academyInstructors.map((profile) => personRow(escapeHtml(profile.name), "Aluno com função de apoio", "avatar-feminino.svg", "", "instructor", "student")).join("")
             : emptyState("Nenhum Instrutor vinculado", "Instrutores autorizados da academia aparecerão aqui."))}
         </div>
         <div class="stack">
@@ -1938,16 +2282,18 @@ const screens = {
   },
 
   "user-settings"() {
-    const profile = demoProfiles[activeRole];
+    const profile = demoProfiles[activeDemoAccount];
     return `
       ${heading("CONTA", "Painel do usuário", "Preferências demonstrativas; perfil e papel vêm do banco na versão funcional.")}
       <div class="content-grid">
-        ${panel("Perfil", personRow(profile.name, profile.label) + `
+        ${panel("Perfil", personRow(profile.name, profile.label, "avatar-masculino.svg", "", activeDemoAccount, "self") +
+          (["student", "instructor"].includes(activeRole) ? studentAcademyDetails(activeDemoAccount) : "") + `
           <div class="stack" style="margin-top:18px">
             ${listRow("Papel", "Simulado para esta demonstração", "", `<span class="badge">${profile.label.toUpperCase()}</span>`)}
             ${listRow("Versão do app", "Visualização do protótipo", "", `<span class="badge badge--gold">${APP_VERSION}</span>`)}
           </div>
         `)}
+        ${profilePhotoCard(activeDemoAccount, activeRole)}
         ${panel("Preferências", `
           <div class="settings-row"><span><strong>Tema</strong><small>Segue o aparelho por padrão; alterne para conferir.</small></span><button class="button button--small button--quiet" type="button" data-theme-toggle>Alternar tema</button></div>
           <div class="settings-row"><span><strong>Atualização</strong><small>Verificação visual, sem buscar versão remota.</small></span>${actionButton("Buscar versão", "button button--small button--quiet")}</div>
@@ -1999,10 +2345,13 @@ function renderScreen(id) {
     return;
   }
 
+  currentScreen = id;
   if (screenContent.querySelector('[data-login-action][data-action-state="success"]')) {
     showToast("Simulação concluída. Nenhum login foi realizado.");
   }
   screenContent.innerHTML = screen();
+  revokeReplacedPhotoUrls();
+  screenContent.querySelectorAll('input[type="email"]').forEach(updateEmailPreview);
   if (id === "register") {
     const inviteToken = new URLSearchParams(window.location.search).get("convite");
     const inviteCode = screenContent.querySelector("#invite-code");
@@ -2038,7 +2387,35 @@ function renderScreen(id) {
 function updateUserPanelProfile() {
   const profile = demoProfiles[activeDemoAccount];
   document.querySelector("#user-panel-profile-academy").textContent =
-    profile && profile.academyId === demoAcademy.id ? demoAcademy.name : "Sem academia vinculada";
+    profile && profile.academyId === demoAcademy.id ? demoAcademy.name : profile ? "Sem academia vinculada" : "Conta Google";
+}
+
+function canEditAcademy() {
+  const profile = demoProfiles[activeDemoAccount];
+  return activeRole === "adm" || (activeRole === "professor" && profile && profile.academyId === demoAcademy.id);
+}
+
+function academyPhotoText() {
+  return demoAcademy.photo === "icon" ? "⌂" : escapeHtml(demoAcademy.name.trim().split(/\s+/).slice(0, 2).map((word) => Array.from(word)[0] || "").join("").toLocaleUpperCase("pt-BR"));
+}
+
+function updateEmailPreview(input) {
+  const preview = input.parentElement.querySelector(".email-preview");
+  if (!preview) return;
+  preview.textContent = input.value;
+  preview.hidden = !input.value || input.scrollWidth <= input.clientWidth;
+}
+
+function resetDeleteAccountConfirmation() {
+  const confirmation = document.querySelector("#delete-account-confirmation");
+  const button = document.querySelector("[data-delete-account]");
+  confirmation.value = "";
+  confirmation.disabled = false;
+  button.disabled = true;
+  button.querySelector("[data-action-label]").textContent = "Excluir minha conta";
+  button.removeAttribute("aria-label");
+  document.querySelector("#delete-account-error").textContent = "";
+  document.querySelector("#delete-account-notice").textContent = "";
 }
 
 function closeUserPanel(afterClose) {
@@ -2047,6 +2424,7 @@ function closeUserPanel(afterClose) {
   const finish = () => {
     userPanel.classList.remove("is-closing");
     userPanel.close();
+    if (!document.querySelector("[data-delete-account]").hasAttribute("aria-busy")) resetDeleteAccountConfirmation();
     if (afterClose) afterClose();
   };
   window.setTimeout(finish, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 180);
@@ -2113,6 +2491,7 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
   const disabledStates = buttons.map((item) => item.disabled);
   const hadFocus = document.activeElement === button;
   let succeeded = false;
+  let redirecting = false;
   buttons.forEach((item) => { item.disabled = true; });
   button.setAttribute("aria-busy", "true");
   label.textContent = loadingText;
@@ -2129,6 +2508,25 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
         feedback.textContent = outcome.errorMessage;
       } else {
         showToast(outcome.errorMessage, "error");
+      }
+    } else if (outcome && outcome.pendingMessage) {
+      if (button.isConnected) {
+        label.textContent = outcome.pendingLabel;
+        announcement.textContent = outcome.pendingMessage;
+        if (outcome.redirecting) {
+          redirecting = true;
+          window.setTimeout(() => {
+            if (!button.isConnected) return;
+            buttons.forEach((item, index) => { item.disabled = disabledStates[index]; });
+            button.removeAttribute("aria-busy");
+            label.textContent = "Tentar de novo";
+            button.setAttribute("aria-label", `Tentar de novo: ${originalText}`);
+            announcement.textContent = "";
+            feedback.textContent = "O redirecionamento não foi concluído. Tente novamente.";
+          }, 15000);
+        }
+      } else {
+        showToast(outcome.pendingMessage);
       }
     } else if (button.isConnected) {
       succeeded = true;
@@ -2161,8 +2559,10 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
       showToast(errorMessage, "error");
     }
   } finally {
-    buttons.forEach((item, index) => { item.disabled = item === button && succeeded && disableAfterSuccess ? true : disabledStates[index]; });
-    button.removeAttribute("aria-busy");
+    if (!redirecting) {
+      buttons.forEach((item, index) => { item.disabled = item === button && succeeded && disableAfterSuccess ? true : disabledStates[index]; });
+      button.removeAttribute("aria-busy");
+    }
     if (hadFocus && button.isConnected && document.activeElement === document.body) button.focus();
   }
 }
@@ -2196,6 +2596,170 @@ function simulateLogin(button) {
   }));
 }
 
+function validPublicKey(key) {
+  if (/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)) return true;
+  const parts = key.split(".");
+  if (parts.length !== 3 || !parts.every((part) => /^[A-Za-z0-9_-]+$/.test(part))) return false;
+  try {
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return payload.role === "anon";
+  } catch (error) {
+    return false;
+  }
+}
+
+function authConfigurationError() {
+  const config = window.TATAME_SUPABASE_CONFIG;
+  if (!config || typeof config.publicKey !== "string" || !config.publicKey.trim()) {
+    return "A chave pública não está configurada. Preencha js/config.js e tente novamente.";
+  }
+  if (!validPublicKey(config.publicKey.trim())) return "Chave inválida. Use apenas uma chave pública publishable ou anon.";
+  if (!window.supabase || typeof window.supabase.createClient !== "function") return "A biblioteca de login não carregou. Confira os arquivos do aplicativo.";
+  if (!["http:", "https:"].includes(window.location.protocol)) return "Abra o aplicativo pelo Live Server ou HTTPS para usar o login Google.";
+  return "";
+}
+
+function syncRealSessionPanel() {
+  const realSession = document.querySelector("#real-session");
+  realSession.hidden = !realUser;
+  document.querySelector("#real-session-email").textContent = realUser ? realUser.email || "E-mail não disponível" : "";
+  document.querySelector("[data-logout-role]").hidden = !activeDemoAccount;
+  document.querySelector(".user-panel-links[aria-label='Ajuda']").hidden = !activeDemoAccount;
+  if (!activeDemoAccount && realUser) {
+    document.querySelector("#profile-button").hidden = false;
+    document.querySelector(".profile-button-copy").innerHTML = "<strong>Conta Google</strong><small>Sessão conectada</small>";
+    document.querySelector("#user-panel-profile-name").textContent = realUser.email || "E-mail não disponível";
+    document.querySelector("#user-panel-profile-role").textContent = "Conta Google";
+    document.querySelector(".user-panel-links[aria-label='Navegação da conta']").hidden = true;
+  }
+}
+
+async function updateRealSession(session) {
+  const sequence = ++authCheckSequence;
+  const previousUser = realUser;
+  realUser = session && session.user ? { id: session.user.id, email: session.user.email } : null;
+  syncRealSessionPanel();
+  if (!realUser) {
+    if (!activeRole && previousUser) {
+      document.querySelector("#profile-button").hidden = true;
+      renderScreen("login");
+    }
+    return;
+  }
+  realProfileState = "checking";
+  if (!activeRole && (!previousUser || previousUser.id !== realUser.id || currentScreen === "real-account")) renderScreen("real-account");
+  try {
+    const { data, error } = await authClient.from("perfis").select("id").eq("id", realUser.id).maybeSingle();
+    if (sequence !== authCheckSequence) return;
+    if (error) throw new Error("Consulta de perfil indisponível.");
+    realProfileState = data ? "found" : "missing";
+  } catch (error) {
+    if (sequence !== authCheckSequence) return;
+    recordDiagnostic("Erro ao consultar perfil");
+    console.error("Não foi possível consultar o perfil.");
+    realProfileState = "error";
+  }
+  if (!activeRole && currentScreen === "real-account") renderScreen("real-account");
+}
+
+async function initializeRealAuth() {
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const query = new URLSearchParams(window.location.search);
+  if (hash.has("error") || query.has("error")) {
+    const codes = [hash.get("error"), query.get("error"), hash.get("error_code"), query.get("error_code")];
+    loginNotice = codes.includes("access_denied")
+      ? "O login foi cancelado. Tente novamente quando quiser."
+      : "Não foi possível concluir o login. Confira a conexão e tente novamente.";
+    ["error", "error_code", "error_description"].forEach((key) => { hash.delete(key); query.delete(key); });
+    const search = query.toString();
+    const fragment = hash.toString();
+    history.replaceState(null, "", `${window.location.pathname}${search ? `?${search}` : ""}${fragment ? `#${fragment}` : ""}`);
+    const feedback = document.querySelector("#google-login-error");
+    if (feedback) feedback.textContent = loginNotice;
+  }
+  if (authConfigurationError()) return;
+  try {
+    authClient = window.supabase.createClient(window.TATAME_SUPABASE_CONFIG.url, window.TATAME_SUPABASE_CONFIG.publicKey.trim());
+    const { data, error } = await authClient.auth.getSession();
+    if (error) throw new Error("Sessão indisponível.");
+    await updateRealSession(data.session);
+    authClient.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" && realSignoutInProgress) return;
+      window.setTimeout(() => { updateRealSession(session); }, 0);
+    });
+  } catch (error) {
+    recordDiagnostic("Erro ao recuperar sessão");
+    console.error("Não foi possível recuperar a sessão.");
+    loginNotice = "Não foi possível recuperar a sessão. Confira a conexão e tente novamente.";
+    const feedback = document.querySelector("#google-login-error");
+    if (feedback) feedback.textContent = loginNotice;
+  }
+}
+
+function realGoogleLogin(button) {
+  const card = button.closest(".auth-card");
+  runButtonAction(button, {
+    feedback: card.querySelector("#google-login-error"),
+    announcement: card.querySelector("#login-action-status"),
+    buttons: [...card.querySelectorAll("[data-login-action]")],
+    loadingText: "Conectando...",
+    loadingMessage: "Iniciando login Google.",
+    errorMessage: "Não foi possível conectar. Confira a conexão e tente novamente."
+  }, async () => {
+    loginNotice = "";
+    if (new URLSearchParams(window.location.search).get("erro-simulado") === "entrada") {
+      return { errorMessage: "Falha simulada. Tente novamente." };
+    }
+    const configError = authConfigurationError();
+    if (configError) return { errorMessage: configError };
+    if (realUser) return { errorMessage: "Já existe uma conta Google conectada. Saia dela antes de entrar novamente." };
+    if (!authClient) return { errorMessage: "O login não está disponível. Recarregue a página e tente novamente." };
+    try {
+      const redirectTo = `${window.location.origin}${window.location.pathname}`;
+      const { data, error } = await authClient.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo, skipBrowserRedirect: true }
+      });
+      if (error || !data.url) return { errorMessage: "Não foi possível iniciar o login. Confira a conexão e tente novamente." };
+      window.location.assign(data.url);
+      return { pendingLabel: "Abrindo Google...", pendingMessage: "Redirecionando para o Google.", redirecting: true };
+    } catch (error) {
+      recordDiagnostic("Erro ao iniciar login");
+      console.error("Não foi possível iniciar o login.");
+      return { errorMessage: "Não foi possível conectar. Confira a conexão e tente novamente." };
+    }
+  });
+}
+
+function signOutRealAccount(button) {
+  runButtonAction(button, {
+    feedback: document.querySelector("#real-signout-error"),
+    announcement: document.querySelector("#real-signout-status"),
+    buttons: [button],
+    loadingText: "Saindo...",
+    loadingMessage: "Encerrando sessão Google.",
+    successMessage: "Sessão Google encerrada.",
+    errorMessage: "Não foi possível sair. Confira a conexão e tente novamente.",
+    afterSuccess: () => {
+      updateRealSession(null);
+      closeUserPanel();
+    }
+  }, async () => {
+    if (!authClient || !realUser) return { errorMessage: "Não há sessão Google disponível para encerrar." };
+    try {
+      realSignoutInProgress = true;
+      const { error } = await authClient.auth.signOut({ scope: "local" });
+      if (error) return { errorMessage: "Não foi possível sair. Confira a conexão e tente novamente." };
+    } catch (error) {
+      recordDiagnostic("Erro ao sair");
+      console.error("Não foi possível encerrar a sessão.");
+      return { errorMessage: "Não foi possível sair. Confira a conexão e tente novamente." };
+    } finally {
+      realSignoutInProgress = false;
+    }
+  });
+}
+
 function updateToastPosition() {
   const mobileNavigation = document.querySelector("#mobile-navigation");
   if (mobileNavigation) {
@@ -2226,9 +2790,12 @@ renderNavigation();
 renderScreen(new URLSearchParams(window.location.search).has("convite") ? "register" : "login");
 document.querySelector("#app-version").textContent = APP_VERSION;
 document.querySelector("#diagnostics-version").textContent = `Versão do app: ${APP_VERSION}`;
+syncRealSessionPanel();
+initializeRealAuth();
 cashPayments.filter((payment) => payment.source === "teacher" && payment.status === "confirmed" && payment.undoUntil > Date.now())
   .forEach(scheduleTeacherCashExpiry);
 window.addEventListener("resize", updateToastPosition);
+window.addEventListener("resize", () => screenContent.querySelectorAll('input[type="email"]').forEach(updateEmailPreview));
 if (window.ResizeObserver) {
   new ResizeObserver(updateToastPosition).observe(document.querySelector("#mobile-navigation"));
 }
@@ -2237,9 +2804,294 @@ document.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
 
+  const ageConfirmation = target.closest("[data-confirm-profile-age]");
+  if (ageConfirmation instanceof HTMLButtonElement) {
+    const selectedAge = profileOnboardingDialog.querySelector('[name="profile-age"]:checked');
+    const age = selectedAge ? selectedAge.value : "";
+    const buttonGroup = Array.from(profileOnboardingDialog.querySelectorAll("button, input"));
+    runButtonAction(ageConfirmation, {
+      feedback: document.querySelector("#profile-onboarding-error"),
+      announcement: document.querySelector("#profile-onboarding-status"),
+      buttons: buttonGroup,
+      loadingText: "Confirmando...",
+      loadingMessage: "Registrando a declaração somente nesta sessão.",
+      successMessage: "Declaração demonstrativa registrada nesta sessão.",
+      errorMessage: "Não foi possível registrar. Tente novamente.",
+      afterSuccess: () => {
+        if (age === "adult") renderProfileOnboarding("consent");
+        else finishProfileOnboarding();
+      }
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === "perfil-idade") throw new Error("Falha simulada de declaração de idade.");
+      if (!age) return { errorMessage: "Escolha uma opção para continuar." };
+      if (activeDemoAccount !== onboardingAccount) return { errorMessage: "A conta mudou. Reabra a demonstração." };
+      const currentPhoto = getPhotoProfile(onboardingAccount).photo;
+      updatePhotoProfile(onboardingAccount, {
+        age,
+        googleConsent: false,
+        photo: age === "minor" ? null : currentPhoto,
+        onboardingComplete: age === "minor"
+      });
+    });
+    return;
+  }
+
+  const googleConsent = target.closest("[data-consent-google]");
+  if (googleConsent instanceof HTMLButtonElement) {
+    const accepted = googleConsent.dataset.consentGoogle === "accept";
+    const buttons = Array.from(profileOnboardingDialog.querySelectorAll("[data-consent-google]"));
+    runButtonAction(googleConsent, {
+      feedback: document.querySelector("#profile-onboarding-error"),
+      announcement: document.querySelector("#profile-onboarding-status"),
+      buttons,
+      loadingText: accepted ? "Confirmando..." : "Salvando...",
+      loadingMessage: accepted ? "Aplicando consentimento demonstrativo." : "Registrando a recusa demonstrativa.",
+      successMessage: accepted ? "Consentimento demonstrativo aplicado." : "Recusa registrada; o avatar padrão será usado.",
+      errorMessage: "Não foi possível concluir. Tente novamente.",
+      afterSuccess: finishProfileOnboarding
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === "perfil-foto-consentimento") throw new Error("Falha simulada de consentimento.");
+      if (activeDemoAccount !== onboardingAccount || getPhotoProfile(onboardingAccount).age !== "adult") {
+        return { errorMessage: "A declaração de idade precisa ser confirmada antes." };
+      }
+      const current = getPhotoProfile(onboardingAccount);
+      updatePhotoProfile(onboardingAccount, {
+        googleConsent: accepted,
+        photo: accepted
+          ? current.photo && current.photo.kind === "upload"
+            ? current.photo
+            : { kind: "google", url: "assets/avatars/avatar-feminino.svg", zoom: 1, x: 50, y: 50 }
+          : current.photo && current.photo.kind === "google" ? null : current.photo,
+        onboardingComplete: true
+      });
+    });
+    return;
+  }
+
+  const continueUnregistered = target.closest("[data-continue-unregistered]");
+  if (continueUnregistered instanceof HTMLButtonElement) {
+    const buttons = Array.from(profileOnboardingDialog.querySelectorAll("button"));
+    runButtonAction(continueUnregistered, {
+      feedback: document.querySelector("#profile-onboarding-error"),
+      announcement: document.querySelector("#profile-onboarding-status"),
+      buttons,
+      loadingText: "Continuando...",
+      loadingMessage: "Mantendo o avatar até a classificação pelo Professor.",
+      successMessage: "O perfil continua com avatar até a marcação do Professor.",
+      errorMessage: "Não foi possível continuar. Tente novamente.",
+      afterSuccess: finishProfileOnboarding
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+      updatePhotoProfile(onboardingAccount, { age: "unknown", photo: null, googleConsent: false, onboardingComplete: true });
+    });
+    return;
+  }
+
+  const photoConsentReview = target.closest("[data-review-photo-consent]");
+  if (photoConsentReview instanceof HTMLButtonElement) {
+    const account = activeDemoAccount;
+    runButtonAction(photoConsentReview, {
+      feedback: document.querySelector("#profile-photo-consent-error"),
+      announcement: document.querySelector("#profile-photo-consent-status"),
+      buttons: [photoConsentReview],
+      loadingText: "Abrindo...",
+      loadingMessage: "Preparando a escolha demonstrativa.",
+      successMessage: "Escolha de consentimento disponível.",
+      errorMessage: "Não foi possível abrir. Tente novamente.",
+      afterSuccess: () => {
+        onboardingAccount = account;
+        onboardingFromSettings = true;
+        renderProfileOnboarding("consent");
+      }
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+      if (activeDemoAccount !== account || getPhotoProfile(account).age !== "adult") {
+        return { errorMessage: "Somente um perfil adulto pode rever este consentimento." };
+      }
+    });
+    return;
+  }
+
+  const photoFileButton = target.closest("[data-open-photo-file]");
+  if (photoFileButton instanceof HTMLButtonElement) {
+    const control = photoFileButton.closest(".profile-photo-control");
+    const input = control.querySelector("#profile-photo-file");
+    const account = activeDemoAccount;
+    runButtonAction(photoFileButton, {
+      feedback: control.querySelector('[role="alert"]'),
+      announcement: control.querySelector('[role="status"]'),
+      buttons: [photoFileButton],
+      loadingText: "Aguardando arquivo...",
+      loadingMessage: "Escolha uma imagem do seu dispositivo.",
+      successMessage: "Imagem pronta para ajuste; ainda não foi salva.",
+      errorMessage: "Não foi possível abrir a imagem. Tente novamente."
+    }, async () => {
+      const file = await chooseImageFile(input);
+      if (!file) return { pendingLabel: "Escolher foto própria", pendingMessage: "Seleção cancelada; nenhuma alteração foi feita." };
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === "perfil-foto-selecao") throw new Error("Falha simulada ao selecionar foto.");
+      if (activeDemoAccount !== account || getPhotoProfile(account).age !== "adult") {
+        return { errorMessage: "Somente um perfil adulto pode usar foto própria." };
+      }
+      if (!file.type.startsWith("image/")) return { errorMessage: "Escolha um arquivo de imagem válido." };
+      if (file.size > 5 * 1024 * 1024) return { errorMessage: "A imagem deve ter no máximo 5 MB." };
+      openPhotoEditor(file);
+    });
+    return;
+  }
+
+  const removeProfilePhoto = target.closest("[data-remove-profile-photo]");
+  if (removeProfilePhoto instanceof HTMLButtonElement) {
+    const account = activeDemoAccount;
+    runButtonAction(removeProfilePhoto, {
+      feedback: document.querySelector("#profile-photo-remove-error"),
+      announcement: document.querySelector("#profile-photo-remove-status"),
+      buttons: [removeProfilePhoto],
+      loadingText: "Removendo...",
+      loadingMessage: "Removendo a foto somente desta sessão.",
+      successMessage: "Foto removida; o avatar padrão está ativo.",
+      errorMessage: "Não foi possível remover a foto. Tente novamente.",
+      afterSuccess: () => renderScreen("user-settings")
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === "perfil-foto-remover") throw new Error("Falha simulada ao remover foto.");
+      if (activeDemoAccount !== account || getPhotoProfile(account).age !== "adult") {
+        return { errorMessage: "A foto não pode ser removida deste perfil." };
+      }
+      updatePhotoProfile(account, { photo: null, googleConsent: false });
+    });
+    return;
+  }
+
+  const saveProfilePhoto = target.closest("[data-save-profile-photo]");
+  if (saveProfilePhoto instanceof HTMLButtonElement) {
+    const account = photoEditorAccount;
+    runButtonAction(saveProfilePhoto, {
+      feedback: document.querySelector("#photo-editor-error"),
+      announcement: document.querySelector("#photo-editor-status"),
+      buttons: [saveProfilePhoto, ...photoEditorDialog.querySelectorAll("input, [data-cancel-photo-editor]")],
+      loadingText: "Salvando...",
+      loadingMessage: "Aplicando o enquadramento somente nesta sessão.",
+      successMessage: "Foto própria aplicada; nenhum arquivo foi enviado ou armazenado permanentemente.",
+      errorMessage: "Não foi possível salvar a foto. Tente novamente.",
+      afterSuccess: () => {
+        closePhotoEditor();
+        if (activeDemoAccount === account) renderScreen("user-settings");
+      }
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === "perfil-foto-salvar") throw new Error("Falha simulada ao salvar foto.");
+      if (!photoEditorFile || !photoEditorUrl || activeDemoAccount !== account ||
+          getPhotoProfile(account).age !== "adult") {
+        return { errorMessage: "Selecione uma imagem válida e tente novamente." };
+      }
+      const photo = {
+        kind: "upload",
+        url: photoEditorUrl,
+        zoom: Number(document.querySelector("#photo-editor-zoom").value),
+        x: Number(document.querySelector("#photo-editor-x").value),
+        y: Number(document.querySelector("#photo-editor-y").value)
+      };
+      updatePhotoProfile(account, { photo, googleConsent: false });
+      photoEditorUrl = "";
+    });
+    return;
+  }
+
+  if (target.closest("[data-cancel-photo-editor]") || target === photoEditorDialog) {
+    closePhotoEditor();
+    return;
+  }
+
+  const saveStudentAge = target.closest("[data-save-student-age]");
+  if (saveStudentAge instanceof HTMLButtonElement) {
+    const student = selectedGradeStudent;
+    const form = saveStudentAge.closest("[data-student-age-form]");
+    const age = form.querySelector("#student-age-status").value;
+    const control = saveStudentAge.closest(".student-action-control");
+    runButtonAction(saveStudentAge, {
+      feedback: control.querySelector('[role="alert"]'),
+      announcement: control.querySelector('[role="status"]'),
+      buttons: [saveStudentAge, form.querySelector("#student-age-status")],
+      loadingText: "Salvando...",
+      loadingMessage: "Salvando a classificação somente nesta sessão.",
+      successMessage: "Classificação demonstrativa salva nesta sessão.",
+      errorMessage: "Não foi possível salvar. Tente novamente.",
+      afterSuccess: () => renderScreen("student-detail")
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === "perfil-idade-aluno") throw new Error("Falha simulada de classificação.");
+      if (activeRole !== "professor" || !student || student.account || student.teacherAccount !== activeDemoAccount) {
+        return { errorMessage: "Somente o Professor responsável pode marcar aluno sem registro." };
+      }
+      updatePhotoProfile(student, {
+        age,
+        photo: age === "adult" ? getPhotoProfile(student).photo : null,
+        googleConsent: false
+      });
+    });
+    return;
+  }
+
   if (target.closest("#app-version")) {
     versionClicks += 1;
     if (versionClicks >= 7) document.querySelector("#user-diagnostics").hidden = false;
+    return;
+  }
+
+  const academyPhoto = target.closest("[data-academy-photo]");
+  if (academyPhoto instanceof HTMLButtonElement) {
+    const form = screenContent.querySelector("[data-academy-form]");
+    const account = activeDemoAccount;
+    runButtonAction(academyPhoto, {
+      feedback: screenContent.querySelector("#academy-photo-error"),
+      announcement: screenContent.querySelector("#academy-photo-status"),
+      buttons: [academyPhoto, form.querySelector("[data-academy-save]")],
+      loadingText: "Trocando...",
+      loadingMessage: "Simulando a troca de foto.",
+      successMessage: "Foto simulada alterada; nenhum arquivo foi armazenado.",
+      errorMessage: "Não foi possível trocar a foto simulada. Tente novamente."
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === "academia-foto") throw new Error("Falha simulada de foto.");
+      if (activeDemoAccount !== account || !canEditAcademy()) return { errorMessage: "Sem permissão para alterar esta academia." };
+      const next = { ...demoAcademy, photo: demoAcademy.photo === "initials" ? "icon" : "initials" };
+      saveDemoAcademy(next);
+      Object.assign(demoAcademy, next);
+      const photo = document.querySelector("#academy-photo");
+      if (photo) photo.textContent = demoAcademy.photo === "icon" ? "⌂" : demoAcademy.name.trim().split(/\s+/).slice(0, 2).map((word) => Array.from(word)[0] || "").join("").toLocaleUpperCase("pt-BR");
+    });
+    return;
+  }
+
+  const deleteAccount = target.closest("[data-delete-account]");
+  if (deleteAccount instanceof HTMLButtonElement) {
+    const confirmation = document.querySelector("#delete-account-confirmation");
+    const account = activeDemoAccount;
+    if (confirmation.value !== "EXCLUIR") {
+      deleteAccount.disabled = true;
+      return;
+    }
+    runButtonAction(deleteAccount, {
+      feedback: document.querySelector("#delete-account-error"),
+      announcement: document.querySelector("#delete-account-notice"),
+      buttons: [deleteAccount, confirmation],
+      loadingText: "Verificando...",
+      loadingMessage: "Verificando a ação demonstrativa.",
+      errorMessage: "Não foi possível verificar. Tente novamente."
+    }, async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === "painel-excluir") {
+        throw new Error("Falha simulada de exclusão.");
+      }
+      return {
+        pendingLabel: "Em construção",
+        pendingMessage: "A exclusão ainda está em construção. Nada foi apagado."
+      };
+    }).then(() => {
+      if (!userPanel.open || activeDemoAccount !== account) resetDeleteAccountConfirmation();
+    });
     return;
   }
 
@@ -2281,7 +3133,18 @@ document.addEventListener("click", (event) => {
 
   const googleLogin = target.closest('button[data-login-action][type="button"]');
   if (googleLogin instanceof HTMLButtonElement) {
-    simulateLogin(googleLogin);
+    realGoogleLogin(googleLogin);
+    return;
+  }
+
+  const realSignout = target.closest("[data-real-signout]");
+  if (realSignout instanceof HTMLButtonElement) {
+    signOutRealAccount(realSignout);
+    return;
+  }
+
+  if (target.closest("[data-retry-profile]") && realUser) {
+    updateRealSession({ user: realUser });
     return;
   }
 
@@ -2604,7 +3467,7 @@ document.addEventListener("click", (event) => {
       });
     }, [[demoDataKeys.profiles, saveDemoProfiles]]);
     renderScreen("role-management");
-    showToast("Professor vinculado à Academia Fictícia.");
+    showToast(`Professor vinculado à ${demoAcademy.name}.`);
     return;
   }
 
@@ -2942,6 +3805,14 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target instanceof HTMLSelectElement && target.id === "student-access") {
+    const form = target.form;
+    const ageField = form.querySelector("#student-age-field");
+    const ageHelp = form.querySelector("#student-age-help");
+    ageField.hidden = target.value !== "no-login";
+    ageHelp.hidden = target.value === "no-login";
+    return;
+  }
   if (target instanceof HTMLSelectElement && target.id === "grade-belt") {
     const form = target.closest("[data-register-student-grade]");
     const degrees = form.querySelector("#grade-degree");
@@ -2983,6 +3854,18 @@ document.addEventListener("change", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  if (target instanceof HTMLInputElement && ["photo-editor-zoom", "photo-editor-x", "photo-editor-y"].includes(target.id)) {
+    updatePhotoCropPreview();
+  }
+  if (target instanceof HTMLInputElement && target.type === "email") updateEmailPreview(target);
+  if (target instanceof HTMLInputElement && target.id === "delete-account-confirmation") {
+    const button = document.querySelector("[data-delete-account]");
+    button.disabled = target.value !== "EXCLUIR";
+    button.querySelector("[data-action-label]").textContent = "Excluir minha conta";
+    button.removeAttribute("aria-label");
+    document.querySelector("#delete-account-error").textContent = "";
+    document.querySelector("#delete-account-notice").textContent = "";
+  }
   if (!(target instanceof HTMLInputElement) || target.id !== "teacher-cash-student") return;
   delete target.dataset.selectedStudent;
   document.querySelector("#teacher-cash-selection").textContent = "";
@@ -3061,6 +3944,36 @@ document.addEventListener("input", (event) => {
   if (target instanceof HTMLInputElement && target.id === "link-code") {
     target.value = target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
   }
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-academy-form]")) return;
+  event.preventDefault();
+  const form = event.target;
+  const account = activeDemoAccount;
+  const name = form.querySelector("#academy-name").value.trim();
+  const phone = form.querySelector("#academy-phone").value.trim();
+  const email = form.querySelector("#academy-email").value.trim();
+  const button = form.querySelector("[data-academy-save]");
+  runButtonAction(button, {
+    feedback: form.querySelector("#academy-save-error"),
+    announcement: form.querySelector("#academy-save-status"),
+    buttons: [button, screenContent.querySelector("[data-academy-photo]"), ...form.querySelectorAll("input")],
+    loadingText: "Salvando...",
+    loadingMessage: "Salvando dados fictícios neste navegador.",
+    successMessage: "Dados fictícios salvos neste navegador.",
+    errorMessage: "Não foi possível salvar. Tente novamente."
+  }, async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 900));
+    if (new URLSearchParams(window.location.search).get("erro-simulado") === "academia-salvar") throw new Error("Falha simulada de academia.");
+    if (activeDemoAccount !== account || !canEditAcademy()) return { errorMessage: "Sem permissão para alterar esta academia." };
+    if (!name) return { errorMessage: "Informe o nome da academia." };
+    const next = { ...demoAcademy, name, phone, email };
+    saveDemoAcademy(next);
+    Object.assign(demoAcademy, next);
+    const photo = document.querySelector("#academy-photo");
+    if (photo) photo.innerHTML = academyPhotoText();
+  });
 });
 
 document.addEventListener("submit", (event) => {
@@ -3183,6 +4096,7 @@ document.addEventListener("submit", (event) => {
     }, [[demoDataKeys.invites, saveDemoInvites], [demoDataKeys.profiles, saveDemoProfiles], [demoDataKeys.roster, saveDemoRoster], [demoDataKeys.grades, saveDemoGradeHistory]]);
     result.textContent = `Convite validado para ${recipient.name}. Conta preparada nesta demonstração; nenhum dado foi enviado.`;
     form.querySelector("#register-email").value = "";
+    updateEmailPreview(form.querySelector("#register-email"));
     form.querySelector("#invite-code").value = "";
     form.querySelector("#register-password").value = "";
     form.querySelector("#register-password-confirm").value = "";
@@ -3195,6 +4109,8 @@ document.addEventListener("reset", (event) => {
   const degree = event.target.querySelector("#student-degree");
   degree.innerHTML = '<option value="">Selecione a faixa</option>';
   degree.disabled = true;
+  event.target.querySelector("#student-age-field").hidden = true;
+  event.target.querySelector("#student-age-help").hidden = false;
 });
 
 document.addEventListener("submit", (event) => {
@@ -3208,6 +4124,9 @@ document.addEventListener("submit", (event) => {
   const belt = form.querySelector("#student-belt").value;
   const value = form.querySelector("#student-degree").value;
   const degree = value === "" ? -1 : Number(value);
+  const age = form.querySelector("#student-access").value === "no-login"
+    ? form.querySelector("#student-age-status").value
+    : "unknown";
   const valid = activeRole === "professor" && Boolean(demoProfiles[account]) && name &&
     beltDegrees(demoBelts.indexOf(belt)).includes(degree);
   runButtonAction(button, {
@@ -3230,9 +4149,12 @@ document.addEventListener("submit", (event) => {
     if (!valid || !button.isConnected || activeRole !== "professor" || activeDemoAccount !== account) {
       return { errorMessage: "Confira o nome fictício, a faixa e o grau." };
     }
+    let createdStudent;
     updateDemoData(() => {
-      demoRoster.push({ account: null, name, grade: gradeLabel(belt, degree), teacherAccount: account, demoCreated: true });
+      createdStudent = { account: null, name, grade: gradeLabel(belt, degree), teacherAccount: account, demoCreated: true };
+      demoRoster.push(createdStudent);
     }, [[demoDataKeys.roster, saveDemoRoster]]);
+    photoProfiles.set(createdStudent, { age, googleConsent: false, photo: null, onboardingComplete: true });
   });
 });
 
@@ -3459,6 +4381,25 @@ privacyDialog.addEventListener("click", (event) => {
 
 termsDialog.addEventListener("click", (event) => {
   if (event.target === termsDialog) termsDialog.close();
+});
+
+profileOnboardingDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+});
+
+photoEditorDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closePhotoEditor();
+});
+
+window.addEventListener("beforeunload", () => {
+  for (const url of replacedPhotoUrls) URL.revokeObjectURL(url);
+  for (const profile of photoProfiles.values()) {
+    if (profile.photo && profile.photo.kind === "upload" && profile.photo.url.startsWith("blob:")) {
+      URL.revokeObjectURL(profile.photo.url);
+    }
+  }
+  if (photoEditorUrl) URL.revokeObjectURL(photoEditorUrl);
 });
 
 userPanel.addEventListener("click", (event) => {

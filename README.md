@@ -23,11 +23,31 @@ O estudo inicial de identidade visual fica em [`assets/identidade.html`](assets/
 - A política de privacidade deverá estar em uma página HTML própria e ter um link clicável no app que abre um modal para leitura. Manter a página e o modal sincronizados quando houver mudanças; os testes devem verificar o acesso, leitura, fechamento, teclado, responsividade e consistência do conteúdo. A publicação da política depende de conteúdo confirmado pelo usuário.
 - Criar migrations sem executá-las. Só podem ser aplicadas após conferência do desenvolvedor; o app não pode depender de uma migration ainda não aplicada.
 
+## Login Google em configuração
+
+O Google usa a biblioteca oficial `@supabase/supabase-js` **2.49.8**, distribuída localmente em `js/vendor/`, obtida de `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/` com sua licença. A autenticação real é separada das contas de demonstração: não cria perfil e ainda não conecta as telas fictícias ao perfil real. A consulta usa `public.perfis.id`; se não houver perfil, a tela informa isso; falhas de consulta não são tratadas como ausência de perfil. A saída Google encerra a sessão neste navegador, separadamente da saída da demonstração.
+
+Para configurar e testar manualmente:
+1. Em `js/config.js`, preencha à mão apenas a chave pública **publishable** ou **anon** do projeto no campo `publicKey`. Nunca coloque `service_role`, `sb_secret_` ou outro segredo no arquivo; a chave pública fica acessível ao navegador. Não compartilhe tokens ou sessões.
+2. No Supabase, habilite o provedor Google e configure **Site URL** com o endereço real do app escolhido para uso principal. Em **Redirect URLs**, autorize a URL completa da página do app no Live Server e a URL completa efetiva do GitHub Pages. Use os endereços e portas realmente usados; o app retorna à origem e ao caminho da página atual, sem URL fixa.
+3. No Google Cloud, configure as origens JavaScript autorizadas com as origens reais do Live Server e do Pages, sem caminho. Em URIs de redirecionamento autorizados do cliente OAuth, adicione a URL de callback exibida pelo Supabase para o provedor Google (para este projeto, `https://zpmszmbcgdanokgiznal.supabase.co/auth/v1/callback`). Cadastre o cliente no provedor Google do Supabase sem colocar seus segredos em arquivos do app.
+4. Abra pelo Live Server ou HTTPS, não por `file:`. Com configuração aprovada e dados de teste, confira entrada, retorno, sessão, ausência de perfil, falhas e saída. A configuração vazia impede o login real, mas não impede a demonstração. Antes de uso real, revise e aprove as decisões de privacidade e LGPD.
+
+## Fotos e avatar (protótipo)
+
+As fotos, declarações de idade e escolhas de consentimento são somente demonstrativas e ficam em memória durante a sessão: não há Supabase Storage, chamadas de rede para fotos, gravação de arquivo, `localStorage` ou `sessionStorage` para esses dados. Ao fechar ou recarregar a página, a foto temporária é descartada. O app não pede data de nascimento para classificar idade.
+
+No primeiro acesso de demonstração, a pessoa escolhe “Tenho 18 anos ou mais” ou “Sou menor de 18 anos”. Para maiores, o consentimento é recusável; o texto está identificado como provisório e pendente de revisão jurídica. Como nenhuma foto Google é baixada, a aceitação usa um avatar local como cópia simulada; a recusa mantém o avatar padrão. Menores usam somente avatar. Para alunos sem registro, o Professor informa a classificação na ficha ou no cadastro, sem data de nascimento.
+
+Uma pessoa adulta pode escolher uma foto própria, ajustar zoom e enquadramento e salvar a prévia em memória. O arquivo não sai do navegador; o limite provisório é 5 MB. Salvar outra foto substitui a anterior e libera o endereço temporário anterior. O Professor vê fotos de alunos adultos da própria turma; o Adm pode ver fotos de Professores, nunca de alunos. No fluxo de exclusão, a foto também seria apagada, mas a ação continua “Em construção” e não apaga nenhum dado.
+
+Para simular falhas nas ações de idade e foto, use `?erro-simulado=perfil-idade`, `perfil-foto-consentimento`, `perfil-foto-selecao`, `perfil-foto-salvar`, `perfil-foto-remover` ou `perfil-idade-aluno` como valor de `erro-simulado`. Os estados de idade, consentimento e foto não persistem, mesmo quando a demonstração está sem falha.
+
 ## Padrão de ações pendente
 
 Os botões adaptados de entrada, cadastro, vínculo, aluno e pagamentos do Professor usam o padrão de processamento e mensagens em simulação. Os controles abaixo ainda não usam o padrão completo; estados de carregamento já existentes não significam conclusão dessa adaptação.
 
-Para testar a falha simulada dos dois botões de entrada, abra `index.html?erro-simulado=entrada`; remova o parâmetro para voltar ao resultado normal. Nenhum login é realizado.
+Para testar a falha simulada dos dois botões de entrada, abra `index.html?erro-simulado=entrada`; remova o parâmetro para voltar ao resultado normal. Com esse parâmetro nenhum login é iniciado; sem ele, o Google pode realizar autenticação real quando configurado, enquanto a entrada por e-mail permanece simulada.
 
 Para simular falha ao validar um convite de cadastro, abra `index.html?erro-simulado=cadastro`, entre em Cadastro e preencha os campos com dados fictícios.
 
@@ -43,9 +63,11 @@ Para simular falha ao graduar um aluno da própria turma, use `?erro-simulado=pr
 
 Para simular falha no cadastro inicial de aluno, use `?erro-simulado=professor-cadastro-aluno`. Nome, faixa e grau ficam no navegador; os demais campos são apenas visuais, sem criação de login ou convite.
 
-O painel da conta mostra a versão definida em `APP_VERSION`; atualize essa constante sempre antes de cada push. Sete cliques na versão revelam diagnósticos temporários com categorias e horários de erros, sem mensagens, nomes, arquivos ou dados da conta. Para simular falhas nas ações do painel, use `?erro-simulado=painel-atualizar` ou `?erro-simulado=painel-sincronizar`. A verificação de atualização não baixa arquivos, e a sincronização não envia dados. Uma atualização real requer um mecanismo de distribuição e controle de versão, por exemplo um service worker e uma estratégia de cache.
+Na tela Academia, o Adm cadastra ou altera nome, telefone e e-mail fictícios; Professores vinculados podem alterar os mesmos campos. Podem existir vários Professores vinculados à academia, cada um com uma turma. O botão de foto alterna apenas uma representação com iniciais ou ícone, sem selecionar ou armazenar arquivos. Os campos e a foto são escolhas provisórias; autoria de alterações e tratamento de conflitos ainda dependem de decisão. Os dados ficam no navegador, com formato versionado; dados anteriores continuam legíveis. Para testar falhas sem alterar dados, use `?erro-simulado=academia-salvar` ou `?erro-simulado=academia-foto`.
 
-A navegação lateral agrupa as telas disponíveis por assunto e pelo papel da conta ativa; não há troca de visão dentro da sessão. O painel da conta reúne preferências disponíveis, ajuda, ações simuladas do app, diagnósticos desbloqueados e saída. A área de risco é recolhível e aparece separada ao final, mas a exclusão de conta ainda não está disponível na simulação. Seu texto é provisório e precisa de revisão por pessoa com conhecimento em LGPD.
+O login e o painel da conta mostram a versão definida em `APP_VERSION` (atualmente `0.1.6`); atualize essa constante sempre antes de cada push. Sete cliques na versão do painel revelam diagnósticos temporários com categorias e horários de erros, sem mensagens, nomes, arquivos ou dados da conta. Para simular falhas nas ações do painel, use `?erro-simulado=painel-atualizar`, `?erro-simulado=painel-sincronizar` ou `?erro-simulado=painel-excluir`. A verificação de atualização não baixa arquivos, e a sincronização não envia dados. Uma atualização real requer um mecanismo de distribuição e controle de versão, por exemplo um service worker e uma estratégia de cache.
+
+A navegação lateral agrupa as telas disponíveis por assunto e pelo papel da conta ativa; não há troca de visão dentro da sessão. O painel da conta reúne preferências disponíveis, ajuda, ações simuladas do app, diagnósticos desbloqueados e saída. A área de risco é recolhível e aparece separada ao final. Digitar a palavra provisória `EXCLUIR` libera o botão demonstrativo: ele informa que a exclusão está em construção e não apaga nenhum dado. A exclusão real e a exclusão fictícia persistente ainda não estão disponíveis. O texto é provisório e precisa de revisão por pessoa com conhecimento em LGPD.
 
 - **Acesso:** Tenho um código de convite; Entrar como Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro; Ver política e termo, Voltar para entrar; Voltar e Validar convite de instrutor.
 - **Aluno:** Ver histórico de graduações, Ver academia; Trocar de professor, Vincular a um professor, Cancelar pedido; Escolher comprovante Pix.
@@ -89,65 +111,68 @@ Resumo das fases; o acompanhamento detalhado fica na página visual do [plano do
 - [v] Criar a documentação inicial e o painel visual `tests/teste.html` de acompanhamento dos testes. **Painel validado visualmente pelo usuário.**
 - [x] Reservar `index.html` na raiz para a aplicação e nomear a página de testes `teste.html`. **Feito nesta tarefa; aguardando validação do usuário.**
 - [v] Validar visualmente os painéis de testes e plano. **Usuário aprovou ambos; verificações estruturais do catálogo passaram 5/5. Os casos funcionais continuam pendentes de implementação.**
-- [v] Criar o banco de dados Supabase. **Confirmado pelo usuário.**
+- [v] Criar o banco de dados Supabase. **Confirmado pelo usuário.** [REAL]
 - [x] Criar a primeira suíte de casos de aceite test-first para a F1, com perfis, pré-condições, passos e resultados esperados usando somente fixtures fictícias. **Feito nesta tarefa; aguardando revisão e validação do usuário.**
 - [x] Acrescentar casos de aceite para validar todas as telas/resoluções, sobreposições, textos/campos fora do lugar e modais. **Feito nesta tarefa; aguardando validação do usuário.**
-- [v] Criar e aprovar o ícone Escudo como única marca e a página local de identidade visual. **Validado pelo usuário.**
+- [v] Criar e aprovar o ícone Escudo como única marca e a página local de identidade visual. **Validado pelo usuário.** [SIMULADO]
 - [v] Exibir somente o ícone Escudo aprovado no cabeçalho do painel de testes. **Implementado e validado visualmente pelo usuário.**
-- [x] Aplicar somente o ícone Escudo à identidade da aplicação no cabeçalho web/mobile e na tela de acesso. **Feito nesta tarefa; aguardando validação visual do usuário.**
-- [v] Criar dois avatares SVG genéricos (masculino e feminino), com silhuetas definidas e rostos menos arredondados. **Aprovados pelo usuário.**
-- [v] Ajustar o ícone Escudo: insígnia redonda, “T” redesenhado e faixa preta com ponteira vermelha e três graus brancos. **Correção solicitada aplicada; ícone aprovado pelo usuário.**
-- [ ] Preparar o ícone de instalação do iPhone nos formatos e dimensões exigidos pelo PWA e conferir sua leitura na tela inicial.
-- [ ] Aprimorar navegação, painel da conta e apresentação instalada no iPhone. **Interface ampliada, menus agrupados por assunto, paletas dos dois temas aplicadas e logo existente configurado; faltam ícones 180/192 e versão maskable, testes responsivos e validação no iPhone e pelo usuário.**
-- [ ] Aplicar estados e mensagens acessíveis aos botões de ação. **Padrão reutilizável aplicado aos dois botões de login simulado; faltam os demais controles listados acima e a validação pelo usuário.**
+- [x] Aplicar somente o ícone Escudo à identidade da aplicação no cabeçalho web/mobile e na tela de acesso. **Feito nesta tarefa; aguardando validação visual do usuário.** [SIMULADO]
+- [v] Criar dois avatares SVG genéricos (masculino e feminino), com silhuetas definidas e rostos menos arredondados. **Aprovados pelo usuário.** [SIMULADO]
+- [v] Ajustar o ícone Escudo: insígnia redonda, “T” redesenhado e faixa preta com ponteira vermelha e três graus brancos. **Correção solicitada aplicada; ícone aprovado pelo usuário.** [SIMULADO]
+- [ ] Preparar o ícone de instalação do iPhone nos formatos e dimensões exigidos pelo PWA e conferir sua leitura na tela inicial. [PENDENTE]
+- [ ] Aprimorar navegação, painel da conta e apresentação instalada no iPhone. **Interface ampliada, menus agrupados por assunto, paletas dos dois temas aplicadas e logo existente configurado; faltam ícones 180/192 e versão maskable, testes responsivos e validação no iPhone e pelo usuário.** [SIMULADO]
+- [ ] Aplicar estados e mensagens acessíveis aos botões de ação. **Padrão reutilizável aplicado aos botões de entrada e saída Google; faltam os demais controles listados acima e a validação pelo usuário.** [PENDENTE]
 - [v] Validar os dois avatares placeholder. **Aprovados pelo usuário.**
 - [v] Exigir testes visuais e funcionais de todas as telas em diferentes tamanhos de viewport a cada lote, incluindo larguras de referência, limites dos breakpoints, retrato/paisagem, altura curta, zoom/texto aumentado, sobreposições, recortes e modais. **Critério obrigatório definido pelo usuário; os testes de cada lote devem registrar e passar por essas verificações.**
 - [v] Exigir conformidade com a LGPD e confirmar com o usuário informações e decisões sobre dados pessoais, finalidades, hipóteses legais, consentimento, retenção, compartilhamento, direitos dos titulares e declarações da política antes de implementá-las.
 - [x] Acrescentar casos de aceite para o link de privacidade, modal no app, página HTML independente, sincronização do conteúdo e revisão de declarações antes da publicação. **Feito nesta tarefa; aguardando revisão/validação do usuário.**
-- [ ] Confirmar com o usuário os dados pessoais tratados, suas finalidades, hipóteses legais, consentimento, retenção, compartilhamento, atendimento a direitos e conteúdo da política antes de redigi-la.
-- [ ] Criar a página HTML da política e implementar no app o link que abre o modal; manter ambos sincronizados e testar acesso, conteúdo, fechamento, teclado e responsividade.
+- [ ] Confirmar com o usuário os dados pessoais tratados, suas finalidades, hipóteses legais, consentimento, retenção, compartilhamento, atendimento a direitos e conteúdo da política antes de redigi-la. [PENDENTE]
+- [ ] Criar a página HTML da política e implementar no app o link que abre o modal; manter ambos sincronizados e testar acesso, conteúdo, fechamento, teclado e responsividade. [PENDENTE]
 - [v] Desenvolver o app em branch separada de `main`; merge na `main` exige autorização do Aylton e testes validados por ele, enquanto commit ou push da branch `feat/telas-iniciais` exige pedido do Aylton, sem exigir testes válidos. Pedido de commit ou push da branch feat/telas-iniciais não é bloqueado por estado de lote, teste ou validação.
 - [v] Consultar o usuário quando houver muitos arquivos pendentes sem commit/push, antes de publicar ou iniciar operações de commit, exceto para commit ou push da branch `feat/telas-iniciais` quando o Aylton pedir. **Regra aplicada nesta tarefa: 23 arquivos pendentes foram apresentados ao usuário; ele autorizou prosseguir sem commit/push.**
 - [v] Remover do projeto os arquivos, propostas e recursos explicitamente descartados pelo usuário; não arquivar nem manter uma lista de descartes. **Regra definida pelo usuário; confirmar antes de excluir itens cujo descarte não esteja explícito.**
 - [v] Manter a tela visual correspondente aberta no navegador do VS Code antes e durante cada alteração visual, atualizando-a para acompanhamento do usuário. **Regra definida pelo usuário.**
 - [v] Encerrar cada prompt executado com um resumo de até 10 linhas sobre alterações, verificações, pendências e erros. **Regra definida pelo usuário.**
 - [v] Pedir autorização ao usuário quando houver dúvida ou mais de uma interpretação razoável, antes de escolher uma regra de produto ou segurança. **Critério de trabalho definido pelo usuário.**
-- [v] Adicionar o perfil de Instrutor: é um aluno com função de apoio, autorizado por aula; vê os alunos da turma apenas por nome e graduação atual, segue o conteúdo decidido pelo Professor e registra se seguiu a orientação. **Requisitos confirmados pelo usuário.**
-- [v] Confirmar que o Adm será somente o usuário proprietário do projeto; a autorização e as permissões serão aplicadas no banco. **Confirmado pelo usuário.**
+- [v] Adicionar o perfil de Instrutor: é um aluno com função de apoio, autorizado por aula; vê os alunos da turma apenas por nome e graduação atual, segue o conteúdo decidido pelo Professor e registra se seguiu a orientação. **Requisitos confirmados pelo usuário.** [SIMULADO]
+- [v] Confirmar que o Adm será somente o usuário proprietário do projeto; a autorização e as permissões serão aplicadas no banco. **Confirmado pelo usuário.** [SIMULADO]
 - [x] Acrescentar casos propostos para o perfil, acesso restrito, confirmação de aula, convite por link e sugestões de temas para o professor. **Feito nesta tarefa; aguardando revisão do usuário.**
 - [ ] Revisar e validar os casos de aceite da F1, incluindo as permissões do instrutor; ajustar o escopo e os critérios antes de desenhar banco ou implementar telas.
 - [v] Confirmar o destinatário do convite: o professor principal envia o link ao instrutor, que cria a própria conta. **Confirmado pelo usuário.**
-- [ ] Definir no banco as regras de autorização, validade e reutilização do convite de instrutor antes de implementar o cadastro; a atribuição do perfil não será confiada ao navegador.
-- [ ] Revisar os limites de leitura dos dados dos alunos necessários durante a aula e confirmar o texto dos casos do instrutor antes de desenhar RLS.
-- [ ] A partir dos casos validados, mapear fluxos de acesso e permissões; definir somente as tabelas e políticas RLS necessárias e respectivos testes positivos/negativos.
-- [ ] Construir um protótipo navegável de todas as telas da F1 do roadmap e dos requisitos confirmados do instrutor (acesso/convites, aluno, professor, Adm, pagamentos, graduações, atalhos e privacidade), mantendo a identidade visual: web otimizada para notebook com sidebar à esquerda e painel do usuário oculto à direita; mobile priorizado para iPhone 13 ou superior com navegação inferior e áreas seguras. Usar fixtures fictícias, sem integração ou lógica funcional. Manter termo e política como conteúdo pendente; validar visualmente com o usuário antes de iniciar as funções. No lançamento fictício em dinheiro, foram adicionados busca, confirmação, desfazer e estorno; faltam priorização por cobrança vinculada, testes responsivos e validação do usuário.
-- [x] Acrescentar ao protótipo a graduação manual de faixa superior pelo Professor, com data, confirmação e histórico; falta conferir os testes responsivos e validar o fluxo com o usuário.
-- [ ] Ampliar a simulação de graduação para faixas e graus adultos e cadastro inicial, e o painel com versão, diagnósticos, atualização e sincronização simuladas. Implementação parcial; faltam testes funcionais e responsivos completos e validação do usuário.
-- [ ] Persistir o estado fictício no navegador. **Pagamentos, contas, alunos, vínculos e graduações implementados; faltam conversas, testes de falhas de armazenamento e validação. Arquivos de comprovantes não são armazenados.**
-- [ ] Implementar e testar a exclusão fictícia de conta, apagando dados pessoais e preservando pagamentos, vínculos e graduações da outra parte com identificação anonimizada como Conta excluída. **Persistência após recarregar confirmada pelo usuário; caso de aceite e área de risco recolhível acrescentados. Faltam persistência integrada, exclusão, testes funcionais e validação.**
-- [ ] Investigar e corrigir a rolagem com a roda do mouse em telas largas, sem alterar o layout do celular; falta reproduzir o problema e identificar sua causa.
+- [ ] Definir no banco as regras de autorização, validade e reutilização do convite de instrutor antes de implementar o cadastro; a atribuição do perfil não será confiada ao navegador. [PENDENTE]
+- [ ] Revisar os limites de leitura dos dados dos alunos necessários durante a aula e confirmar o texto dos casos do instrutor antes de desenhar RLS. [PENDENTE]
+- [ ] A partir dos casos validados, mapear fluxos de acesso e permissões; definir somente as tabelas e políticas RLS necessárias e respectivos testes positivos/negativos. [PENDENTE]
+- [ ] Construir um protótipo navegável de todas as telas da F1 do roadmap e dos requisitos confirmados do instrutor (acesso/convites, aluno, professor, Adm, pagamentos, graduações, atalhos e privacidade), mantendo a identidade visual: web otimizada para notebook com sidebar à esquerda e painel do usuário oculto à direita; mobile priorizado para iPhone 13 ou superior com navegação inferior e áreas seguras. Usar fixtures fictícias nesta etapa intermediária; as telas simuladas serão ligadas ao Supabase nos Lotes 1 a 3. Manter termo e política como conteúdo pendente; validar visualmente com o usuário antes da integração dos fluxos reais. No lançamento fictício em dinheiro, foram adicionados busca, confirmação, desfazer e estorno; faltam priorização por cobrança vinculada, testes responsivos e validação do usuário. [SIMULADO]
+- [ ] Configurar e validar login Google real, recuperação de sessão, consulta de perfil e saída, mantendo a demonstração separada. Integração inicial criada; faltam configuração manual, testes reais, conferência responsiva e validação do usuário. [PENDENTE]
+- [x] Acrescentar ao protótipo a graduação manual de faixa superior pelo Professor, com data, confirmação e histórico; falta conferir os testes responsivos e validar o fluxo com o usuário. [SIMULADO]
+- [ ] Ampliar a simulação de graduação para faixas e graus adultos e cadastro inicial, e o painel com versão, diagnósticos, atualização e sincronização simuladas. Implementação parcial; faltam testes funcionais e responsivos completos e validação do usuário. [SIMULADO]
+- [ ] Persistir o estado fictício no navegador. **Pagamentos, contas, alunos, vínculos e graduações implementados; faltam conversas, testes de falhas de armazenamento e validação. Arquivos de comprovantes não são armazenados.** [SIMULADO]
+- [ ] Cadastrar e editar academia fictícia por Adm e Professor vinculado, com telefone, e-mail e foto simulada. **Implementação inicial com persistência local; faltam testes completos, validação do usuário e decisões sobre autoria e conflitos.** [SIMULADO]
+- [x] Simular declaração de idade, consentimento e fotos de perfil, com enquadramento local e permissões por papel. **Implementado em memória, sem rede ou armazenamento persistente; inclui classificação pelo Professor de alunos sem registro e restrição de fotos para menores. A cópia Google usa avatar local demonstrativo; o limite de arquivo de 5 MB é provisório. Caso F1-AVATAR-01 pendente de execução e validação do usuário.** [SIMULADO]
+- [ ] Implementar e testar a exclusão fictícia de conta, apagando dados pessoais e preservando pagamentos, vínculos e graduações da outra parte com identificação anonimizada como Conta excluída. **Área de risco com confirmação e botão demonstrativo acrescentada; nenhum dado é apagado. Faltam exclusão, testes funcionais completos e validação.** [PENDENTE]
+- [ ] Investigar e corrigir a rolagem com a roda do mouse em telas largas, sem alterar o layout do celular; ajustado o bloqueio de encadeamento no body para tela larga. Faltam reprodução com roda, confirmação da causa e testes em telas, papéis e modais.
 - [ ] Revisar com o usuário o desenho do Lote 1; só depois criar migrations incrementais, sem executá-las. A aplicação não dependerá delas até o desenvolvedor confirmar que foram revisadas e aplicadas.
-- [ ] Após aprovação do desenho e confirmação de que o esquema necessário está aplicado, implementar o primeiro fluxo vertical: login, convite/liberação de professor, cadastro/convite de aluno e consentimento (RN01–RN04, RN25), com seus testes.
+- [ ] Após aprovação do desenho e confirmação de que o esquema necessário está aplicado, implementar o primeiro fluxo vertical: login, convite/liberação de professor, cadastro/convite de aluno e consentimento (RN01–RN04, RN25), com seus testes. [SIMULADO]
 - [ ] Executar testes do Lote 1, corrigir falhas e apresentar o resultado para validação do usuário antes de iniciar o próximo lote.
-- [ ] Lote 2 — Alunos e pagamentos: implementar e testar cobranças, descontos/isenções, aviso de pagamento e confirmação pelo professor (RN06, RN08–RN11).
-- [ ] Lote 3 — Painel e graduações: implementar e testar painel do professor, pendências, atrasos, cobrança manual por WhatsApp e histórico de graduações (RN12–RN13, RN15–RN16).
-- [ ] Fechar a F1: completar as telas, versão/atualização e regressão; validar a fase com o usuário.
+- [ ] Lote 2 — Alunos e pagamentos: implementar e testar cobranças, descontos/isenções, aviso de pagamento e confirmação pelo professor (RN06, RN08–RN11). [SIMULADO]
+- [ ] Lote 3 — Painel e graduações: implementar e testar painel do professor, pendências, atrasos, cobrança manual por WhatsApp e histórico de graduações (RN12–RN13, RN15–RN16). [SIMULADO]
+- [ ] Fechar a F1: completar as telas, versão/atualização e regressão; validar a fase com o usuário. [SIMULADO]
 
 ### Fase 2 — operação completa
 
-- [ ] Implementar e testar importação de extrato Pix e conciliação com confirmação manual (RN07).
+- [ ] Implementar e testar importação de extrato Pix e conciliação com confirmação manual (RN07). [SIMULADO]
 - [ ] Implementar e testar mural, grade semanal, avisos e perguntas frequentes (RN22–RN24).
-- [ ] Implementar e testar feedbacks, metas, notas privadas e conversa individual (RN19–RN21).
-- [ ] Implementar e testar aniversários, alunos avulsos/diárias e alunos trancados (RN05, RN11, RN18).
-- [ ] Implementar e testar configurações, tutorial, ajuda e modo simples (RN26, RN34–RN35).
-- [ ] Implementar e testar painel administrativo, suporte auditado, diagnóstico e avisos globais (RN27–RN32).
-- [ ] Implementar e testar plano semanal, biblioteca/cobertura de temas, sugestões para o Professor e delegação de aula ao Instrutor (RN36–RN42 e requisito adicional). O Professor decide o conteúdo; pode compartilhar o plano ou deixar o treino livre.
+- [ ] Implementar e testar feedbacks, metas, notas privadas e conversa individual (RN19–RN21). [SIMULADO]
+- [ ] Implementar e testar aniversários, alunos avulsos/diárias e alunos trancados (RN05, RN11, RN18). [SIMULADO]
+- [ ] Implementar e testar configurações, tutorial, ajuda e modo simples (RN26, RN34–RN35). [SIMULADO]
+- [ ] Implementar e testar painel administrativo, suporte auditado, diagnóstico e avisos globais (RN27–RN32). [SIMULADO]
+- [ ] Implementar e testar plano semanal, biblioteca/cobertura de temas, sugestões para o Professor e delegação de aula ao Instrutor (RN36–RN42 e requisito adicional). O Professor decide o conteúdo; pode compartilhar o plano ou deixar o treino livre. [SIMULADO]
 - [ ] Executar e aprovar os testes de regressão da F1 e F2; validar a fase com o usuário.
 
 ### Fase 3 — refinamentos e conclusão
 
-- [ ] Implementar e testar métricas de graduação e recibos (RN14, RN17).
-- [ ] Implementar e testar exportação, backup e consulta offline (RN33).
+- [ ] Implementar e testar métricas de graduação e recibos (RN14, RN17). [SIMULADO]
+- [ ] Implementar e testar exportação, backup e consulta offline (RN33). [PENDENTE]
 - [x] Registrar a regra de segurança: interromper e consultar o usuário se uma publicação Git aparentar conter dado sensível. **Regra confirmada pelo usuário.**
 - [x] Especificar casos de aceite para bloquear publicação Git diante de suspeita de dado sensível. **Feito nesta tarefa; aguardando validação do usuário.**
 - [ ] Executar os testes de publicação segura; suspeita de dado sensível bloqueia a ação até orientação do usuário.
