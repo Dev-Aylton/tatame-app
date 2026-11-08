@@ -701,7 +701,7 @@ body[data-theme="light"] .button--google:focus-visible {
   cursor: progress;
 }
 
-.button--action:is([data-login-action], [data-register-action], [data-link-action], [data-student-action], [data-professor-payment-action], [data-grade-action], [data-panel-action], [data-student-create-action], [data-delete-account], [data-academy-save], [data-academy-photo], [data-real-signout], [data-confirm-profile-age], [data-consent-google], [data-continue-unregistered], [data-review-photo-consent], [data-open-photo-file], [data-remove-profile-photo], [data-save-profile-photo], [data-save-student-age], [data-teacher-code-action], [data-real-teacher-name-save], [data-real-link-decision], [data-real-student-link-submit], [data-real-unregistered-create], [data-real-unregistered-age-save], [data-real-instructor-generate], [data-real-instructor-copy], [data-real-instructor-revoke], [data-real-instructor-accept], [data-real-invite-submit], [data-real-invite-delete], [data-real-professor-action], [data-real-academy-save], [data-real-admin-switch])[aria-busy="true"]::after {
+.button--action:is([data-login-action], [data-register-action], [data-link-action], [data-student-action], [data-professor-payment-action], [data-grade-action], [data-panel-action], [data-student-create-action], [data-delete-account], [data-academy-save], [data-academy-photo], [data-real-signout], [data-confirm-profile-age], [data-consent-google], [data-continue-unregistered], [data-review-photo-consent], [data-open-photo-file], [data-remove-profile-photo], [data-save-profile-photo], [data-save-student-age], [data-teacher-code-action], [data-real-teacher-name-save], [data-real-link-decision], [data-real-student-link-submit], [data-real-unregistered-create], [data-real-unregistered-age-save], [data-real-instructor-generate], [data-real-instructor-copy], [data-real-instructor-revoke], [data-real-instructor-accept], [data-real-invite-submit], [data-real-invite-delete], [data-real-professor-action], [data-real-academy-save], [data-real-admin-switch], [data-cancel-monthly-charge])[aria-busy="true"]::after {
   content: "";
   width: 14px;
   height: 14px;
@@ -2685,6 +2685,61 @@ form[data-accept-demo-invite] .register-action-error {
 
 .payment-review-row + .payment-review-row {
   padding-top: 8px;
+}
+
+.billing-student-row {
+  min-width: 0;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-raised);
+}
+
+.billing-student-row legend {
+  max-width: 100%;
+  padding: 0 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.billing-student-select {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 12px;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.billing-student-select input {
+  flex: 0 0 18px;
+  width: 18px;
+  min-height: 18px;
+  margin: 0;
+}
+
+.monthly-charge-row {
+  min-width: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.monthly-charge-row:first-child {
+  padding-top: 0;
+}
+
+.monthly-charge-values {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.monthly-charge-values .list-row {
+  padding: 5px 0;
 }
 
 .payment-proof {

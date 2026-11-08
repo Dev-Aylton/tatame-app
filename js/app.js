@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "5.4";
+const APP_VERSION = "5.7";
 const CONSENT_TERM_VERSION = "rascunho-1";
 const diagnosticEvents = [];
 let versionClicks = 0;
@@ -77,6 +77,7 @@ const navigationGroups = [
     roles: ["professor"],
     items: [
       ["payment-review", "Pagamentos a confirmar", "▤"],
+      ["monthly-charges", "Cobranças mensais", "¤"],
       ["overdue", "Atrasados", "◷"],
       ["pix-import", "Importar extrato Pix", "⇧"]
     ]
@@ -117,7 +118,7 @@ const screenInfo = Object.fromEntries(
 screenInfo["real-account"] = { title: "Conta Google", group: "Conta" };
 const roleScreens = {
   adm: ["admin-home", "teacher-invites", "role-management", "academy", "user-settings", "privacy"],
-  professor: ["teacher-home", "students", "student-detail", "student-create", "teacher-code", "role-management", "pix-import", "payment-review", "overdue", "quick-actions", "teacher-chat", "academy", "user-settings", "privacy"],
+  professor: ["teacher-home", "students", "student-detail", "student-create", "teacher-code", "role-management", "pix-import", "payment-review", "monthly-charges", "overdue", "quick-actions", "teacher-chat", "academy", "user-settings", "privacy"],
   instructor: ["student-home", "student-payments", "student-grades", "instructor-class", "instructor-chat", "academy", "user-settings", "privacy"],
   student: ["student-home", "student-link", "student-payments", "student-grades", "student-chat", "link-teacher", "academy", "user-settings", "privacy"],
   "student-unregistered": ["link-teacher"]
@@ -140,7 +141,7 @@ const demoRoster = [
   { account: "student", name: "ALUNO FICTÍCIO 01", grade: "Faixa azul · 2 graus", teacherAccount: "professor" },
   { account: "instructor", name: "INSTRUTOR FICTÍCIO 01", grade: "Faixa azul · 1 grau", teacherAccount: "professor" },
   { account: null, name: "ALUNO FICTÍCIO 02", grade: "Faixa branca", teacherAccount: "professor" },
-  { account: null, name: "ALUNO FICTÍCIO 03", grade: "Faixa roxa · 1 grau", teacherAccount: "professor" }
+  { account: null, name: "ALUNO FICTÍCIO 03", grade: "Faixa roxa · 1 grau", teacherAccount: "professor", status: "locked" }
 ];
 const photoProfiles = new Map();
 const replacedPhotoUrls = [];
@@ -163,6 +164,12 @@ const delegatedLessons = {};
 const linkRequests = [];
 const cashPayments = [];
 const receiptPayments = [];
+const monthlyCharges = [];
+const billingSettings = [];
+const billingGraceDaysByProfessor = new Map();
+let billingSelectedMonth = currentDemoMonth();
+let dashboardSelectedMonth = currentDemoMonth();
+let selectedStudentChargeId = null;
 const demoConversations = [];
 let selectedTeacherChatPartner = null;
 
@@ -171,21 +178,69 @@ function loadDemoPayments() {
     const stored = localStorage.getItem("tatame-demo-payments");
     if (!stored) return;
     const data = JSON.parse(stored);
+    const storedCharges = data && data.charges === undefined ? [] : data && data.charges;
+    const storedBillingSettings = data && data.billingSettings === undefined ? [] : data && data.billingSettings;
+    const storedGraceDays = data && data.graceDaysByProfessor === undefined ? {} : data && data.graceDaysByProfessor;
+    const validMonth = (month) => typeof month === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(month);
     const validPayment = (payment) => payment && typeof payment.id === "string" &&
       typeof payment.studentName === "string" && typeof payment.professorAccount === "string" &&
       typeof payment.amount === "string" && typeof payment.date === "string" &&
       ["pending", "confirmed", "rejected", "undone", "reversed"].includes(payment.status) &&
-      (typeof payment.account === "string" || payment.account === null);
+      (typeof payment.account === "string" || payment.account === null) &&
+      (payment.chargeId === undefined || typeof payment.chargeId === "string" || payment.chargeId === null);
+    const validCharge = (charge) => charge && typeof charge.id === "string" &&
+      typeof charge.studentKey === "string" && typeof charge.studentName === "string" &&
+      (typeof charge.studentAccount === "string" || charge.studentAccount === null) &&
+      typeof charge.professorAccount === "string" && validMonth(charge.month) &&
+      typeof charge.dueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(charge.dueDate) &&
+      charge.dueDate.startsWith(`${charge.month}-`) &&
+      ["aberta", "paga", "isenta", "cancelada"].includes(charge.status) &&
+      ["none", "fixed", "percent", "exempt"].includes(charge.discountType) &&
+      ["this-month", "months", "until-removed"].includes(charge.duration) &&
+      Number.isInteger(charge.baseAmountCents) && charge.baseAmountCents >= 0 &&
+      Number.isInteger(charge.discountAmountCents) && charge.discountAmountCents >= 0 &&
+      Number.isInteger(charge.finalAmountCents) && charge.finalAmountCents >= 0 &&
+      charge.discountAmountCents <= charge.baseAmountCents &&
+      charge.finalAmountCents === Math.max(0, charge.baseAmountCents - charge.discountAmountCents) &&
+      typeof charge.discountValue === "number" && Number.isFinite(charge.discountValue) &&
+      (charge.discountType === "percent" ? charge.discountValue >= 0 && charge.discountValue <= 100
+        : ["none", "exempt"].includes(charge.discountType) ? charge.discountValue === 0 : charge.discountValue > 0) &&
+      (charge.status !== "isenta" || charge.finalAmountCents === 0) &&
+      (charge.durationMonths === null || (Number.isInteger(charge.durationMonths) && charge.durationMonths > 0)) &&
+      (charge.duration !== "months" || Number.isInteger(charge.durationMonths)) &&
+      typeof charge.exemptionReason === "string";
+    const validSetting = (setting) => setting && typeof setting.studentKey === "string" &&
+      typeof setting.professorAccount === "string" &&
+      Number.isInteger(setting.baseAmountCents) && setting.baseAmountCents > 0 &&
+      Number.isInteger(setting.dueDay) && setting.dueDay >= 1 && setting.dueDay <= 28 &&
+      ["none", "fixed", "percent", "exempt"].includes(setting.discountType) &&
+      ["this-month", "months", "until-removed"].includes(setting.duration) &&
+      typeof setting.discountValue === "number" && Number.isFinite(setting.discountValue) && setting.discountValue >= 0 &&
+      (setting.discountType === "percent" ? setting.discountValue > 0 && setting.discountValue <= 100
+        : ["none", "exempt"].includes(setting.discountType) ? setting.discountValue === 0 : setting.discountValue > 0) &&
+      validMonth(setting.startMonth) &&
+      (setting.durationMonths === null || (Number.isInteger(setting.durationMonths) && setting.durationMonths > 0)) &&
+      (setting.duration !== "months" || Number.isInteger(setting.durationMonths)) &&
+      typeof setting.exemptionReason === "string";
     if (!data || !Array.isArray(data.cash) || !Array.isArray(data.receipts) ||
         !data.cash.every((payment) => validPayment(payment) && ["student", "teacher"].includes(payment.source) &&
           (payment.source !== "teacher" || (Number.isFinite(payment.undoUntil) &&
             typeof payment.type === "string" && typeof payment.reference === "string"))) ||
         !data.receipts.every((payment) => validPayment(payment) &&
-          ["pending", "confirmed", "rejected"].includes(payment.status))) {
+          ["pending", "confirmed", "rejected"].includes(payment.status)) ||
+        !Array.isArray(storedCharges) || !storedCharges.every(validCharge) ||
+        !Array.isArray(storedBillingSettings) || !storedBillingSettings.every(validSetting) ||
+        !storedGraceDays || typeof storedGraceDays !== "object" || Array.isArray(storedGraceDays) ||
+        Object.entries(storedGraceDays).some(([account, days]) =>
+          !account || !Number.isInteger(days) || days < 0 || days > 30
+        )) {
       throw new TypeError("Dados fictícios de pagamentos inválidos.");
     }
     cashPayments.push(...data.cash);
     receiptPayments.push(...data.receipts);
+    monthlyCharges.push(...storedCharges);
+    billingSettings.push(...storedBillingSettings);
+    Object.entries(storedGraceDays).forEach(([account, days]) => billingGraceDaysByProfessor.set(account, days));
   } catch (error) {
     console.error("Não foi possível carregar os pagamentos fictícios:", error);
     window.setTimeout(() => showToast("Não foi possível carregar os pagamentos fictícios; a lista inicial está vazia.", "error"), 0);
@@ -195,7 +250,13 @@ function loadDemoPayments() {
 function saveDemoPayments() {
   try {
     const receipts = receiptPayments.map(({ file, fileInput, ...payment }) => payment);
-    localStorage.setItem("tatame-demo-payments", JSON.stringify({ cash: cashPayments, receipts }));
+    localStorage.setItem("tatame-demo-payments", JSON.stringify({
+      cash: cashPayments,
+      receipts,
+      charges: monthlyCharges,
+      billingSettings,
+      graceDaysByProfessor: Object.fromEntries(billingGraceDaysByProfessor)
+    }));
   } catch (error) {
     console.error("Não foi possível salvar os pagamentos fictícios:", error);
     showToast("Não foi possível salvar os pagamentos fictícios.", "error");
@@ -206,12 +267,19 @@ function saveDemoPayments() {
 function updateDemoPayments(update) {
   const previousCash = cashPayments.map((payment) => ({ ...payment }));
   const previousReceipts = receiptPayments.map((payment) => ({ ...payment }));
+  const previousCharges = monthlyCharges.map((charge) => ({ ...charge }));
+  const previousBillingSettings = billingSettings.map((setting) => ({ ...setting }));
+  const previousGraceDays = Array.from(billingGraceDaysByProfessor);
   update();
   try {
     saveDemoPayments();
   } catch (error) {
     cashPayments.splice(0, cashPayments.length, ...previousCash);
     receiptPayments.splice(0, receiptPayments.length, ...previousReceipts);
+    monthlyCharges.splice(0, monthlyCharges.length, ...previousCharges);
+    billingSettings.splice(0, billingSettings.length, ...previousBillingSettings);
+    billingGraceDaysByProfessor.clear();
+    previousGraceDays.forEach(([account, days]) => billingGraceDaysByProfessor.set(account, days));
     throw error;
   }
 }
@@ -336,9 +404,15 @@ for (const payment of [...cashPayments, ...receiptPayments]) {
 const storedRoster = readDemoData(demoDataKeys.roster, (value) =>
   Array.isArray(value) && value.every((student) => student && typeof student.name === "string" &&
     typeof student.grade === "string" && isStringOrNull(student.account) && isStringOrNull(student.teacherAccount) &&
+    (student.status === undefined || student.status === "locked") &&
     (student.deletedRole === undefined || ["student", "instructor"].includes(student.deletedRole)))
 );
 if (storedRoster) demoRoster.splice(0, demoRoster.length, ...storedRoster);
+const lockedDemoStudent = demoRoster.find((student) =>
+  student.account === null && student.name === "ALUNO FICTÍCIO 03" &&
+  student.teacherAccount === "professor" && student.grade === "Faixa roxa · 1 grau"
+);
+if (lockedDemoStudent && lockedDemoStudent.status === undefined) lockedDemoStudent.status = "locked";
 deletedDemoAccounts.forEach((account) => {
   const student = demoRoster.find((item) => item.account === account);
   if (!student) return;
@@ -475,6 +549,9 @@ function deleteDemoAccountData(account) {
     deletedAccounts: Array.from(deletedDemoAccounts),
     cashPayments: cashPayments.map((payment) => ({ ...payment })),
     receiptPayments: receiptPayments.map((payment) => ({ ...payment })),
+    monthlyCharges: monthlyCharges.map((charge) => ({ ...charge })),
+    billingSettings: billingSettings.map((setting) => ({ ...setting })),
+    billingGraceDaysByProfessor: Array.from(billingGraceDaysByProfessor),
     recipients: structuredClone(demoInviteRecipients),
     authorized: Array.from(authorizedInstructorNames),
     delegatedLessons: structuredClone(delegatedLessons),
@@ -485,9 +562,11 @@ function deleteDemoAccountData(account) {
     selectedTeacherChatPartner
   };
   const deletedName = profile.name;
+  const deletedRosterRecord = demoRoster.find((student) => student.account === account);
+  const deletedStudentKey = deletedRosterRecord ? studentBillingKey(deletedRosterRecord) : null;
 
   try {
-    const rosterRecord = demoRoster.find((student) => student.account === account);
+    const rosterRecord = deletedRosterRecord;
     if (rosterRecord) {
       rosterRecord.name = "Conta excluída";
       rosterRecord.deletedRole = profile.role === "instructor" ? "instructor" : "student";
@@ -513,6 +592,17 @@ function deleteDemoAccountData(account) {
       if (payment.account === account || payment.studentName === deletedName) {
         payment.studentName = "Conta excluída";
         payment.account = null;
+      }
+    }
+    for (const charge of monthlyCharges) {
+      if (charge.studentAccount === account || charge.studentName === deletedName) {
+        charge.studentName = "Conta excluída";
+        charge.studentAccount = null;
+      }
+    }
+    if (deletedStudentKey !== null) {
+      for (let index = billingSettings.length - 1; index >= 0; index -= 1) {
+        if (billingSettings[index].studentKey === deletedStudentKey) billingSettings.splice(index, 1);
       }
     }
 
@@ -570,6 +660,12 @@ function deleteDemoAccountData(account) {
     previous.deletedAccounts.forEach((item) => deletedDemoAccounts.add(item));
     cashPayments.splice(0, cashPayments.length, ...previous.cashPayments);
     receiptPayments.splice(0, receiptPayments.length, ...previous.receiptPayments);
+    monthlyCharges.splice(0, monthlyCharges.length, ...previous.monthlyCharges);
+    billingSettings.splice(0, billingSettings.length, ...previous.billingSettings);
+    billingGraceDaysByProfessor.clear();
+    previous.billingGraceDaysByProfessor.forEach(([professorAccount, days]) =>
+      billingGraceDaysByProfessor.set(professorAccount, days)
+    );
     demoInviteRecipients.splice(0, demoInviteRecipients.length, ...previous.recipients);
     authorizedInstructorNames.clear();
     previous.authorized.forEach((name) => authorizedInstructorNames.add(name));
@@ -625,7 +721,8 @@ const tutorialStepsByRole = {
     ["role-management", "Papéis e aula delegada", "Promova somente seus alunos a Instrutor, autorize-o e decida se compartilha o plano ou deixa o treino livre. O Instrutor é um aluno com função de apoio: vê nome e graduação da turma, nunca pagamentos alheios, notas privadas ou conversas de terceiros; você decide o conteúdo."],
     ["pix-import", "Importar extrato Pix", "Importe um extrato para sugerir correspondências. Nada é pago ou confirmado automaticamente."],
     ["payment-review", "Pagamentos a confirmar", "Confira avisos ou lance dinheiro recebido: busque o aluno da turma, informe tipo e referência e confirme os dados. É possível desfazer por 10 segundos; depois, use Estornar. O histórico é preservado nesta simulação."],
-    ["overdue", "Atrasados", "Revise cobranças atrasadas antes de enviar um lembrete."],
+    ["monthly-charges", "Cobranças mensais", "Defina valor-base, vencimento, desconto ou isenção por aluno; gere até 24 cobranças por vez e ajuste a carência de 0 a 30 dias. Cancele somente cobranças abertas; se houver aviso pendente ou pagamento confirmado, rejeite ou estorne antes. O protótipo só controla pagamentos, sem gateway."],
+    ["overdue", "Atrasados", "Consulte atrasos calculados pelo vencimento e carência; o estado não é gravado. O link do WhatsApp continua manual, sem destinatário, texto preenchido ou envio automático."],
     ["quick-actions", "Ações rápidas", "Use os atalhos e limite lotes de mensalidades a 24 cobranças."],
     ["teacher-chat", "Conversas", "Converse somente com seus alunos e Instrutores vinculados. As mensagens fictícias ficam salvas neste navegador e são removidas ao excluir a conta demonstrativa."],
     ["academy", "Academia", "Se estiver vinculado, altere nome, telefone e e-mail fictícios e simule a troca da foto sem arquivo. Consulte equipe e horários; publique ou retorne sua grade para rascunho."],
@@ -636,7 +733,7 @@ const tutorialStepsByRole = {
   ],
   instructor: [
     ["student-home", "Início pessoal", "Consulte seu perfil e seus próprios avisos, separados das informações dos alunos da turma. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
-    ["student-payments", "Meus pagamentos", "Consulte somente suas cobranças e seus próprios pagamentos. Nunca verá pagamentos de outros alunos."],
+    ["student-payments", "Meus pagamentos", "Consulte somente o estado das suas cobranças. Valores de pagamentos não são exibidos para Instrutores; dados de outros alunos também permanecem ocultos."],
     ["student-grades", "Minhas graduações", "Acompanhe sua própria faixa e seu histórico de graduações."],
     ["instructor-class", "Aula delegada", "Veja nome e graduação atual da turma e a aula que o Professor decidiu compartilhar, ou “Treino livre”. Registre “Segui” ou “Não segui”; pagamentos de outros alunos e notas privadas não aparecem."],
     ["instructor-chat", "Conversa com o Professor", "Converse somente com o Professor vinculado. As mensagens fictícias ficam salvas neste navegador e são removidas ao excluir a conta demonstrativa."],
@@ -768,7 +865,7 @@ const navigationIconByScreen = {
   "student-payments": "payment", "student-grades": "grade", "student-chat": "message",
   "teacher-home": "home", students: "people", "student-detail": "profile",
   "student-create": "personAdd", "teacher-code": "link", "role-management": "shield",
-  "pix-import": "upload", "payment-review": "payment", overdue: "clock",
+  "pix-import": "upload", "payment-review": "payment", "monthly-charges": "payment", overdue: "clock",
   "quick-actions": "actions", "teacher-chat": "message", "instructor-class": "lesson",
   "instructor-chat": "message", "admin-home": "home", "teacher-invites": "people",
   academy: "academy", "user-settings": "settings", privacy: "shield"
@@ -1607,8 +1704,14 @@ function renderCashPaymentRow(payment) {
 function renderReceiptPaymentRow(payment) {
   const pending = payment.status === "pending";
   const confirmed = payment.status === "confirmed";
-  const amountValue = Number(payment.amount.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", "."));
-  const matches = amountValue === 150 && payment.date === "01/11/2026";
+  const charge = monthlyCharges.find((item) => item.id === payment.chargeId);
+  const amountCents = parseDemoPaymentCents(payment.amount);
+  const outstandingCents = charge
+    ? Math.max(0, charge.finalAmountCents - chargeConfirmedCents(charge))
+    : null;
+  const matches = charge
+    ? amountCents !== null && amountCents > 0 && amountCents <= outstandingCents
+    : amountCents === 15000 && payment.date === "01/11/2026";
   const statusLabel = pending ? "PENDENTE" : confirmed ? "CONFIRMADO" : "RECUSADO";
   const statusClass = pending ? "badge--amber" : confirmed ? "badge--green" : "badge--red";
   return `
@@ -1619,15 +1722,15 @@ function renderReceiptPaymentRow(payment) {
       </div>
       <div class="receipt-compare">
         <div><span class="eyebrow">COMPROVANTE</span><strong>Valor: ${escapeHtml(payment.amount)}</strong><small>Data: ${escapeHtml(payment.date)}</small></div>
-        <div><span class="eyebrow">COBRANÇA</span><strong>Valor: R$ 150,00</strong><small>Vencimento: 01/11/2026</small></div>
+        <div><span class="eyebrow">COBRANÇA</span><strong>${charge ? `Saldo: ${formatDemoCents(outstandingCents)}` : "Valor: R$ 150,00"}</strong><small>Vencimento: ${charge ? escapeHtml(formatDemoDate(charge.dueDate)) : "01/11/2026"}</small></div>
         <span class="badge ${matches ? "badge--green" : "badge--red"}">${matches ? "CONFERE" : "DIVERGE"}</span>
       </div>
       ${pending ? `<p class="payment-proof" data-proof>Comprovante temporário recebido; será apagado após a confirmação.</p>
         <div class="row-actions">
           ${teacherPaymentButton("Confirmar", "comprovante-confirmar", "button button--small button--primary", "data-confirm-payment")}
           ${teacherPaymentButton("Recusar", "comprovante-recusar", "button button--small button--danger", "data-reject-payment")}
-          ${matches ? "" : `${teacherPaymentButton("Desconto", "desconto", "button button--small button--quiet")}${teacherPaymentButton("Lançar saldo no mês seguinte", "saldo", "button button--small button--quiet")}${teacherPaymentButton("Isentar", "isencao", "button button--small button--quiet")}`}
         </div>
+        ${matches ? "" : '<p class="field-help">O valor informado não corresponde ao saldo disponível desta cobrança; confira manualmente antes de decidir.</p>'}
         <p class="visually-hidden" role="status" aria-live="polite"></p>` : ""}
       <p class="field-help payment-history-entry" data-payment-history ${confirmed ? "" : "hidden"}>${confirmed ? `Histórico mantido: ${escapeHtml(payment.amount)} · ${escapeHtml(payment.date)}. Comprovante apagado.` : ""}</p>
     </article>
@@ -1641,6 +1744,385 @@ function renderReceiptHistoryRow(payment) {
       <strong class="row-value">${escapeHtml(payment.amount)}</strong>
     </div>
   `;
+}
+
+function parseDemoPaymentCents(amount) {
+  let value;
+  if (typeof amount === "number") {
+    value = String(amount);
+  } else if (typeof amount === "string") {
+    value = amount.trim().replace(/^R\$\s*/i, "").replace(/\s/g, "");
+  } else {
+    return null;
+  }
+  if (value.includes(",")) value = value.replace(/\./g, "").replace(",", ".");
+  if (!/^\d+(?:\.\d{1,2})?$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed * 100) : null;
+}
+
+function currentDemoMonth(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatDemoCents(cents) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+}
+
+function demoTodayIsoDate() {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function addDemoDays(isoDate, days) {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function demoMonthDistance(startMonth, targetMonth) {
+  const [startYear, startMonthNumber] = startMonth.split("-").map(Number);
+  const [targetYear, targetMonthNumber] = targetMonth.split("-").map(Number);
+  return (targetYear - startYear) * 12 + targetMonthNumber - startMonthNumber;
+}
+
+function billingSettingFor(studentKey, professorAccount = activeDemoAccount) {
+  return billingSettings.find((setting) =>
+    setting.studentKey === studentKey && setting.professorAccount === professorAccount
+  ) || null;
+}
+
+function billingGraceDaysFor(professorAccount = activeDemoAccount) {
+  return billingGraceDaysByProfessor.has(professorAccount)
+    ? billingGraceDaysByProfessor.get(professorAccount)
+    : 5;
+}
+
+function billingSettingApplies(setting, month) {
+  if (!setting || setting.discountType === "none") return false;
+  const distance = demoMonthDistance(setting.startMonth, month);
+  if (distance < 0) return false;
+  if (setting.duration === "this-month") return distance === 0;
+  if (setting.duration === "months") return distance < setting.durationMonths;
+  return setting.duration === "until-removed";
+}
+
+function billingAmountsFor(setting, month) {
+  if (!setting) return null;
+  const applies = billingSettingApplies(setting, month);
+  let discountAmountCents = 0;
+  let status = "aberta";
+  if (applies && setting.discountType === "exempt") {
+    discountAmountCents = setting.baseAmountCents;
+    status = "isenta";
+  } else if (applies && setting.discountType === "fixed") {
+    discountAmountCents = Math.min(setting.baseAmountCents, setting.discountValue);
+  } else if (applies && setting.discountType === "percent") {
+    discountAmountCents = Math.min(setting.baseAmountCents, Math.round(setting.baseAmountCents * setting.discountValue / 100));
+  }
+  if (discountAmountCents >= setting.baseAmountCents && setting.baseAmountCents > 0) status = "isenta";
+  return {
+    baseAmountCents: setting.baseAmountCents,
+    discountAmountCents,
+    finalAmountCents: Math.max(0, setting.baseAmountCents - discountAmountCents),
+    status,
+    discountType: applies ? setting.discountType : "none",
+    discountValue: applies ? setting.discountValue : 0,
+    duration: setting.duration,
+    durationMonths: setting.durationMonths,
+    exemptionReason: applies && setting.discountType === "exempt" ? setting.exemptionReason : ""
+  };
+}
+
+function chargePaymentsFor(chargeId) {
+  return [...cashPayments, ...receiptPayments].filter((payment) => payment.chargeId === chargeId);
+}
+
+function chargeConfirmedCents(charge) {
+  return chargePaymentsFor(charge.id)
+    .filter((payment) => payment.status === "confirmed")
+    .reduce((total, payment) => total + (parseDemoPaymentCents(payment.amount) || 0), 0);
+}
+
+function chargePendingCents(charge) {
+  return chargePaymentsFor(charge.id)
+    .filter((payment) => payment.status === "pending")
+    .reduce((total, payment) => total + (parseDemoPaymentCents(payment.amount) || 0), 0);
+}
+
+function chargeHasPendingPayment(chargeId) {
+  return chargePaymentsFor(chargeId).some((payment) => payment.status === "pending");
+}
+
+function chargeHasActivePayment(chargeId) {
+  return chargePaymentsFor(chargeId).some((payment) =>
+    ["pending", "confirmed"].includes(payment.status)
+  );
+}
+
+function refreshMonthlyChargeStatus(charge) {
+  if (charge.status === "cancelada" || charge.status === "isenta") return;
+  charge.status = charge.finalAmountCents > 0 && chargeConfirmedCents(charge) >= charge.finalAmountCents
+    ? "paga"
+    : "aberta";
+}
+
+function monthlyChargeIsLate(charge, today = demoTodayIsoDate()) {
+  return charge.status === "aberta" &&
+    today > addDemoDays(charge.dueDate, billingGraceDaysFor(charge.professorAccount));
+}
+
+function studentBillingKey(student) {
+  return String(demoRoster.indexOf(student));
+}
+
+function formatDemoPaymentTotal(payments) {
+  const amounts = payments.map((payment) => parseDemoPaymentCents(payment.amount));
+  if (amounts.some((amount) => amount === null)) return "R$ —";
+  const cents = amounts.reduce((total, amount) => total + amount, 0);
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+}
+
+function billingStudentsForTeacher(teacherAccount) {
+  return demoRoster.filter((student) =>
+    student.teacherAccount === teacherAccount && student.status !== "locked" &&
+    student.name !== "Conta excluída"
+  );
+}
+
+function chargesForTeacherMonth(teacherAccount, month) {
+  return monthlyCharges.filter((charge) =>
+    charge.professorAccount === teacherAccount && charge.month === month
+  );
+}
+
+function monthlyBillingSummary(teacherAccount, month) {
+  const charges = chargesForTeacherMonth(teacherAccount, month);
+  const eligible = charges.filter((charge) => charge.status !== "cancelada");
+  const open = eligible.filter((charge) => charge.status === "aberta" && !monthlyChargeIsLate(charge));
+  const late = eligible.filter((charge) => monthlyChargeIsLate(charge));
+  const exempt = eligible.filter((charge) => charge.status === "isenta");
+  return {
+    expectedCents: eligible.reduce((total, charge) => total + charge.finalAmountCents, 0),
+    confirmedCents: eligible.reduce((total, charge) => total + chargeConfirmedCents(charge), 0),
+    pendingCents: eligible.reduce((total, charge) => total + chargePendingCents(charge), 0),
+    openCents: open.reduce((total, charge) => total + Math.max(0, charge.finalAmountCents - chargeConfirmedCents(charge)), 0),
+    lateCents: late.reduce((total, charge) => total + Math.max(0, charge.finalAmountCents - chargeConfirmedCents(charge)), 0),
+    exemptCents: exempt.reduce((total, charge) => total + charge.baseAmountCents, 0),
+    exemptCount: exempt.length
+  };
+}
+
+function renderBillingMetrics(summary) {
+  return `
+    ${metric("PREVISTO", formatDemoCents(summary.expectedCents), "Cobranças do mês, sem canceladas", "gold")}
+    ${metric("CONFIRMADO", formatDemoCents(summary.confirmedCents), "Pagamentos confirmados pelo Professor", "green")}
+    ${metric("AGUARDANDO CONFIRMAÇÃO", formatDemoCents(summary.pendingCents), "Avisos vinculados a cobranças", "amber")}
+    ${metric("EM ABERTO", formatDemoCents(summary.openCents), "Saldo dentro do prazo", "gold")}
+    ${metric("ATRASADO", formatDemoCents(summary.lateCents), "Saldo após vencimento e carência", "red")}
+    ${metric("ISENTO", formatDemoCents(summary.exemptCents), `${summary.exemptCount} cobrança(s) isenta(s)`, "amber")}
+  `;
+}
+
+function renderBillingConfigRow(student, month) {
+  const studentKey = studentBillingKey(student);
+  const setting = billingSettingFor(studentKey, activeDemoAccount);
+  const existingCharge = monthlyCharges.some((charge) =>
+    charge.studentKey === studentKey && charge.professorAccount === activeDemoAccount && charge.month === month
+  );
+  const fixedDiscount = setting && setting.discountType === "fixed"
+    ? (setting.discountValue / 100).toFixed(2)
+    : "";
+  const discountValue = setting && setting.discountType === "percent"
+    ? String(setting.discountValue)
+    : fixedDiscount;
+  const canGenerate = Boolean(setting && !existingCharge);
+  const fieldPrefix = `billing-${studentKey}`;
+  return `
+    <fieldset class="billing-student-row" data-billing-student="${escapeHtml(studentKey)}">
+      <legend>${escapeHtml(student.name)}</legend>
+      <label class="billing-student-select">
+        <input type="checkbox" data-billing-select ${canGenerate ? "checked" : ""} ${existingCharge || student.status === "locked" ? "disabled" : ""}>
+        <span>${existingCharge ? "Cobrança já gerada para este mês" : "Incluir no lote deste mês"}</span>
+      </label>
+      <div class="form-grid">
+        <div class="field"><label for="${fieldPrefix}-base">Valor-base mensal (R$)</label><input id="${fieldPrefix}-base" type="number" min="0.01" step="0.01" data-billing-base value="${setting ? (setting.baseAmountCents / 100).toFixed(2) : ""}"></div>
+        <div class="field"><label for="${fieldPrefix}-due-day">Dia de vencimento (1 a 28)</label><input id="${fieldPrefix}-due-day" type="number" min="1" max="28" step="1" data-billing-due-day value="${setting ? setting.dueDay : ""}"></div>
+        <div class="field"><label for="${fieldPrefix}-discount-type">Desconto ou isenção</label><select id="${fieldPrefix}-discount-type" data-billing-discount-type>
+          <option value="none" ${!setting || setting.discountType === "none" ? "selected" : ""}>Sem desconto</option>
+          <option value="fixed" ${setting && setting.discountType === "fixed" ? "selected" : ""}>Desconto em R$</option>
+          <option value="percent" ${setting && setting.discountType === "percent" ? "selected" : ""}>Desconto em %</option>
+          <option value="exempt" ${setting && setting.discountType === "exempt" ? "selected" : ""}>Isenção</option>
+        </select></div>
+        <div class="field"><label for="${fieldPrefix}-discount-value">Valor do desconto</label><input id="${fieldPrefix}-discount-value" type="number" min="0" step="0.01" data-billing-discount-value value="${discountValue}" aria-describedby="billing-discount-help"></div>
+        <div class="field"><label for="${fieldPrefix}-duration">Duração</label><select id="${fieldPrefix}-duration" data-billing-duration>
+          <option value="this-month" ${!setting || setting.duration === "this-month" ? "selected" : ""}>Só este mês</option>
+          <option value="months" ${setting && setting.duration === "months" ? "selected" : ""}>N meses</option>
+          <option value="until-removed" ${setting && setting.duration === "until-removed" ? "selected" : ""}>Até remover</option>
+        </select></div>
+        <div class="field"><label for="${fieldPrefix}-duration-months">Número de meses</label><input id="${fieldPrefix}-duration-months" type="number" min="1" step="1" data-billing-duration-months value="${setting && setting.durationMonths ? setting.durationMonths : ""}" aria-describedby="billing-duration-help"></div>
+      </div>
+      <div class="field"><label for="${fieldPrefix}-reason">Motivo opcional da isenção</label><textarea id="${fieldPrefix}-reason" data-billing-exemption-reason maxlength="300" aria-describedby="billing-sensitive-warning">${setting ? escapeHtml(setting.exemptionReason) : ""}</textarea></div>
+    </fieldset>
+  `;
+}
+
+function renderMonthlyChargeRow(charge, canCancel = false) {
+  const late = monthlyChargeIsLate(charge);
+  const statusLabel = charge.status === "paga"
+    ? "PAGA"
+    : charge.status === "isenta"
+      ? "ISENTA"
+      : charge.status === "cancelada"
+        ? "CANCELADA"
+        : late ? "ATRASADA" : "EM ABERTO";
+  const statusClass = charge.status === "paga" ? "badge--green"
+    : charge.status === "isenta" ? "badge--amber"
+      : charge.status === "cancelada" ? "badge--red"
+        : late ? "badge--red" : "badge--pending";
+  const discountLabel = charge.discountAmountCents
+    ? `${formatDemoCents(charge.discountAmountCents)}${charge.discountType === "percent" ? ` (${charge.discountValue}%)` : ""}`
+    : formatDemoCents(0);
+  return `
+    <article class="monthly-charge-row" data-monthly-charge="${escapeHtml(charge.id)}">
+      <div class="list-row">
+        <span class="row-copy"><strong>${escapeHtml(charge.studentName)}</strong><small>Vencimento: ${escapeHtml(formatDemoDate(charge.dueDate))}</small></span>
+        <span class="badge ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="monthly-charge-values">
+        ${listRow("Valor-base", "", formatDemoCents(charge.baseAmountCents))}
+        ${listRow(charge.status === "isenta" ? "Isenção" : "Desconto", "", `− ${discountLabel}`)}
+        ${listRow("Valor final", "", formatDemoCents(charge.finalAmountCents))}
+        ${listRow("Confirmado", "", formatDemoCents(chargeConfirmedCents(charge)))}
+        ${listRow("Aguardando confirmação", "", formatDemoCents(chargePendingCents(charge)))}
+        ${charge.status === "isenta" && charge.exemptionReason
+          ? `<p class="field-help">Motivo informado: ${escapeHtml(charge.exemptionReason)}</p>`
+          : ""}
+      </div>
+      ${canCancel && charge.status === "aberta" ? `
+        <div class="student-action-control monthly-charge-actions">
+          <button class="button button--danger button--action" type="button" data-cancel-monthly-charge="${escapeHtml(charge.id)}" aria-label="Cancelar cobrança de ${escapeHtml(charge.studentName)}">
+            <span data-action-label>Cancelar cobrança</span>
+          </button>
+          <p class="login-action-error student-action-error" role="alert" data-cancel-charge-error></p>
+          <p class="field-help" role="status" aria-live="polite" data-cancel-charge-status></p>
+        </div>
+      ` : ""}
+    </article>
+  `;
+}
+
+function readBillingForm(form) {
+  const month = form.querySelector("[data-billing-month]").value;
+  const graceDays = Number(form.querySelector("[data-billing-grace-days]").value);
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    return { errorMessage: "Escolha um mês válido." };
+  }
+  if (!Number.isInteger(graceDays) || graceDays < 0 || graceDays > 30) {
+    return { errorMessage: "Informe uma carência entre 0 e 30 dias." };
+  }
+
+  const settings = [];
+  const selectedStudentKeys = [];
+  for (const row of form.querySelectorAll("[data-billing-student]")) {
+    const studentKey = row.dataset.billingStudent;
+    const student = demoRoster[Number(studentKey)];
+    if (!student || student.teacherAccount !== activeDemoAccount || student.status === "locked") {
+      return { errorMessage: "Um aluno da lista não está disponível. Atualize a tela e tente novamente." };
+    }
+    const baseValue = row.querySelector("[data-billing-base]").value.trim();
+    const dueValue = row.querySelector("[data-billing-due-day]").value.trim();
+    const discountType = row.querySelector("[data-billing-discount-type]").value;
+    const discountInput = row.querySelector("[data-billing-discount-value]").value.trim();
+    const chosenDuration = row.querySelector("[data-billing-duration]").value;
+    const durationInput = row.querySelector("[data-billing-duration-months]").value.trim();
+    const exemptionReason = row.querySelector("[data-billing-exemption-reason]").value.trim();
+    const selected = row.querySelector("[data-billing-select]").checked;
+
+    if (!["none", "fixed", "percent", "exempt"].includes(discountType)) {
+      return { errorMessage: `Escolha um desconto ou isenção válido para ${student.name}.` };
+    }
+    if (!baseValue && !dueValue && discountType === "none") {
+      if (selected) return { errorMessage: `Informe valor-base e vencimento para ${student.name}.` };
+      continue;
+    }
+    const baseAmountCents = parseDemoPaymentCents(baseValue);
+    const dueDay = Number(dueValue);
+    if (baseAmountCents === null || baseAmountCents <= 0 || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 28) {
+      return { errorMessage: `Informe valor-base maior que zero e vencimento entre 1 e 28 para ${student.name}.` };
+    }
+
+    let discountValue = 0;
+    if (discountType === "fixed") {
+      const cents = parseDemoPaymentCents(discountInput);
+      if (cents === null || cents <= 0) return { errorMessage: `Informe um desconto em reais maior que zero para ${student.name}.` };
+      discountValue = cents;
+    } else if (discountType === "percent") {
+      discountValue = Number(discountInput);
+      if (!Number.isFinite(discountValue) || discountValue <= 0 || discountValue > 100) {
+        return { errorMessage: `Informe um desconto entre 0 e 100% para ${student.name}.` };
+      }
+    }
+    const duration = discountType === "none" ? "this-month" : chosenDuration;
+    const durationMonths = discountType !== "none" && duration === "months" ? Number(durationInput) : null;
+    if (!["this-month", "months", "until-removed"].includes(duration) ||
+        (discountType !== "none" && duration === "months" && (!Number.isInteger(durationMonths) || durationMonths < 1))) {
+      return { errorMessage: `Informe uma duração válida para ${student.name}.` };
+    }
+    if (exemptionReason.length > 300) return { errorMessage: "O motivo da isenção deve ter até 300 caracteres." };
+
+    const previous = billingSettingFor(studentKey, activeDemoAccount);
+    const sameRule = previous && previous.discountType === discountType &&
+      previous.discountValue === discountValue && previous.duration === duration &&
+      previous.durationMonths === durationMonths;
+    settings.push({
+      studentKey,
+      professorAccount: activeDemoAccount,
+      baseAmountCents,
+      dueDay,
+      discountType,
+      discountValue,
+      duration,
+      durationMonths,
+      startMonth: sameRule ? previous.startMonth : month,
+      exemptionReason: discountType === "exempt" ? exemptionReason : ""
+    });
+    if (selected) selectedStudentKeys.push(studentKey);
+  }
+  return { month, graceDays, settings, selectedStudentKeys };
+}
+
+function renderStudentPaymentHistory() {
+  const entries = [
+    ...cashPayments.filter((payment) => payment.account === activeDemoAccount),
+    ...receiptPayments.filter((payment) => payment.account === activeDemoAccount)
+  ];
+  if (!entries.length) return emptyState("Nenhum registro de pagamento", "Avisos e confirmações aparecerão aqui. Cobranças ainda não são geradas.");
+  return entries.map((payment) => {
+    const status = payment.status === "pending"
+      ? ["AGUARDANDO", "badge--amber"]
+      : payment.status === "confirmed"
+        ? ["CONFIRMADO", "badge--green"]
+        : payment.status === "rejected"
+          ? ["RECUSADO", "badge--red"]
+          : payment.status === "undone"
+            ? ["DESFEITO", "badge--amber"]
+            : ["ESTORNADO", "badge--red"];
+    const title = payment.source === "teacher"
+      ? "Recebimento em dinheiro"
+      : payment.source === "student"
+        ? "Aviso em dinheiro"
+        : "Comprovante Pix";
+    const date = typeof payment.date === "string" ? payment.date : "";
+    const displayDate = date.includes("-") ? formatDemoDate(date) : date || "Data não informada";
+    return `
+      <div class="list-row">
+        <span class="row-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(displayDate)}</small></span>
+        <strong class="row-value">${escapeHtml(payment.amount || "R$ —")}</strong>
+        <span class="badge ${status[1]}">${status[0]}</span>
+      </div>
+    `;
+  }).join("");
 }
 
 function renderTeacherCashHistory() {
@@ -2230,6 +2712,30 @@ const screens = {
 
   "student-home"() {
     const profile = demoProfiles[activeDemoAccount];
+    const studentCharges = monthlyCharges.filter((charge) => charge.studentAccount === activeDemoAccount);
+    const latestCharge = [...studentCharges].sort((left, right) => right.month.localeCompare(left.month))[0];
+    const nextDueCharge = studentCharges.filter((charge) => charge.status === "aberta")
+      .sort((left, right) => left.dueDate.localeCompare(right.dueDate))[0];
+    const chargeStatus = latestCharge
+      ? latestCharge.status === "paga" ? "PAGA"
+        : latestCharge.status === "isenta" ? "ISENTA"
+          : latestCharge.status === "cancelada" ? "CANCELADA"
+            : monthlyChargeIsLate(latestCharge) ? "ATRASADA" : "EM ABERTO"
+      : "Sem cobranças";
+    const lastPayment = [...cashPayments, ...receiptPayments].reverse().find((payment) => payment.account === activeDemoAccount);
+    const paymentStatus = lastPayment
+      ? lastPayment.status === "pending" ? "AGUARDA CONFIRMAÇÃO"
+        : lastPayment.status === "confirmed" ? "CONFIRMADO"
+          : lastPayment.status === "rejected" ? "RECUSADO" : "HISTÓRICO"
+      : "SEM AVISOS";
+    const paymentSummary = activeRole === "instructor"
+      ? listRow("Aviso de pagamento", paymentStatus, "", `<span class="badge">${paymentStatus}</span>`)
+      : listRow(
+        lastPayment ? "Pagamento informado" : "Mensalidade",
+        lastPayment ? formatDemoDate(lastPayment.date) : "Nenhum pagamento informado",
+        lastPayment ? escapeHtml(lastPayment.amount) : latestCharge ? formatDemoCents(latestCharge.finalAmountCents) : "",
+        `<span class="badge">${paymentStatus}</span>`
+      );
     return `
       ${heading("VISÃO DO ALUNO", "Início", "Resumo pessoal da conta fictícia.")}
       <div class="content-grid">
@@ -2238,12 +2744,12 @@ const screens = {
             <div class="student-belt"><span class="belt-swatch"></span><span><strong>Faixa cadastrada</strong><small>Graus e histórico em Minhas graduações</small></span></div>
           `, "panel-card--highlight")}
           <div class="card-grid card-grid--two">
-            ${metric("SITUAÇÃO DA MENSALIDADE", "—", "Status demonstrativo", "gold")}
-            ${metric("PRÓXIMO VENCIMENTO", "—", "Data não informada", "amber")}
+            ${metric("SITUAÇÃO DA MENSALIDADE", chargeStatus, "Status demonstrativo", "gold")}
+            ${metric("PRÓXIMO VENCIMENTO", nextDueCharge ? formatDemoDate(nextDueCharge.dueDate) : "—", nextDueCharge ? nextDueCharge.month : "Data não informada", "amber")}
           </div>
         </div>
         <div class="stack">
-          ${panel("Pagamento recente", listRow("Mensalidade", "Referência: —", "R$ —", '<span class="badge badge--pending">AGUARDA CONFIRMAÇÃO</span>'))}
+          ${panel("Pagamento recente", paymentSummary)}
           ${panel("Minha evolução", `
             <p class="panel-copy">Acompanhe as graduações registradas pelo professor.</p>
             ${button("Ver histórico de graduações", "student-grades", "button button--quiet")}
@@ -2283,8 +2789,38 @@ const screens = {
   },
 
   "student-payments"() {
+    if (activeRole === "instructor") {
+      const instructorCharges = monthlyCharges.filter((charge) => charge.studentAccount === activeDemoAccount);
+      return `
+        ${heading("VISÃO DO INSTRUTOR", "Meus pagamentos", "Consulte o estado dos seus avisos. Valores de pagamentos não são exibidos para Instrutores.")}
+        ${panel("Situação das cobranças", instructorCharges.length
+          ? instructorCharges.map((charge) => {
+            const label = charge.status === "paga" ? "PAGA" : charge.status === "isenta" ? "ISENTA" : charge.status === "cancelada" ? "CANCELADA" : monthlyChargeIsLate(charge) ? "ATRASADA" : "EM ABERTO";
+            return listRow(charge.month, `Vencimento: ${formatDemoDate(charge.dueDate)}`, "", `<span class="badge">${label}</span>`);
+          }).join("")
+          : emptyState("Nenhuma cobrança registrada", "O estado das cobranças aparecerá aqui sem valores."))}
+      `;
+    }
+    const studentPayments = [...cashPayments, ...receiptPayments].filter((payment) => payment.account === activeDemoAccount);
+    const pendingPayments = studentPayments.filter((payment) => payment.status === "pending");
+    const receivedPayments = studentPayments.filter((payment) => payment.status === "confirmed");
     const lastCashPayment = [...cashPayments].reverse().find((payment) => payment.account === activeDemoAccount && !["undone", "reversed"].includes(payment.status));
-    const receiptAlreadySent = receiptPayments.some((payment) => payment.account === activeDemoAccount);
+    const studentCharges = monthlyCharges.filter((charge) => charge.studentAccount === activeDemoAccount);
+    const openCharges = studentCharges.filter((charge) => charge.status === "aberta");
+    const selectedCharge = openCharges.find((charge) => charge.id === selectedStudentChargeId) || openCharges[0] || null;
+    selectedStudentChargeId = selectedCharge ? selectedCharge.id : null;
+    const selectedChargeBalance = selectedCharge
+      ? Math.max(0, selectedCharge.finalAmountCents - chargeConfirmedCents(selectedCharge))
+      : null;
+    const receiptAlreadySent = selectedCharge
+      ? chargeHasPendingPayment(selectedCharge.id)
+      : receiptPayments.some((payment) => payment.account === activeDemoAccount && !payment.chargeId);
+    const expectedCents = studentCharges.filter((charge) => charge.status !== "cancelada")
+      .reduce((total, charge) => total + charge.finalAmountCents, 0);
+    const openCents = openCharges.filter((charge) => !monthlyChargeIsLate(charge))
+      .reduce((total, charge) => total + Math.max(0, charge.finalAmountCents - chargeConfirmedCents(charge)), 0);
+    const lateCharges = openCharges.filter((charge) => monthlyChargeIsLate(charge));
+    const lateCents = lateCharges.reduce((total, charge) => total + Math.max(0, charge.finalAmountCents - chargeConfirmedCents(charge)), 0);
     const cashResult = lastCashPayment
       ? lastCashPayment.status === "pending"
         ? "Pagamento em dinheiro lançado e PENDENTE até a confirmação do Professor."
@@ -2293,26 +2829,29 @@ const screens = {
           : "O Professor recusou o aviso de pagamento em dinheiro."
       : "";
     return `
-      ${heading("VISÃO DO ALUNO", "Meus pagamentos", "O aluno consulta as próprias cobranças e pode avisar que pagou.")}
+      ${heading("VISÃO DO ALUNO", "Meus pagamentos", "Consulte cobranças e avisos. O protótipo apenas controla pagamentos; não movimenta dinheiro.")}
       <div class="card-grid card-grid--four">
-        ${metric("EM ABERTO", "—", "Valores definidos no cadastro", "gold")}
-        ${metric("AGUARDANDO CONFIRMAÇÃO", "—", "Avisos enviados pelo aluno", "amber")}
-        ${metric("PAGOS", "—", "Confirmados pelo professor", "green")}
-        ${metric("ATRASADOS", "—", "Conforme carência configurada", "red")}
+        ${metric("EM ABERTO", formatDemoCents(openCents), "Saldo dentro do prazo", "gold")}
+        ${metric("AGUARDANDO CONFIRMAÇÃO", formatDemoPaymentTotal(pendingPayments), `${pendingPayments.length} aviso(s) ou comprovante(s)`, "amber")}
+        ${metric("PAGOS", formatDemoPaymentTotal(receivedPayments), `${receivedPayments.length} confirmação(ões)`, "green")}
+        ${metric("ATRASADOS", formatDemoCents(lateCents), `${lateCharges.length} cobrança(s)`, "red")}
       </div>
       <div class="content-grid" style="margin-top:16px">
-        ${panel("Histórico", `
-          ${listRow("Mensalidade", "Vencimento: —", "R$ —", '<span class="badge badge--pending">A VENCER</span>')}
-          ${listRow("Taxa extra", "Referência: —", "R$ —", '<span class="badge badge--green">PAGO</span>')}
-          ${listRow("Mensalidade", "Vencimento: —", "R$ —", '<span class="badge badge--red">ATRASADO</span>')}
-        `)}
+        ${panel("Cobranças do mês", studentCharges.length
+          ? studentCharges.map((charge) => renderMonthlyChargeRow(charge)).join("")
+          : emptyState("Nenhuma cobrança registrada", `Valor previsto: ${formatDemoCents(expectedCents)}.`))}
+        ${panel("Registros de pagamento", renderStudentPaymentHistory())}
         ${panel("Avisar pagamento", `
           <p class="panel-copy">O aviso fica pendente até o professor confirmar. O app não movimenta dinheiro.</p>
           <div class="stack" style="margin-top:12px">
+            <div class="field"><label for="student-charge-select">Cobrança vinculada (opcional)</label><select id="student-charge-select" data-student-charge-select>
+              <option value="">Sem cobrança específica</option>
+              ${openCharges.map((charge) => `<option value="${escapeHtml(charge.id)}" ${selectedCharge && charge.id === selectedCharge.id ? "selected" : ""}>${escapeHtml(charge.month)} · venc. ${escapeHtml(formatDemoDate(charge.dueDate))} · saldo ${escapeHtml(formatDemoCents(Math.max(0, charge.finalAmountCents - chargeConfirmedCents(charge))))}</option>`).join("")}
+            </select></div>
             <label class="button button--primary file-action" for="receipt-file">Escolher comprovante Pix (imagem ou PDF)</label>
             <input id="receipt-file" class="visually-hidden" type="file" accept="image/*,application/pdf,.pdf" data-receipt-file ${receiptAlreadySent ? "disabled" : ""}>
             <div class="form-grid cash-entry-fields${activeRole === "student" ? " cash-entry-fields--student" : ""}">
-              <div class="field"><label for="cash-amount">Valor recebido</label><input id="cash-amount" type="number" min="0.01" step="0.01" value="150.00"></div>
+              <div class="field"><label for="cash-amount">Valor recebido</label><input id="cash-amount" type="number" min="0.01" step="0.01" value="${selectedChargeBalance === null ? "150.00" : (selectedChargeBalance / 100).toFixed(2)}"></div>
               <div class="field"><label for="cash-date">Data de recebimento</label><input id="cash-date" type="date" value="2026-11-07"></div>
             </div>
             ${activeRole === "student" ? `
@@ -2339,7 +2878,8 @@ const screens = {
             ` : `<button class="button button--primary" type="button" data-send-receipt data-loading-text="Enviando…" ${receiptAlreadySent ? "disabled" : ""}>Enviar comprovante</button>`}
           </div>
           ${activeRole === "student" ? '<div class="visually-hidden" id="student-payment-status" role="status" aria-live="polite" aria-atomic="true"></div>' : ""}
-          <div class="notice notice--pending" id="duplicate-receipt-warning" style="margin-top:10px" ${receiptAlreadySent ? "" : "hidden"}>Comprovante já enviado para esta cobrança fictícia. Avisos duplicados ficam bloqueados.</div>
+          <div class="notice notice--pending" id="duplicate-receipt-warning" style="margin-top:10px" ${receiptAlreadySent ? "" : "hidden"}>Já existe um aviso pendente para esta cobrança fictícia. Aguarde a decisão do Professor.</div>
+          <p class="field-help">Isenções e descontos são definidos pelo Professor. O estado atrasado considera o vencimento e a carência configurada.</p>
           <p class="field-help" style="margin-top:8px">Parser de comprovante: pendente de teste real no iPhone.</p>
           <p class="field-help" style="margin-top:12px">O protótipo não envia nem guarda arquivos.</p>
         `)}
@@ -2382,28 +2922,33 @@ const screens = {
   },
 
   "teacher-home"() {
+    const teacherPayments = [...cashPayments, ...receiptPayments].filter((payment) => payment.professorAccount === activeDemoAccount);
+    const pendingPayments = teacherPayments.filter((payment) => payment.status === "pending");
+    const summary = monthlyBillingSummary(activeDemoAccount, dashboardSelectedMonth);
     return `
       ${heading("VISÃO DO PROFESSOR", "Painel do professor", "Acompanhe alunos, cobranças e autorizações fictícias.")}
       <div class="card-grid card-grid--four">
-        ${metric("PREVISTO", "R$ —", "Lançamentos do período", "gold")}
-        ${metric("RECEBIDO", "R$ —", "Confirmado por você", "green")}
-        ${metric("PENDENTE", "R$ —", "A confirmar ou a vencer", "amber")}
-        ${metric("ATRASADO", "R$ —", "Após a carência definida", "red")}
+        ${renderBillingMetrics(summary)}
       </div>
       <div class="content-grid" style="margin-top:16px">
+        ${panel("Período do painel", `
+          <div class="field"><label for="dashboard-billing-month">Mês de referência</label><input id="dashboard-billing-month" type="month" value="${escapeHtml(dashboardSelectedMonth)}" data-dashboard-month></div>
+          <p class="field-help">Carência atual: ${billingGraceDaysFor(activeDemoAccount)} dia(s). Atrasos são calculados e não ficam gravados.</p>
+        `)}
         ${panel("Alertas", `
-          ${listRow("Pagamentos a confirmar", "Avisos de pagamento dos alunos", "", '<span class="badge badge--amber">PENDENTE</span>')}
-          ${listRow("Cobranças atrasadas", "Revise antes de enviar lembrete", "", '<span class="badge badge--red">REVISAR</span>')}
+          ${listRow("Pagamentos a confirmar", `${pendingPayments.length} aviso(s) ou comprovante(s)`, "", `<span class="badge ${pendingPayments.length ? "badge--amber" : "badge--green"}">${pendingPayments.length ? "PENDENTE" : "SEM PENDÊNCIAS"}</span>`)}
+          ${listRow("Atrasos", `${chargesForTeacherMonth(activeDemoAccount, dashboardSelectedMonth).filter((charge) => monthlyChargeIsLate(charge)).length} cobrança(s) no mês selecionado`, "", `<span class="badge ${summary.lateCents ? "badge--red" : "badge--green"}">${summary.lateCents ? "VER ATRASOS" : "SEM ATRASOS"}</span>`)}
           ${listRow("Aniversários", "Lista e aviso entram na fase de operação", "", '<span class="badge">F2</span>')}
         `)}
         ${panel("Acessos rápidos", `
           <div class="stack">
+            ${button("Configurar cobranças", "monthly-charges", "button button--primary")}
             ${button("Cadastrar aluno", "student-create", "button button--quiet")}
             ${button("Papéis e autorizações", "role-management", "button button--quiet")}
             ${button("Importar extrato Pix", "pix-import", "button button--quiet")}
             ${button("Confirmar pagamentos", "payment-review", "button button--quiet")}
             ${button("Conversas", "teacher-chat", "button button--quiet")}
-            <p class="field-help">Lote de mensalidades limitado a 24 cobranças.</p>
+            <p class="field-help">Cobranças controladas nesta demonstração; sem gateway ou movimentação de dinheiro.</p>
           </div>
         `)}
       </div>
@@ -2736,6 +3281,10 @@ const screens = {
                 <div class="field"><label for="teacher-cash-student">Aluno da sua turma</label><input id="teacher-cash-student" type="text" role="combobox" aria-autocomplete="list" aria-controls="teacher-cash-students" aria-expanded="false" autocomplete="off" aria-describedby="teacher-cash-student-help teacher-cash-selection" required><div class="teacher-cash-options" id="teacher-cash-students" role="listbox" aria-label="Alunos da sua turma" hidden></div><small class="field-help" id="teacher-cash-student-help">Digite o nome e selecione o aluno e sua graduação na lista.</small><small class="field-help teacher-cash-selection" id="teacher-cash-selection" role="status"></small></div>
                 <div class="field"><label for="teacher-cash-amount">Valor recebido</label><input id="teacher-cash-amount" type="number" min="0.01" step="0.01" value="150.00" required></div>
                 <div class="field"><label for="teacher-cash-date">Data de recebimento</label><input id="teacher-cash-date" type="date" value="2026-11-07" required></div>
+                <div class="field"><label for="teacher-cash-charge">Cobrança vinculada (opcional)</label><select id="teacher-cash-charge" data-teacher-cash-charge>
+                  <option value="">Sem cobrança específica</option>
+                  ${monthlyCharges.filter((charge) => charge.professorAccount === activeDemoAccount && charge.status === "aberta").map((charge) => `<option value="${escapeHtml(charge.id)}">${escapeHtml(charge.studentName)} · ${escapeHtml(charge.month)} · saldo ${escapeHtml(formatDemoCents(Math.max(0, charge.finalAmountCents - chargeConfirmedCents(charge))))}</option>`).join("")}
+                </select></div>
                 <div class="field"><label for="teacher-cash-type">Tipo da cobrança</label><input id="teacher-cash-type" type="text" required></div>
                 <div class="field"><label for="teacher-cash-reference">Referência</label><input id="teacher-cash-reference" type="text" required></div>
               </div>
@@ -2758,19 +3307,70 @@ const screens = {
     `;
   },
 
-  overdue() {
+  "monthly-charges"() {
+    const students = billingStudentsForTeacher(activeDemoAccount);
+    const charges = chargesForTeacherMonth(activeDemoAccount, billingSelectedMonth);
     return `
-      ${heading("VISÃO DO PROFESSOR", "Atrasados e cobrança", "Revise os registros e use uma mensagem manual; automações e envio real não fazem parte do protótipo.")}
-      ${panel("Cobranças atrasadas", `
-        ${listRow(escapeHtml(demoRoster[0].name), "Vencimento: — · Carência conforme configuração", "R$ —", '<span class="badge badge--red">ATRASADO</span>')}
-        <div class="row-actions">${actionButton("Prévia de mensagem")}${actionButton("Abrir WhatsApp", "button button--small button--quiet")}</div>
-        ${listRow(escapeHtml(demoRoster[2].name), "Vencimento: — · Carência conforme configuração", "R$ —", '<span class="badge badge--red">ATRASADO</span>')}
-        <div class="row-actions">${actionButton("Prévia de mensagem")}${actionButton("Abrir WhatsApp", "button button--small button--quiet")}</div>
-      `)}
-      <div class="card-grid card-grid--three" style="margin-top:15px">
-        ${panel("Lembrete antes do vencimento", `<p class="panel-copy">Texto pré-definido e editável — conteúdo a configurar.</p>`)}
-        ${panel("Lembrete no vencimento", `<p class="panel-copy">Texto pré-definido e editável — conteúdo a configurar.</p>`)}
-        ${panel("Lembrete após o vencimento", `<p class="panel-copy">Texto pré-definido e editável — conteúdo a configurar.</p>`)}
+      ${heading("VISÃO DO PROFESSOR", "Cobranças mensais", "Configure a mensalidade por aluno e gere no máximo 24 cobranças por vez. Tudo fica na demonstração local; não há gateway.")}
+      <div class="content-grid">
+        <div class="stack">
+          ${panel("Regras do mês", `
+            <form data-billing-form novalidate>
+              <div class="form-grid">
+                <div class="field"><label for="billing-month">Mês das cobranças</label><input id="billing-month" type="month" value="${escapeHtml(billingSelectedMonth)}" data-billing-month required></div>
+                <div class="field"><label for="billing-grace-days">Carência (0 a 30 dias)</label><input id="billing-grace-days" type="number" min="0" max="30" step="1" value="${billingGraceDaysFor(activeDemoAccount)}" data-billing-grace-days required></div>
+              </div>
+              ${students.length ? students.map((student) => renderBillingConfigRow(student, billingSelectedMonth)).join("") : emptyState("Nenhum aluno ativo", "Somente alunos ativos da sua turma podem receber uma cobrança.")}
+              <p class="field-help" id="billing-discount-help">Desconto em R$ ou %, com duração só neste mês, por N meses ou até remover. Regras salvas passam a valer a partir do mês escolhido; cobranças já geradas mantêm seu histórico.</p>
+              <p class="field-help" id="billing-duration-help">A contagem dos N meses inclui o mês escolhido.</p>
+              <div class="notice notice--pending" id="billing-sensitive-warning">Motivo de isenção é opcional. Não escreva dados de saúde nem outras informações sensíveis.</div>
+              <div class="student-action-control">
+                <button class="button button--primary button--action" type="submit" data-save-billing-settings aria-describedby="billing-settings-error billing-settings-status"><span data-action-label>Salvar regras</span></button>
+                <p class="login-action-error student-action-error" id="billing-settings-error" role="alert"></p>
+              </div>
+              <p class="field-help" id="billing-settings-status" role="status" aria-live="polite"></p>
+              <div class="student-action-control">
+                <button class="button button--quiet button--action" type="button" data-generate-monthly-charges aria-describedby="billing-generate-error billing-generate-status"><span data-action-label>Gerar cobranças do mês</span></button>
+                <p class="login-action-error student-action-error" id="billing-generate-error" role="alert"></p>
+              </div>
+              <p class="field-help" id="billing-generate-status" role="status" aria-live="polite"></p>
+            </form>
+          `)}
+        </div>
+        <div class="stack">
+          ${panel("Cobranças do mês", `
+            <p class="field-help" id="monthly-charge-list-month">Mês: ${escapeHtml(billingSelectedMonth)}</p>
+            <div id="monthly-charge-list">${charges.length
+              ? charges.map((charge) => renderMonthlyChargeRow(charge, true)).join("")
+              : emptyState("Nenhuma cobrança neste mês", "Salve as regras dos alunos e gere o lote para registrar as cobranças.")}
+            </div>
+          `)}
+        </div>
+      </div>
+    `;
+  },
+
+  overdue() {
+    const lateCharges = chargesForTeacherMonth(activeDemoAccount, dashboardSelectedMonth)
+      .filter((charge) => monthlyChargeIsLate(charge));
+    return `
+      ${heading("VISÃO DO PROFESSOR", "Atrasos e cobrança", "Atrasos são calculados a partir da cobrança aberta, do vencimento e da carência; não são gravados como estado.")}
+      <div class="content-grid">
+        ${panel("Status de atrasos", `
+          <div class="field"><label for="overdue-billing-month">Mês de referência</label><input id="overdue-billing-month" type="month" value="${escapeHtml(dashboardSelectedMonth)}" data-dashboard-month></div>
+          <p class="field-help">Carência: ${billingGraceDaysFor(activeDemoAccount)} dia(s), ajustável nas cobranças mensais.</p>
+          ${lateCharges.length
+            ? lateCharges.map((charge) => `<article class="monthly-charge-row"><div class="list-row"><span class="row-copy"><strong>${escapeHtml(charge.studentName)}</strong><small>Vencimento: ${escapeHtml(formatDemoDate(charge.dueDate))}</small></span><span class="badge badge--red">ATRASADA</span></div>${listRow("Saldo em atraso", "", formatDemoCents(Math.max(0, charge.finalAmountCents - chargeConfirmedCents(charge))))}</article>`).join("")
+            : '<div class="notice notice--info">Nenhuma cobrança atrasada neste mês.</div>'}
+          ${button("Configurar cobranças", "monthly-charges", "button button--quiet")}
+        `)}
+        ${panel("Lembrete manual pelo WhatsApp", `
+          <p class="panel-copy">O link abre o WhatsApp sem destinatário, nome ou mensagem preenchidos. Nada é enviado automaticamente.</p>
+          <div class="row-actions">
+            <a class="button button--small button--quiet" href="https://wa.me/" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>
+          </div>
+          <p class="field-help">Escolha o contato e escreva/envie a mensagem manualmente. Destinatário e conteúdo do lembrete ainda precisam ser definidos.</p>
+        `)}
       </div>
     `;
   },
@@ -2783,7 +3383,7 @@ const screens = {
         <button class="quick-action" type="button" data-screen-target="role-management"><span class="quick-action-icon" aria-hidden="true">◈</span><span><strong>Papéis e autorizações</strong><small>Administrar contas e instrutores</small></span></button>
         <button class="quick-action" type="button" data-screen-target="pix-import"><span class="quick-action-icon" aria-hidden="true">⇧</span><span><strong>Importar extrato Pix</strong><small>Sugerir cobranças correspondentes</small></span></button>
         <button class="quick-action" type="button" data-screen-target="payment-review"><span class="quick-action-icon" aria-hidden="true">▤</span><span><strong>Confirmar pagamento</strong><small>Revisar avisos dos alunos</small></span></button>
-        <button class="quick-action" type="button" data-screen-target="overdue"><span class="quick-action-icon" aria-hidden="true">◷</span><span><strong>Cobrar manualmente</strong><small>Prévia de lembrete com WhatsApp</small></span></button>
+        <button class="quick-action" type="button" data-screen-target="overdue"><span class="quick-action-icon" aria-hidden="true">◷</span><span><strong>Cobrar manualmente</strong><small>Abrir WhatsApp sem envio automático</small></span></button>
         <button class="quick-action" type="button" data-screen-target="students"><span class="quick-action-icon" aria-hidden="true">♧</span><span><strong>Ver alunos</strong><small>Lista e perfis vinculados</small></span></button>
         <button class="quick-action" type="button" data-screen-target="teacher-home"><span class="quick-action-icon" aria-hidden="true">▦</span><span><strong>Voltar ao painel</strong><small>Resumo e alertas</small></span></button>
       </div>
@@ -5068,8 +5668,14 @@ function updateReceiptComparison() {
   const amount = document.querySelector("#receipt-amount");
   const date = document.querySelector("#receipt-date");
   if (!editor || !result || !amount || !date) return;
-  const parsedAmount = Number(amount.value.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", "."));
-  const isMatch = parsedAmount === 150 && date.value.trim() === "01/11/2026";
+  const charge = monthlyCharges.find((item) => item.id === selectedStudentChargeId);
+  const amountCents = parseDemoPaymentCents(amount.value);
+  const balanceCents = charge
+    ? Math.max(0, charge.finalAmountCents - chargeConfirmedCents(charge))
+    : null;
+  const isMatch = charge
+    ? amountCents !== null && amountCents > 0 && amountCents <= balanceCents
+    : amountCents === 15000 && date.value.trim() === "01/11/2026";
   result.className = `receipt-result ${isMatch ? "receipt-result--match" : "receipt-result--different"}`;
   result.textContent = isMatch ? "Confere com a cobrança." : "Diverge.";
 }
@@ -6769,7 +7375,11 @@ document.addEventListener("click", (event) => {
       if (!isUndo && requestedAt < payment.undoUntil) {
         return { errorMessage: "O prazo ainda está aberto. Use Desfazer." };
       }
-      updateDemoPayments(() => { payment.status = isUndo ? "undone" : "reversed"; });
+      updateDemoPayments(() => {
+        payment.status = isUndo ? "undone" : "reversed";
+        const charge = monthlyCharges.find((item) => item.id === payment.chargeId);
+        if (charge) refreshMonthlyChargeStatus(charge);
+      });
       if (!cashCorrection.isConnected) refreshTeacherCashHistory();
       showToast(successMessage);
     });
@@ -6812,6 +7422,8 @@ document.addEventListener("click", (event) => {
         updateDemoPayments(() => {
           receipt.status = paymentAction.hasAttribute("data-confirm-payment") ? "confirmed" : "rejected";
           receipt.file = null;
+          const charge = monthlyCharges.find((item) => item.id === receipt.chargeId);
+          if (charge) refreshMonthlyChargeStatus(charge);
         });
         if (receipt.fileInput) receipt.fileInput.value = "";
       } else if (isCashDecision) {
@@ -6821,6 +7433,8 @@ document.addEventListener("click", (event) => {
         }
         updateDemoPayments(() => {
           payment.status = paymentAction.dataset.cashDecision === "confirm" ? "confirmed" : "rejected";
+          const charge = monthlyCharges.find((item) => item.id === payment.chargeId);
+          if (charge) refreshMonthlyChargeStatus(charge);
         });
       } else {
         showToast(successMessage);
@@ -6856,16 +7470,34 @@ document.addEventListener("click", (event) => {
   const cashNotice = target.closest("[data-cash-notice]");
   if (cashNotice) {
     const profile = demoProfiles[activeDemoAccount];
+    const rosterStudent = demoRoster.find((student) => student.account === activeDemoAccount);
+    const professorAccount = profile && (profile.teacherAccount || (rosterStudent && rosterStudent.teacherAccount));
     const amountInput = document.querySelector("#cash-amount");
     const dateInput = document.querySelector("#cash-date");
+    const chargeSelect = document.querySelector("[data-student-charge-select]");
+    const requestedChargeId = chargeSelect ? chargeSelect.value : "";
+    const selectedCharge = requestedChargeId
+      ? monthlyCharges.find((charge) => charge.id === requestedChargeId &&
+        charge.studentAccount === activeDemoAccount && charge.professorAccount === professorAccount && charge.status === "aberta")
+      : null;
     const amountValue = Number(amountInput.value);
+    const amountCents = parseDemoPaymentCents(amountInput.value);
+    const balanceCents = selectedCharge
+      ? Math.max(0, selectedCharge.finalAmountCents - chargeConfirmedCents(selectedCharge))
+      : null;
     let validationMessage = "";
-    if (!profile || activeRole !== "student" || !profile.teacherAccount || !profile.academyId) {
+    if (!profile || activeRole !== "student" || !professorAccount) {
       validationMessage = "Não foi possível enviar o aviso. Confira o vínculo com seu Professor.";
-    } else if (!Number.isFinite(amountValue) || amountValue <= 0 || !dateInput.value) {
+    } else if (requestedChargeId && !selectedCharge) {
+      validationMessage = "A cobrança selecionada não está disponível. Atualize a tela e tente novamente.";
+    } else if (!Number.isFinite(amountValue) || amountCents === null || amountValue <= 0 || !dateInput.value) {
       validationMessage = "Informe um valor e uma data válidos.";
-    } else if (cashPayments.some((payment) => payment.account === activeDemoAccount && payment.status === "pending")) {
-      validationMessage = "Já existe um aviso em dinheiro aguardando confirmação.";
+    } else if (selectedCharge && amountCents > balanceCents) {
+      validationMessage = `O valor excede o saldo desta cobrança (${formatDemoCents(balanceCents)}).`;
+    } else if (selectedCharge
+      ? chargeHasPendingPayment(selectedCharge.id)
+      : cashPayments.some((payment) => payment.account === activeDemoAccount && payment.status === "pending" && !payment.chargeId)) {
+      validationMessage = "Já existe um aviso aguardando confirmação.";
     }
     const result = document.querySelector("#cash-notice-result");
     const completeCashNotice = () => {
@@ -6873,10 +7505,11 @@ document.addEventListener("click", (event) => {
         id: `cash-${Date.now()}`,
         account: activeDemoAccount,
         studentName: profile.name,
-        professorAccount: profile.teacherAccount,
+        professorAccount,
         amount: new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(amountValue),
         date: dateInput.value,
         source: "student",
+        chargeId: selectedCharge ? selectedCharge.id : null,
         status: "pending"
       }));
       result.textContent = "Pagamento em dinheiro lançado e PENDENTE até a confirmação do Professor.";
@@ -6890,7 +7523,11 @@ document.addEventListener("click", (event) => {
         loadingText: "Enviando...",
         loadingMessage: "Enviando aviso de pagamento.",
         successMessage: "Aviso de pagamento em dinheiro ficou pendente.",
-        errorMessage: "Não foi possível enviar o aviso. Tente novamente."
+        errorMessage: "Não foi possível enviar o aviso. Tente novamente.",
+        afterSuccess: () => {
+          renderScreen("student-payments");
+          showToast("Aviso de pagamento em dinheiro ficou pendente.");
+        }
       }, async () => {
         await new Promise((resolve) => window.setTimeout(resolve, 900));
         if (new URLSearchParams(window.location.search).get("erro-simulado") === "aluno-dinheiro") {
@@ -6915,14 +7552,29 @@ document.addEventListener("click", (event) => {
     const profile = demoProfiles[activeDemoAccount];
     const amountInput = document.querySelector("#receipt-amount");
     const dateInput = document.querySelector("#receipt-date");
+    const requestedChargeId = selectedStudentChargeId;
+    const selectedCharge = requestedChargeId
+      ? monthlyCharges.find((charge) => charge.id === requestedChargeId &&
+        charge.studentAccount === activeDemoAccount && charge.status === "aberta")
+      : null;
+    const amountCents = amountInput ? parseDemoPaymentCents(amountInput.value.trim()) : null;
+    const balanceCents = selectedCharge
+      ? Math.max(0, selectedCharge.finalAmountCents - chargeConfirmedCents(selectedCharge))
+      : null;
     let validationMessage = "";
-    if (receiptPayments.some((payment) => payment.account === activeDemoAccount)) {
+    if (selectedCharge
+      ? chargeHasPendingPayment(selectedCharge.id)
+      : receiptPayments.some((payment) => payment.account === activeDemoAccount && !payment.chargeId)) {
       document.querySelector("#duplicate-receipt-warning").hidden = false;
-      validationMessage = "Comprovante já enviado para esta cobrança fictícia.";
+      validationMessage = "Já existe um aviso pendente para esta cobrança fictícia.";
     } else if (!profile || activeRole !== "student" || !profile.teacherAccount || !profile.academyId) {
       validationMessage = "Não foi possível enviar o comprovante. Confira seu vínculo com o Professor.";
+    } else if (requestedChargeId && !selectedCharge) {
+      validationMessage = "A cobrança selecionada não está disponível. Atualize a tela e tente novamente.";
     } else if (!fileInput.files.length || !amountInput.value.trim() || !dateInput.value.trim()) {
       validationMessage = "Escolha uma imagem ou PDF fictício antes de enviar.";
+    } else if (selectedCharge && (amountCents === null || amountCents <= 0 || amountCents > balanceCents)) {
+      validationMessage = `Informe um valor maior que zero e até o saldo desta cobrança (${formatDemoCents(balanceCents)}).`;
     }
     const saveReceipt = () => {
       updateDemoPayments(() => receiptPayments.push({
@@ -6934,6 +7586,7 @@ document.addEventListener("click", (event) => {
         date: dateInput.value.trim(),
         file: fileInput.files[0],
         fileInput,
+        chargeId: selectedCharge ? selectedCharge.id : null,
         status: "pending"
       }));
     };
@@ -7474,7 +8127,9 @@ document.addEventListener("submit", (event) => {
   const studentField = form.querySelector("#teacher-cash-student");
   const studentInput = studentField.value;
   const amountValue = Number(form.querySelector("#teacher-cash-amount").value);
+  const amountCents = parseDemoPaymentCents(form.querySelector("#teacher-cash-amount").value);
   const dateValue = form.querySelector("#teacher-cash-date").value;
+  const requestedChargeId = form.querySelector("[data-teacher-cash-charge]").value;
   const typeValue = form.querySelector("#teacher-cash-type").value.trim();
   const referenceValue = form.querySelector("#teacher-cash-reference").value.trim();
   const search = normalizeTeacherCashSearch(studentInput);
@@ -7483,9 +8138,18 @@ document.addEventListener("submit", (event) => {
   const selected = studentField.dataset.selectedStudent === undefined ? null : demoRoster[Number(studentField.dataset.selectedStudent)];
   const student = selected && selected.teacherAccount === activeDemoAccount && normalizeTeacherCashSearch(teacherCashStudentLabel(selected)) === search
     ? selected : students.length === 1 ? students[0] : null;
+  const charge = requestedChargeId
+    ? monthlyCharges.find((item) => item.id === requestedChargeId &&
+      item.professorAccount === activeDemoAccount && item.status === "aberta")
+    : null;
+  const chargeBalance = charge
+    ? Math.max(0, charge.finalAmountCents - chargeConfirmedCents(charge))
+    : null;
   const submitButton = form.querySelector('button[type="submit"]');
   if (submitButton.disabled) return;
-  const valid = activeRole === "professor" && student && Number.isFinite(amountValue) && amountValue > 0 && dateValue && typeValue && referenceValue;
+  const valid = activeRole === "professor" && student && Number.isFinite(amountValue) && amountCents !== null &&
+    amountValue > 0 && dateValue && typeValue && referenceValue &&
+    (!requestedChargeId || (charge && charge.studentKey === studentBillingKey(student) && amountCents <= chargeBalance));
   const formattedAmount = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(amountValue);
   if (valid && !window.confirm(`${formattedAmount} para ${student.name} (${student.grade}), ${typeValue} · ${referenceValue}?`)) return;
   runButtonAction(submitButton, {
@@ -7515,9 +8179,13 @@ document.addEventListener("submit", (event) => {
       reference: referenceValue,
       source: "teacher",
       status: "confirmed",
+      chargeId: charge ? charge.id : null,
       undoUntil: Date.now() + 10000
     };
-    updateDemoPayments(() => cashPayments.push(payment));
+    updateDemoPayments(() => {
+      cashPayments.push(payment);
+      if (charge) refreshMonthlyChargeStatus(charge);
+    });
     refreshTeacherCashHistory();
     scheduleTeacherCashExpiry(payment);
     showToast("Recebimento lançado. Desfaça em até 10 segundos no histórico.");
@@ -7731,4 +8399,202 @@ tutorialDialog.addEventListener("keydown", (event) => {
     event.preventDefault();
     first.focus();
   }
+});
+
+document.addEventListener("change", (event) => {
+  const target = event.target;
+  if (target instanceof HTMLInputElement && target.matches("[data-billing-month]")) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(target.value)) return;
+    billingSelectedMonth = target.value;
+    document.querySelectorAll("[data-billing-student]").forEach((row) => {
+      const studentKey = row.dataset.billingStudent;
+      const existingCharge = monthlyCharges.some((charge) =>
+        charge.studentKey === studentKey && charge.professorAccount === activeDemoAccount && charge.month === billingSelectedMonth
+      );
+      const checkbox = row.querySelector("[data-billing-select]");
+      if (!checkbox) return;
+      checkbox.disabled = existingCharge;
+      checkbox.checked = !existingCharge && (checkbox.checked || Boolean(billingSettingFor(studentKey, activeDemoAccount)));
+      const label = checkbox.parentElement.querySelector("span");
+      if (label) label.textContent = existingCharge ? "Cobrança já gerada para este mês" : "Incluir no lote deste mês";
+    });
+    const monthLabel = document.querySelector("#monthly-charge-list-month");
+    const chargeList = document.querySelector("#monthly-charge-list");
+    const charges = chargesForTeacherMonth(activeDemoAccount, billingSelectedMonth);
+    if (monthLabel) monthLabel.textContent = `Mês: ${billingSelectedMonth}`;
+    if (chargeList) {
+      chargeList.innerHTML = charges.length
+        ? charges.map((charge) => renderMonthlyChargeRow(charge, true)).join("")
+        : emptyState("Nenhuma cobrança neste mês", "Salve as regras dos alunos e gere o lote para registrar as cobranças.");
+    }
+    return;
+  }
+  if (target instanceof HTMLInputElement && target.matches("[data-dashboard-month]")) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(target.value)) return;
+    dashboardSelectedMonth = target.value;
+    renderScreen(currentScreen);
+    return;
+  }
+  if (target instanceof HTMLSelectElement && target.matches("[data-student-charge-select]")) {
+    const selectedCharge = monthlyCharges.find((item) =>
+      item.id === target.value && item.studentAccount === activeDemoAccount && item.status === "aberta"
+    );
+    selectedStudentChargeId = selectedCharge ? selectedCharge.id : null;
+    const charge = selectedCharge || null;
+    const balanceCents = charge
+      ? Math.max(0, charge.finalAmountCents - chargeConfirmedCents(charge))
+      : null;
+    const amountInput = document.querySelector("#cash-amount");
+    if (amountInput) amountInput.value = balanceCents === null ? "150.00" : (balanceCents / 100).toFixed(2);
+    const alreadySent = charge
+      ? chargeHasPendingPayment(charge.id)
+      : receiptPayments.some((payment) => payment.account === activeDemoAccount && !payment.chargeId);
+    const fileInput = document.querySelector("[data-receipt-file]");
+    const warning = document.querySelector("#duplicate-receipt-warning");
+    const status = document.querySelector("#receipt-status");
+    if (fileInput) fileInput.disabled = alreadySent;
+    if (warning) warning.hidden = !alreadySent;
+    if (status) status.textContent = alreadySent ? "Comprovante enviado; aguardando confirmação do professor." : "";
+    updateReceiptComparison();
+  }
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-billing-form]")) return;
+  event.preventDefault();
+  const form = event.target;
+  const button = form.querySelector("[data-save-billing-settings]");
+  const generateButton = form.querySelector("[data-generate-monthly-charges]");
+  runButtonAction(button, {
+    feedback: form.querySelector("#billing-settings-error"),
+    announcement: form.querySelector("#billing-settings-status"),
+    buttons: [button, generateButton],
+    loadingText: "Salvando...",
+    loadingMessage: "Salvando regras de cobrança fictícias.",
+    successMessage: "Regras e carência salvas nesta demonstração.",
+    errorMessage: "Não foi possível salvar as regras. Tente novamente.",
+    afterSuccess: () => {
+      renderScreen("monthly-charges");
+      showToast("Regras e carência salvas nesta demonstração.");
+    }
+  }, async () => {
+    if (activeRole !== "professor") return { errorMessage: "Somente o Professor pode configurar cobranças." };
+    const parsed = readBillingForm(form);
+    if (parsed.errorMessage) return parsed;
+    if (new URLSearchParams(window.location.search).get("erro-simulado") === "professor-cobranca-salvar") {
+      throw new Error("Falha simulada ao salvar regras de cobrança.");
+    }
+    updateDemoPayments(() => {
+      const otherSettings = billingSettings.filter((setting) => setting.professorAccount !== activeDemoAccount);
+      billingSettings.splice(0, billingSettings.length, ...otherSettings, ...parsed.settings);
+      billingGraceDaysByProfessor.set(activeDemoAccount, parsed.graceDays);
+    });
+  });
+});
+
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const generateButton = target.closest("[data-generate-monthly-charges]");
+  if (generateButton) {
+    const form = generateButton.closest("[data-billing-form]");
+    const saveButton = form.querySelector("[data-save-billing-settings]");
+    runButtonAction(generateButton, {
+      feedback: form.querySelector("#billing-generate-error"),
+      announcement: form.querySelector("#billing-generate-status"),
+      buttons: [generateButton, saveButton],
+      loadingText: "Gerando...",
+      loadingMessage: "Registrando cobranças do mês.",
+      successMessage: "Cobranças geradas nesta demonstração.",
+      errorMessage: "Não foi possível gerar as cobranças. Tente novamente.",
+      afterSuccess: () => {
+        renderScreen("monthly-charges");
+        showToast("Cobranças geradas nesta demonstração.");
+      }
+    }, async () => {
+      if (activeRole !== "professor") return { errorMessage: "Somente o Professor pode gerar cobranças." };
+      const parsed = readBillingForm(form);
+      if (parsed.errorMessage) return parsed;
+      if (parsed.selectedStudentKeys.length > 24) return { errorMessage: "Selecione no máximo 24 alunos por lote." };
+      if (!parsed.selectedStudentKeys.length) return { errorMessage: "Selecione ao menos um aluno configurado." };
+      if (new URLSearchParams(window.location.search).get("erro-simulado") === "professor-cobranca-lote") {
+        throw new Error("Falha simulada ao gerar cobranças.");
+      }
+
+      const selectedSettings = parsed.selectedStudentKeys.map((studentKey) =>
+        parsed.settings.find((setting) => setting.studentKey === studentKey)
+      );
+      if (selectedSettings.some((setting) => !setting)) {
+        return { errorMessage: "Salve um valor-base e vencimento válidos para cada aluno selecionado." };
+      }
+      const selectedStudents = parsed.selectedStudentKeys.map((studentKey) => demoRoster[Number(studentKey)]);
+      if (selectedStudents.some((student) => !student || student.teacherAccount !== activeDemoAccount || student.status === "locked")) {
+        return { errorMessage: "Um aluno selecionado não está disponível nesta turma." };
+      }
+      if (parsed.selectedStudentKeys.some((studentKey) => monthlyCharges.some((charge) =>
+        charge.studentKey === studentKey && charge.professorAccount === activeDemoAccount && charge.month === parsed.month
+      ))) {
+        return { errorMessage: "Uma ou mais cobranças já foram geradas para este mês." };
+      }
+
+      const charges = selectedStudents.map((student, index) => {
+        const setting = selectedSettings[index];
+        const amounts = billingAmountsFor(setting, parsed.month);
+        return {
+          id: `monthly-charge-${Date.now()}-${index}`,
+          studentKey: setting.studentKey,
+          studentAccount: student.account,
+          studentName: student.name,
+          professorAccount: activeDemoAccount,
+          month: parsed.month,
+          dueDate: `${parsed.month}-${String(setting.dueDay).padStart(2, "0")}`,
+          ...amounts
+        };
+      });
+      updateDemoPayments(() => {
+        const otherSettings = billingSettings.filter((setting) => setting.professorAccount !== activeDemoAccount);
+        billingSettings.splice(0, billingSettings.length, ...otherSettings, ...parsed.settings);
+        billingGraceDaysByProfessor.set(activeDemoAccount, parsed.graceDays);
+        monthlyCharges.push(...charges);
+      });
+    });
+    return;
+  }
+
+  const cancelChargeButton = target.closest("[data-cancel-monthly-charge]");
+  if (!cancelChargeButton) return;
+  const chargeRow = cancelChargeButton.closest("[data-monthly-charge]");
+  const chargeId = cancelChargeButton.dataset.cancelMonthlyCharge;
+  const charge = monthlyCharges.find((item) =>
+    item.id === chargeId && item.professorAccount === activeDemoAccount
+  );
+  if (activeRole !== "professor" || !charge || charge.status !== "aberta") return;
+  if (!chargeHasActivePayment(charge.id) &&
+      !window.confirm(`Cancelar a cobrança de ${charge.studentName} referente a ${charge.month}? Ela continuará no histórico e sairá dos indicadores.`)) {
+    return;
+  }
+  runButtonAction(cancelChargeButton, {
+    feedback: chargeRow.querySelector("[data-cancel-charge-error]"),
+    announcement: chargeRow.querySelector("[data-cancel-charge-status]"),
+    buttons: [cancelChargeButton],
+    loadingText: "Cancelando...",
+    loadingMessage: "Cancelando a cobrança fictícia.",
+    successMessage: "Cobrança cancelada; o registro continua no histórico.",
+    errorMessage: "Não foi possível cancelar a cobrança. Tente novamente.",
+    afterSuccess: () => {
+      renderScreen("monthly-charges");
+      showToast("Cobrança cancelada; o registro continua no histórico.");
+    }
+  }, async () => {
+    const currentCharge = monthlyCharges.find((item) =>
+      item.id === chargeId && item.professorAccount === activeDemoAccount
+    );
+    if (activeRole !== "professor" || !currentCharge || currentCharge.status !== "aberta") {
+      return { errorMessage: "Esta cobrança não está mais aberta. Atualize a tela e tente novamente." };
+    }
+    if (chargeHasActivePayment(currentCharge.id)) {
+      return { errorMessage: "Rejeite os avisos pendentes ou estorne os pagamentos antes de cancelar esta cobrança." };
+    }
+    updateDemoPayments(() => { currentCharge.status = "cancelada"; });
+  });
 });

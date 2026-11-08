@@ -262,9 +262,9 @@ window.CASOS_ACEITE_F1 = [
     titulo: "Desconto e isenção são aplicados à cobrança",
     perfil: "Professor",
     regras: "RN08–RN09",
-    precondicoes: "Aluno fictício e cobrança com valor-base simbólico V; desconto ou isenção configurados.",
-    passos: ["Gerar a cobrança com desconto.", "Gerar outra cobrança com isenção.", "Conferir os valores apresentados."],
-    esperado: "O valor devido corresponde à regra configurada; a isenção resulta em valor devido zero sem criar recebimento fictício."
+    precondicoes: "Professor da turma com regras de cobrança disponíveis e mês selecionado.",
+    passos: ["Definir valor-base e vencimento de um aluno.", "Aplicar desconto fixo e percentual com duração de um mês e de N meses; testar também até remover.", "Gerar cobranças e conferir os valores-base, descontos e valores finais no histórico.", "Aplicar isenção com e sem motivo; conferir o alerta para não registrar dados sensíveis."],
+    esperado: "Desconto fixo ou percentual reduz o valor-base sem valor final negativo; a duração segue o mês inicial selecionado e as regras não alteram cobranças já geradas. A isenção zera a cobrança sem criar recebimento."
   },
   {
     id: "F1-PAG-06",
@@ -272,9 +272,9 @@ window.CASOS_ACEITE_F1 = [
     titulo: "Pagamento parcial mantém o saldo em aberto",
     perfil: "Professor",
     regras: "RN09",
-    precondicoes: "Cobrança fictícia com saldo devido maior que zero.",
-    passos: ["Registrar um pagamento parcial válido.", "Consultar pagamentos associados e saldo restante."],
-    esperado: "O valor pago fica registrado, o saldo restante é calculado corretamente e a cobrança não aparece integralmente paga."
+    precondicoes: "Cobrança fictícia aberta com saldo devido maior que zero.",
+    passos: ["Vincular aviso em dinheiro ou comprovante à cobrança com valor inferior ao saldo.", "Conferir que o aviso fica pendente e o saldo só muda depois da confirmação do Professor.", "Registrar outro pagamento parcial confirmado e conferir o saldo final."],
+    esperado: "Avisos pendentes não marcam a cobrança como paga. Pagamentos parciais confirmados reduzem o saldo e a cobrança só passa a paga quando o total confirmado cobre o valor final."
   },
   {
     id: "F1-PAG-07",
@@ -282,9 +282,9 @@ window.CASOS_ACEITE_F1 = [
     titulo: "Status de vencimento respeita carência configurada",
     perfil: "Professor",
     regras: "RN10",
-    precondicoes: "Cobrança fictícia em aberto, data de vencimento e carência configuráveis no ambiente de teste.",
-    passos: ["Consultar antes do vencimento.", "Consultar no vencimento e durante a carência.", "Avançar o relógio de teste além da carência."],
-    esperado: "O status segue pendente/a vencer antes do atraso e só passa a atrasado depois da carência definida."
+    precondicoes: "Cobrança fictícia aberta, vencimento de 1 a 28 e carência configurável entre 0 e 30 dias.",
+    passos: ["Consultar antes e no dia do vencimento.", "Consultar durante a carência e no dia exato de vencimento + carência.", "Consultar depois desse limite.", "Recarregar e conferir que o atraso continua calculado, sem campo de atraso gravado."],
+    esperado: "A cobrança só fica atrasada quando hoje é maior que vencimento + carência. O padrão é 5 dias; carência e status atrasado não são gravados como estado da cobrança."
   },
   {
     id: "F1-PAG-08",
@@ -304,17 +304,37 @@ window.CASOS_ACEITE_F1 = [
     regras: "RN11",
     precondicoes: "Aluno fictício com status trancado e período de trancamento registrado.",
     passos: ["Executar o fluxo de geração de cobranças do período.", "Consultar as cobranças do aluno."],
-    esperado: "Nenhuma cobrança é gerada para o período trancado; cobranças anteriores preservam seu histórico."
+    esperado: "Aluno marcado trancado não pode ser selecionado para o lote; cobranças anteriores preservam seu histórico."
   },
   {
     id: "F1-FIN-01",
     area: "Painel financeiro",
-    titulo: "Resumo separa previsto, recebido, pendente e atrasado",
+    titulo: "Resumo mensal separa os seis estados financeiros",
     perfil: "Professor",
     regras: "RN13",
     precondicoes: "Conjunto fictício de cobranças e pagamentos com estados conhecidos.",
-    passos: ["Abrir o painel do professor.", "Comparar os indicadores aos registros de teste."],
-    esperado: "Cada indicador corresponde aos registros do período e distingue valores previstos, confirmados, pendentes e atrasados."
+    passos: ["Abrir o painel do Professor e selecionar o mês.", "Comparar previsto, confirmado, aguardando confirmação, em aberto, atrasado e isento aos registros de teste."],
+    esperado: "Os seis indicadores correspondem às cobranças e pagamentos do mês selecionado; atrasos seguem vencimento + carência e o estado de Instrutor nunca exibe valores."
+  },
+  {
+    id: "F1-PAG-10",
+    area: "Pagamentos",
+    titulo: "Instrutor não vê valores de cobrança",
+    perfil: "Instrutor",
+    regras: "RN11",
+    precondicoes: "Instrutor vinculado a uma academia com cobrança fictícia própria.",
+    passos: ["Abrir Início e Meus pagamentos.", "Consultar status e vencimento da própria cobrança."],
+    esperado: "O Instrutor vê somente o status e o vencimento próprios; nenhum valor ou pagamento de outros alunos aparece."
+  },
+  {
+    id: "F1-PAG-11",
+    area: "Pagamentos",
+    titulo: "Cancelamento mantém histórico e exclui a cobrança dos indicadores",
+    perfil: "Professor",
+    regras: "RN10, RN13",
+    precondicoes: "Há cobranças fictícias abertas do Professor, incluindo uma com aviso pendente ou pagamento confirmado.",
+    passos: ["Tentar cancelar a cobrança com aviso/pagamento associado e conferir o bloqueio com instrução para rejeitar ou estornar.", "Rejeitar o aviso ou estornar o pagamento e tentar novamente.", "Confirmar o cancelamento de uma cobrança sem pagamento ativo.", "Consultar o painel, atrasos e histórico após recarregar."],
+    esperado: "A ação aparece somente ao Professor e apenas para cobranças abertas, após confirmação. Avisos pendentes e pagamentos confirmados bloqueiam a ação até rejeição ou estorno; a cobrança cancelada permanece no histórico e não entra no painel nem em atrasos."
   },
   {
     id: "F1-FIN-02",
