@@ -15,14 +15,76 @@
         <img src="assets/logos/tatame-icone-escudo.svg" alt="">
         <span class="brand-caption">TATAME · PRIVACIDADE</span>
       </a>
-      <a class="button button--quiet" href="index.html">Voltar ao protótipo</a>
+      <div class="privacy-page-actions">
+        <button class="button button--quiet" id="privacy-theme-toggle" type="button" aria-pressed="false">Tema: escuro</button>
+        <a class="button button--quiet" href="index.html">Voltar ao protótipo</a>
+      </div>
     </header>
     <article class="panel-card privacy-page-card">
-      <p class="eyebrow">CONTEÚDO PENDENTE</p>
+      <p class="eyebrow">RASCUNHO PARA REVISÃO</p>
       <h1>Privacidade e consentimento</h1>
-      <p class="notice notice--pending">O texto da política e do termo ainda precisa ser revisado e aprovado. Este protótipo não registra consentimento.</p>
-      <p class="panel-copy">Esta página é apenas uma estrutura visual de demonstração. Ela não substitui uma política aprovada nem declara conformidade legal.</p>
+      <div class="privacy-draft-content">
+        <p class="notice notice--pending">Rascunho sujeito a revisão jurídica; não declara conformidade legal.</p>
+        <p class="panel-copy">O texto é provisório. O termo de consentimento não está implementado e este protótipo não registra aceite. Finalidades e bases legais ainda precisam ser confirmadas antes da publicação.</p>
+
+        <section class="privacy-draft-section">
+          <h2>Dados presentes no protótipo</h2>
+          <p>As telas de demonstração usam dados fictícios, guardados no navegador, e não enviam esses dados ao Supabase. Nos fluxos reais já conectados, o código prevê categorias como:</p>
+          <ul>
+            <li>e-mail da conta usado na autenticação Google;</li>
+            <li>nome, papel, idade declarada, foto de perfil e vínculo com a academia;</li>
+            <li>nome da academia, vínculos e pedidos entre Aluno e Professor;</li>
+            <li>e-mail de Professor convidado e estado do convite; convites de Instrutor guardam o hash do token, datas e estado;</li>
+            <li>nome e idade declarada de aluno sem conta.</li>
+          </ul>
+          <p>O protótipo não solicita data de nascimento nos fluxos de idade declarada. Contato de academia e outros dados exibidos na demonstração são fictícios.</p>
+        </section>
+
+        <section class="privacy-draft-section">
+          <h2>Compartilhamento</h2>
+          <p>As telas e políticas de acesso usam o papel e os vínculos para limitar o que cada conta pode consultar. O detalhamento das finalidades, dos destinatários e das informações necessárias ainda deve ser revisado antes da publicação.</p>
+        </section>
+
+        <section class="privacy-draft-section">
+          <h2>Menores de 18 anos</h2>
+          <p>A idade é declarada como adulto ou menor de 18 anos; não é solicitada data de nascimento. Para menores, o protótipo prevê somente avatar, sem foto de perfil. Convites de Instrutor exigem declaração de adulto.</p>
+        </section>
+
+        <section class="privacy-draft-section">
+          <h2>Fotos</h2>
+          <p>O perfil pode usar uma foto por URL nos fluxos permitidos; menores de 18 anos ficam apenas com avatar. Origem, armazenamento, visibilidade e prazo de retenção das fotos precisam ser confirmados antes da versão final.</p>
+        </section>
+
+        <section class="privacy-draft-section">
+          <h2>Exclusão de conta</h2>
+          <p>Quando a exclusão real for implementada, os dados pessoais da conta serão apagados. Dados compartilhados que precisem permanecer para outros usuários serão apresentados como “Conta excluída”. A exclusão real ainda está em construção: o botão atual do protótipo não apaga nenhum dado.</p>
+        </section>
+
+        <section class="privacy-draft-section">
+          <h2>Retenção</h2>
+          <p>Os prazos de retenção ainda não foram definidos. Eles precisam ser especificados por categoria de dado e revisados antes da publicação; este rascunho não estabelece um prazo.</p>
+        </section>
+
+        <section class="privacy-draft-section">
+          <h2>Direitos e solicitações</h2>
+          <p>O titular poderá solicitar informações sobre seus dados, correção ou exclusão pelo canal de contato indicado abaixo. Os procedimentos e prazos de atendimento ainda precisam ser definidos; não há autosserviço de direitos implementado neste protótipo.</p>
+        </section>
+
+        <section class="privacy-draft-section privacy-draft-contact">
+          <h2>Contato</h2>
+          <p>[CONTATO A DEFINIR]</p>
+        </section>
+      </div>
     </article>
   </main>
+  <script>
+    const themeToggle = document.querySelector("#privacy-theme-toggle");
+    themeToggle.addEventListener("click", () => {
+      const useLightTheme = document.body.dataset.theme !== "light";
+      document.body.dataset.theme = useLightTheme ? "light" : "dark";
+      themeToggle.setAttribute("aria-pressed", String(useLightTheme));
+      themeToggle.textContent = `Tema: ${useLightTheme ? "claro" : "escuro"}`;
+    });
+  </script>
 </body>
 </html>

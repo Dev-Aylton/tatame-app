@@ -231,7 +231,28 @@ h2 {
 .filters {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
+}
+
+.show-validated-control {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px;
+  color: #b7bbc1;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.show-validated-control input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--gold);
 }
 
 .filter-button {
@@ -255,9 +276,33 @@ h2 {
 }
 
 .filter-button:focus-visible,
+.show-validated-control:focus-within,
 a:focus-visible {
   outline: 2px solid #f2d783;
   outline-offset: 3px;
+}
+
+.phase-heading {
+  display: flex;
+  list-style: none;
+  cursor: pointer;
+}
+
+.phase-heading::-webkit-details-marker {
+  display: none;
+}
+
+.phase-heading::after {
+  content: "⌄";
+  flex: 0 0 auto;
+  color: var(--gold);
+  font-size: 17px;
+  line-height: 1;
+  transition: transform 160ms ease;
+}
+
+.phase-card[open] > .phase-heading::after {
+  transform: rotate(180deg);
 }
 
 .section-description {

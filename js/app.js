@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "0.1.6";
+const APP_VERSION = "0.1.15";
 const diagnosticEvents = [];
 let versionClicks = 0;
 
@@ -384,7 +384,7 @@ const tutorialStepsByRole = {
   adm: [
     ["admin-home", "Painel do Adm", "Acompanhe os dados administrativos fictícios e os avisos gerais. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
     ["teacher-invites", "Professores convidados", "Convide professores. Só o Adm define quem será Professor."],
-    ["role-management", "Papéis e academia", "Defina o papel de Professor, vincule-o a uma academia e, quando necessário, gradue um Instrutor a Professor."],
+    ["role-management", "Papéis e academia", "Na conta real do Adm, vincule-se a um Professor ativo, consulte Professores e Instrutores e troque, desative ou reative Professores. Na demonstração, as operações continuam simuladas."],
     ["academy", "Academia", "Cadastre ou altere nome, telefone e e-mail fictícios; a foto é apenas um símbolo simulado, sem arquivo. Consulte equipe e horários e vincule Professores na tela de papéis."],
     ["user-settings", "Fotos e privacidade", "O Adm pode ver fotos de Professores, nunca de alunos. A idade é declarada sem data de nascimento; menores usam somente avatar. Consentimento e fotos são simulados e não persistem."],
     ["user-settings", "Preferências", "Confira tema e opções demonstrativas da conta."],
@@ -396,7 +396,7 @@ const tutorialStepsByRole = {
     ["student-detail", "Ficha do aluno", "Veja perfil, pagamentos, graduações e notas privadas. Em Graduações, escolha um aluno da sua turma, faixa e grau superiores e a data; confirme para registrar. Notas privadas não são compartilhadas com o Instrutor."],
     ["student-create", "Novo aluno", "Cadastre um aluno fictício com sua faixa e grau atuais. Nome e graduação ficam neste navegador; os demais campos não são salvos e nenhum login ou convite é criado."],
     ["student-detail", "Idade e foto do aluno", "Para aluno sem registro, marque a faixa etária declarada sem pedir data de nascimento. Menores usam avatar; fotos de alunos adultos ficam visíveis somente ao Professor responsável."],
-    ["teacher-code", "Código e convites", "Veja pedidos de vínculo, aprove ou recuse e gere links de uso único com validade de três dias."],
+    ["teacher-code", "Código e convites", "Na conta real, o Professor ativo vinculado à academia vê e decide pedidos de vínculo, cadastra alunos sem conta e gera links únicos para Instrutores adultos; também pode revogar convites pendentes. A demonstração continua simulada."],
     ["role-management", "Papéis e aula delegada", "Promova somente seus alunos a Instrutor, autorize-o e decida se compartilha o plano ou deixa o treino livre. O Instrutor é um aluno com função de apoio: vê nome e graduação da turma, nunca pagamentos alheios, notas privadas ou conversas de terceiros; você decide o conteúdo."],
     ["pix-import", "Importar extrato Pix", "Importe um extrato para sugerir correspondências. Nada é pago ou confirmado automaticamente."],
     ["payment-review", "Pagamentos a confirmar", "Confira avisos ou lance dinheiro recebido: busque o aluno da turma, informe tipo e referência e confirme os dados. É possível desfazer por 10 segundos; depois, use Estornar. O histórico é preservado nesta simulação."],
@@ -406,6 +406,7 @@ const tutorialStepsByRole = {
     ["academy", "Academia", "Se estiver vinculado, altere nome, telefone e e-mail fictícios e simule a troca da foto sem arquivo. Consulte equipe e horários; publique ou retorne sua grade para rascunho."],
     ["user-settings", "Preferências", "Confira tema, atualização e acesso à privacidade."],
     ["user-settings", "Sua foto", "Escolha uma foto, ajuste zoom e enquadramento e salve a prévia local. Consentimento para a foto do Google pode ser recusado; menores usam somente avatar. Nada é enviado ou guardado após esta sessão."],
+    ["user-settings", "Nome do perfil real", "Na conta Google real, um Professor ativo vinculado a uma academia pode definir o próprio nome na tela Conta Google. A demonstração continua simulada e separada."],
     ["privacy", "Privacidade", "Leia os avisos de privacidade e o estado do conteúdo pendente."]
   ],
   instructor: [
@@ -421,11 +422,11 @@ const tutorialStepsByRole = {
   ],
   student: [
     ["student-home", "Início", "Consulte seu perfil, o status da mensalidade e atalhos pessoais. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
-    ["student-link", "Meu vínculo", "Veja seu Professor e academia, troque de Professor por código e acompanhe pedidos pendentes."],
+    ["student-link", "Meu vínculo", "Na conta Google real, o Aluno ativo acompanha o estado do pedido de vínculo. Na demonstração, Professor, academia e pedidos continuam simulados."],
     ["student-payments", "Meus pagamentos", "Consulte suas cobranças, envie comprovante ou informe um pagamento em dinheiro, que fica pendente até a confirmação do Professor."],
     ["student-grades", "Minhas graduações", "Acompanhe sua faixa e seu histórico de graduações."],
     ["student-chat", "Conversa com o Professor", "Envie mensagens somente ao seu Professor."],
-    ["link-teacher", "Vincular a um Professor", "Confira o nome do Professor e da academia antes de pedir vínculo."],
+    ["link-teacher", "Vincular a um Professor", "Na conta Google real do Aluno ativo, digite o código de seis caracteres para enviar o pedido e acompanhe se está pendente, aprovado ou recusado. Na demonstração, confira a prévia fictícia antes de pedir vínculo."],
     ["academy", "Academia", "Veja professores, Instrutores e horários publicados da sua academia."],
     ["user-settings", "Preferências", "Confira tema e opções demonstrativas da conta."],
     ["user-settings", "Sua foto", "A cópia simulada da foto do Google só aparece após consentimento. Menores usam somente avatar; a foto escolhida fica apenas nesta sessão do navegador."],
@@ -460,7 +461,37 @@ const publicScreens = ["login", "register", "link-teacher", "no-access", "instru
 let activeRole = null;
 let activeDemoAccount = null;
 let realUser = null;
+let realProfile = null;
 let realProfileState = "checking";
+let realProfileNotice = "";
+let realProfessorActivated = false;
+let professorActivationSessionUserId = null;
+let professorActivationPromise = null;
+let realTeacherCode = null;
+let realTeacherCodeState = "idle";
+let realTeacherCodeNotice = "";
+let realTeacherCodeRequestSequence = 0;
+let realInstructorInvites = [];
+let realInstructorInvitesState = "idle";
+let realInstructorInvitesNotice = "";
+let realInstructorInvitesSequence = 0;
+let realInstructorInviteToken = new URLSearchParams(window.location.search).get("convite_instrutor") || "";
+let realInstructorInviteUrl = "";
+let realStudentLinkState = "idle";
+let realStudentLinkRequest = null;
+let realStudentLinkNotice = "";
+let realStudentLinkRequestSequence = 0;
+let realTeacherLinkRequests = [];
+let realTeacherLinkRequestsState = "idle";
+let realTeacherLinkRequestsNotice = "";
+let realTeacherLinkRequestsSequence = 0;
+let realUnregisteredStudents = [];
+let realUnregisteredStudentsState = "idle";
+let realUnregisteredStudentsNotice = "";
+let realUnregisteredStudentsSequence = 0;
+let realCreatedAcademyId = null;
+let realCreatedAcademy = null;
+let realAdminAcademies = [];
 let authClient = null;
 let authCheckSequence = 0;
 let loginNotice = "";
@@ -516,7 +547,7 @@ const mobileNavigationLabels = {
   login: "Entrar", register: "Cadastro", "link-teacher": "Vincular",
   "student-home": "Início", "student-link": "Vínculo", "student-payments": "Pagamentos",
   "student-grades": "Graduações", "teacher-home": "Início", students: "Alunos",
-  "student-detail": "Ficha", "student-create": "Novo aluno", "instructor-class": "Aula",
+  "student-detail": "Ficha", "student-create": "Novo aluno", "teacher-code": "Código", "instructor-class": "Aula",
   "admin-home": "Início", "teacher-invites": "Convites", "role-management": "Papéis",
   academy: "Academia"
 };
@@ -528,9 +559,15 @@ function navigationIcon(id) {
 }
 
 function renderNavigation() {
-  const visibleGroups = activeRole
-    ? navigationGroups.filter((group) => group.roles.includes(activeRole))
-    : navigationGroups.filter((group) => group.roles.includes("public"));
+  const visibleGroups = isRealAdmSession()
+    ? navigationGroups.filter((group) => group.roles.includes("adm"))
+    : isRealProfessorProfile()
+      ? navigationGroups.filter((group) => group.roles.includes("professor"))
+    : isRealActiveStudent()
+      ? navigationGroups.filter((group) => group.roles.includes("student-unregistered"))
+    : activeRole
+      ? navigationGroups.filter((group) => group.roles.includes(activeRole))
+      : navigationGroups.filter((group) => group.roles.includes("public"));
   navigation.innerHTML = visibleGroups.map((group) => ({
     ...group,
     items: group.items.filter(([id]) => canViewScreen(id))
@@ -551,9 +588,15 @@ function renderNavigation() {
 function renderMobileNavigation() {
   const mobileNavigation = document.querySelector("#mobile-navigation");
   if (!mobileNavigation) return;
-  const items = activeRole
-    ? (roleScreens[activeRole] || []).filter((id) => canViewScreen(id)).slice(0, 4)
-    : ["login", "register", "link-teacher"];
+  const items = isRealAdmSession()
+    ? ["teacher-invites", "role-management", "academy"]
+    : isRealProfessorProfile()
+      ? ["teacher-code"]
+      : isRealActiveStudent()
+        ? ["link-teacher"]
+      : activeRole
+        ? (roleScreens[activeRole] || []).filter((id) => canViewScreen(id)).slice(0, 4)
+        : ["login", "register", "link-teacher"];
   mobileNavigation.style.setProperty("--mobile-nav-items", items.length);
   mobileNavigation.innerHTML = items.map((id) => {
     const info = screenInfo[id] || { title: id, group: "" };
@@ -565,6 +608,11 @@ function renderMobileNavigation() {
 
 function canViewScreen(id) {
   if (id === "real-account") return Boolean(realUser) && !activeRole;
+  if (realUser && !activeRole) {
+    return (id === "link-teacher" ? isRealActiveStudent() : publicScreens.includes(id)) ||
+      (isRealAdmSession() && ["academy", "teacher-invites", "role-management"].includes(id)) ||
+      (isRealProfessorProfile() && id === "teacher-code");
+  }
   if (activeRole === null) return publicScreens.includes(id);
   if (id === "academy" && activeRole !== "adm" && !demoProfiles[activeDemoAccount].academyId) return false;
   if (activeRole === "instructor") {
@@ -786,7 +834,7 @@ function getPhotoProfile(key) {
   return key ? photoProfiles.get(key) || { age: "unknown", googleConsent: false, photo: null } : { age: "unknown", googleConsent: false, photo: null };
 }
 
-function avatar(image = "avatar-masculino.svg", alt = "Avatar genérico de demonstração", photoKey = null, personKind = "student", className = "") {
+function avatar(image = "avatar-masculino.jpg", alt = "Avatar genérico de demonstração", photoKey = null, personKind = "student", className = "") {
   const profile = getPhotoProfile(photoKey);
   const photoIsVisible = !(activeRole === "adm" && personKind === "student") &&
     profile.age === "adult" && profile.photo &&
@@ -798,7 +846,7 @@ function avatar(image = "avatar-masculino.svg", alt = "Avatar genérico de demon
   return `<span class="avatar ${className}"><img src="${escapeHtml(source)}" alt="${escapeHtml(photoIsVisible ? "Foto de perfil demonstrativa" : alt)}"${photoStyle}></span>`;
 }
 
-function personRow(name, detail, image = "avatar-masculino.svg", badge = "", photoKey = null, personKind = "student") {
+function personRow(name, detail, image = "avatar-masculino.jpg", badge = "", photoKey = null, personKind = "student") {
   return `
     <div class="person-row">
       ${avatar(image, "Avatar genérico de demonstração", photoKey, personKind)}
@@ -828,7 +876,7 @@ function profilePhotoCard(account, role) {
     : "Avatar de demonstração.";
   return panel("Foto e idade", `
     <div class="profile-photo-card">
-      ${avatar(role === "instructor" ? "avatar-feminino.svg" : "avatar-masculino.svg", "Avatar do perfil", account, "self", "avatar--large")}
+      ${avatar(role === "instructor" ? "avatar-feminino.jpg" : "avatar-masculino.jpg", "Avatar do perfil", account, "self", "avatar--large")}
       <div class="profile-photo-copy">
         <strong>${photoProfile.age === "adult" ? "Declaração: 18 anos ou mais" : photoProfile.age === "minor" ? "Declaração: menor de 18 anos" : "Idade ainda não informada"}</strong>
         <small>${photoDescription}</small>
@@ -1265,6 +1313,79 @@ function createUniqueTeacherLinkCode(account) {
   return code;
 }
 
+async function copyTeacherCode(codeElement) {
+  const code = codeElement.textContent.trim();
+  if (!/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(code)) {
+    return "O código não está disponível para cópia. Atualize a tela e tente novamente.";
+  }
+
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+    try {
+      await navigator.clipboard.writeText(code);
+      return "";
+    } catch (error) {
+      return copyTeacherCodeFromSelection(codeElement);
+    }
+  }
+  return copyTeacherCodeFromSelection(codeElement);
+}
+
+function copyTeacherCodeFromSelection(codeElement) {
+  const selection = window.getSelection();
+  if (!selection || typeof document.createRange !== "function") {
+    return "Não foi possível copiar automaticamente. Selecione o código e use Ctrl+C para copiá-lo.";
+  }
+
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(codeElement);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const copied = typeof document.execCommand === "function" && document.execCommand("copy");
+    if (copied) {
+      selection.removeAllRanges();
+      return "";
+    }
+  } catch (error) {
+    return "Não foi possível copiar automaticamente. O código está selecionado; use Ctrl+C para copiá-lo.";
+  }
+  return "Não foi possível copiar automaticamente. O código está selecionado; use Ctrl+C para copiá-lo.";
+}
+
+async function copyInstructorInviteLink(link) {
+  if (!link) return "O link não está disponível. Gere um novo convite.";
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+    try {
+      await navigator.clipboard.writeText(link);
+      return "";
+    } catch {
+      return copyInstructorInviteLinkFromSelection(link);
+    }
+  }
+  return copyInstructorInviteLinkFromSelection(link);
+}
+
+function copyInstructorInviteLinkFromSelection(link) {
+  const field = document.createElement("textarea");
+  field.value = link;
+  field.setAttribute("readonly", "");
+  field.setAttribute("aria-hidden", "true");
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  field.style.pointerEvents = "none";
+  let copied = false;
+  try {
+    document.body.appendChild(field);
+    field.select();
+    copied = typeof document.execCommand === "function" && document.execCommand("copy");
+  } catch {
+    copied = false;
+  } finally {
+    field.remove();
+  }
+  return copied ? "" : "Não foi possível copiar o link automaticamente. Tente novamente em um navegador compatível.";
+}
+
 function validateTeacherLinkCode(code, result, preview) {
   const key = activeDemoAccount || "visitor";
   const attempt = linkCodeAttempts.get(key) || { count: 0, lockedUntil: 0 };
@@ -1381,7 +1502,62 @@ function maybeOpenFirstTutorial(account) {
   openTutorial(account);
 }
 
-const privacyPlaceholder = "O texto da política e do termo ainda precisa ser revisado e aprovado. Este protótipo não registra consentimento.";
+const privacyPlaceholder = "Política e termo em rascunho, sujeitos a revisão jurídica. Este protótipo não registra consentimento.";
+
+function renderPrivacyDraftContent(headingTag = "h2") {
+  return `
+    <p class="notice notice--pending">Rascunho sujeito a revisão jurídica; não declara conformidade legal.</p>
+    <p class="panel-copy">O texto é provisório. O termo de consentimento não está implementado e este protótipo não registra aceite. Finalidades e bases legais ainda precisam ser confirmadas antes da publicação.</p>
+
+    <section class="privacy-draft-section">
+      <${headingTag}>Dados presentes no protótipo</${headingTag}>
+      <p>As telas de demonstração usam dados fictícios, guardados no navegador, e não enviam esses dados ao Supabase. Nos fluxos reais já conectados, o código prevê categorias como:</p>
+      <ul>
+        <li>e-mail da conta usado na autenticação Google;</li>
+        <li>nome, papel, idade declarada, foto de perfil e vínculo com a academia;</li>
+        <li>nome da academia, vínculos e pedidos entre Aluno e Professor;</li>
+        <li>e-mail de Professor convidado e estado do convite; convites de Instrutor guardam o hash do token, datas e estado;</li>
+        <li>nome e idade declarada de aluno sem conta.</li>
+      </ul>
+      <p>O protótipo não solicita data de nascimento nos fluxos de idade declarada. Contato de academia e outros dados exibidos na demonstração são fictícios.</p>
+    </section>
+
+    <section class="privacy-draft-section">
+      <${headingTag}>Compartilhamento</${headingTag}>
+      <p>As telas e políticas de acesso usam o papel e os vínculos para limitar o que cada conta pode consultar. O detalhamento das finalidades, dos destinatários e das informações necessárias ainda deve ser revisado antes da publicação.</p>
+    </section>
+
+    <section class="privacy-draft-section">
+      <${headingTag}>Menores de 18 anos</${headingTag}>
+      <p>A idade é declarada como adulto ou menor de 18 anos; não é solicitada data de nascimento. Para menores, o protótipo prevê somente avatar, sem foto de perfil. Convites de Instrutor exigem declaração de adulto.</p>
+    </section>
+
+    <section class="privacy-draft-section">
+      <${headingTag}>Fotos</${headingTag}>
+      <p>O perfil pode usar uma foto por URL nos fluxos permitidos; menores de 18 anos ficam apenas com avatar. Origem, armazenamento, visibilidade e prazo de retenção das fotos precisam ser confirmados antes da versão final.</p>
+    </section>
+
+    <section class="privacy-draft-section">
+      <${headingTag}>Exclusão de conta</${headingTag}>
+      <p>Quando a exclusão real for implementada, os dados pessoais da conta serão apagados. Dados compartilhados que precisem permanecer para outros usuários serão apresentados como “Conta excluída”. A exclusão real ainda está em construção: o botão atual do protótipo não apaga nenhum dado.</p>
+    </section>
+
+    <section class="privacy-draft-section">
+      <${headingTag}>Retenção</${headingTag}>
+      <p>Os prazos de retenção ainda não foram definidos. Eles precisam ser especificados por categoria de dado e revisados antes da publicação; este rascunho não estabelece um prazo.</p>
+    </section>
+
+    <section class="privacy-draft-section">
+      <${headingTag}>Direitos e solicitações</${headingTag}>
+      <p>O titular poderá solicitar informações sobre seus dados, correção ou exclusão pelo canal de contato indicado abaixo. Os procedimentos e prazos de atendimento ainda precisam ser definidos; não há autosserviço de direitos implementado neste protótipo.</p>
+    </section>
+
+    <section class="privacy-draft-section privacy-draft-contact">
+      <${headingTag}>Contato</${headingTag}>
+      <p>[CONTATO A DEFINIR]</p>
+    </section>
+  `;
+}
 
 const screens = {
   login() {
@@ -1433,16 +1609,63 @@ const screens = {
   },
 
   "real-account"() {
+    const role = realProfile ? escapeHtml(realProfile.papel || "Não definido") : "";
+    const storedName = realProfile && typeof realProfile.nome === "string" ? realProfile.nome.trim() : "";
+    const canDefineRealTeacherName = isRealActiveProfessor();
+    const profileName = storedName
+      ? escapeHtml(storedName)
+      : canDefineRealTeacherName
+        ? "Defina seu nome abaixo."
+        : isRealProfessorProfile()
+          ? "Edição indisponível."
+          : "Nome não definido";
+    const realProfessorAccessNotice = isRealProfessorProfile() && !canDefineRealTeacherName
+      ? realProfile.ativo !== true
+        ? "Seu perfil de Professor está inativo. Peça ao Adm para reativá-lo antes de definir o nome."
+        : "Seu perfil de Professor não está vinculado a uma academia. Peça ao Adm para vinculá-lo antes de definir o nome."
+      : "";
+    const realTeacherNameSection = canDefineRealTeacherName
+      ? `${storedName ? "" : '<p class="notice notice--pending" id="real-teacher-name-missing" role="status" aria-live="polite">Seu nome ainda não está definido. Defina-o no campo abaixo.</p>'}
+        <form class="real-teacher-name-form" data-real-teacher-name-form>
+          <div class="form-grid">
+            <div class="field field--wide">
+              <label for="real-teacher-name">Nome do perfil</label>
+              <input id="real-teacher-name" name="nome" type="text" value="${escapeHtml(storedName)}" autocomplete="name" maxlength="160" aria-describedby="real-teacher-name-help">
+              <small class="field-help" id="real-teacher-name-help">Use de 2 a 80 caracteres, sem caracteres de controle.</small>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="button button--primary button--action" type="submit" data-real-teacher-name-save aria-describedby="real-teacher-name-error real-teacher-name-status">
+              <span data-action-label>Definir nome</span>
+            </button>
+          </div>
+          <div class="login-action-error" id="real-teacher-name-error" role="alert" aria-atomic="true"></div>
+          <div class="field-help" id="real-teacher-name-status" role="status" aria-live="polite"></div>
+        </form>`
+      : realProfessorAccessNotice
+        ? `<p class="notice notice--pending" role="status">${escapeHtml(realProfessorAccessNotice)}</p>`
+        : "";
     const text = realProfileState === "checking"
       ? ["Verificando seu perfil", "Aguarde a consulta da conta."]
       : realProfileState === "missing"
-        ? ["Sua conta ainda não tem perfil", "Nenhum perfil foi criado automaticamente. Entre em contato com o responsável pelo aplicativo."]
+        ? ["Sua conta ainda não tem perfil", realProfileNotice || "Não há convite pendente para este e-mail Google ou o e-mail ainda não está confirmado. Confira a conta e tente novamente mais tarde."]
         : realProfileState === "found"
-          ? ["Perfil encontrado", "A integração das telas com o perfil real ainda está em construção. As contas de demonstração continuam separadas."]
-          : ["Não foi possível consultar seu perfil", "Confira a conexão e tente novamente. Não é possível determinar se existe um perfil."];
+          ? realProfessorActivated
+            ? realProfile && realProfile.ativo === false
+              ? ["Perfil de Professor aguardando troca pelo Adm", `Papel lido do banco: ${role}. O perfil está inativo até o Adm concluir a troca.`]
+              : ["Perfil de Professor ativado", `Papel lido do banco: ${role}.`]
+            : isRealAdmSession()
+              ? ["Perfil de Adm encontrado", `Papel lido do banco: ${role}. A academia, os convites e a gestão de Professores são ligados ao banco.`]
+              : ["Perfil encontrado", `Papel lido do banco: ${role}. A integração das demais telas com o perfil real ainda está em construção.`]
+          : ["Não foi possível consultar seu perfil", realProfileNotice || "Confira a conexão e tente novamente. Não é possível determinar se existe um perfil."];
     return `${heading("CONTA GOOGLE", text[0], text[1])}
       ${panel("Sessão", `<p>A conta Google está conectada. Abra o painel da conta para ver o e-mail ou sair.</p>
+        ${realProfileState === "found" ? `<p><strong>Papel no banco:</strong> ${role}<br><strong>Nome:</strong> <span id="real-profile-name">${profileName}</span></p>` : ""}
+        ${realProfileState === "found" ? realTeacherNameSection : ""}
+        ${realProfileState === "error" ? `<p class="login-action-error" role="alert">${escapeHtml(realProfileNotice || text[1])}</p>` : ""}
         <button class="button button--quiet" type="button" data-open-user-panel>Abrir painel da conta</button>
+        ${isRealAdmSession() ? `<div class="form-actions">${button("Academia", "academy", "button button--quiet")}${button("Professores convidados", "teacher-invites", "button button--quiet")}${button("Professores e papéis", "role-management", "button button--quiet")}</div>` : ""}
+        ${isRealProfessorProfile() ? `<div class="form-actions">${button("Código e convites", "teacher-code", "button button--quiet")}</div>` : ""}
         ${realProfileState === "error" ? '<button class="button button--quiet" type="button" data-retry-profile>Tentar consultar novamente</button>' : ""}
         ${button("Voltar à entrada de demonstração", "login", "button button--quiet")}`)}`;
   },
@@ -1561,7 +1784,7 @@ const screens = {
       ${heading("VISÃO DO ALUNO", "Início", "Resumo pessoal da conta fictícia.")}
       <div class="content-grid">
         <div class="stack">
-          ${panel("Meu perfil", personRow(escapeHtml(profile.name), `${escapeHtml(profile.label)} · perfil de demonstração`, "avatar-masculino.svg", "", activeDemoAccount, "self") + studentAcademyDetails(activeDemoAccount) + `
+          ${panel("Meu perfil", personRow(escapeHtml(profile.name), `${escapeHtml(profile.label)} · perfil de demonstração`, "avatar-masculino.jpg", "", activeDemoAccount, "self") + studentAcademyDetails(activeDemoAccount) + `
             <div class="student-belt"><span class="belt-swatch"></span><span><strong>Faixa cadastrada</strong><small>Graus e histórico em Minhas graduações</small></span></div>
           `, "panel-card--highlight")}
           <div class="card-grid card-grid--two">
@@ -1589,7 +1812,7 @@ const screens = {
       ${heading("VISÃO DO ALUNO", "Meu vínculo", "Professor e academia aos quais sua conta está vinculada.")}
       <div class="content-grid">
         ${panel("Vínculo atual", `
-          ${teacher ? personRow(escapeHtml(teacher.name), `Professor · ${escapeHtml(demoAcademy.name)}`, "avatar-masculino.svg", '<span class="badge badge--green">ATIVO</span>', profile.teacherAccount, "professor") : emptyState("Sem Professor vinculado", "Use um código de seis caracteres para solicitar vínculo.")}
+          ${teacher ? personRow(escapeHtml(teacher.name), `Professor · ${escapeHtml(demoAcademy.name)}`, "avatar-masculino.jpg", '<span class="badge badge--green">ATIVO</span>', profile.teacherAccount, "professor") : emptyState("Sem Professor vinculado", "Use um código de seis caracteres para solicitar vínculo.")}
           <div class="belt-display" style="margin-top:14px"><span class="belt-swatch"></span><span class="belt-copy"><strong>Sua faixa e graduações acompanham a conta</strong><small>O histórico de pagamentos fica com o Professor anterior</small></span></div>
           <div class="form-actions">
             ${button(teacher ? "Trocar de professor" : "Vincular a um professor", "link-teacher", "button button--quiet", "⌁")}
@@ -1753,11 +1976,11 @@ const screens = {
           <button class="filter-chip" type="button" aria-pressed="false" data-demo-action>Trancados</button>
           <button class="filter-chip" type="button" aria-pressed="false" data-demo-action>Sem acesso</button>
         </div>
-        ${studentEntry("ALUNO FICTÍCIO 01", "ATIVO", "avatar-masculino.svg", "badge--green")}
-        ${studentEntry("ALUNO FICTÍCIO 02", "SEM LOGIN", "avatar-feminino.svg", "badge--blue")}
-        ${studentEntry("ALUNO FICTÍCIO 03", "TRANCADO", "avatar-masculino.svg", "badge--amber")}
+        ${studentEntry("ALUNO FICTÍCIO 01", "ATIVO", "avatar-masculino.jpg", "badge--green")}
+        ${studentEntry("ALUNO FICTÍCIO 02", "SEM LOGIN", "avatar-feminino.jpg", "badge--blue")}
+        ${studentEntry("ALUNO FICTÍCIO 03", "TRANCADO", "avatar-masculino.jpg", "badge--amber")}
         ${demoRoster.map((student, index) => student.demoCreated && student.teacherAccount === activeDemoAccount
-          ? studentEntry(student.name, "SEM LOGIN", "avatar-masculino.svg", "badge--blue", index) : "").join("")}
+          ? studentEntry(student.name, "SEM LOGIN", "avatar-masculino.jpg", "badge--blue", index) : "").join("")}
       `)}
     `;
   },
@@ -1795,7 +2018,7 @@ const screens = {
       ${heading("VISÃO DO PROFESSOR", "Ficha do aluno", "Resumo e registros do aluno fictício; notas privadas aparecem apenas nesta visualização de professor.")}
       ${panel("Perfil", `
         <div class="profile-summary">
-          ${personRow(student ? escapeHtml(student.name) : "Nenhum aluno da turma", "Cadastro demonstrativo · perfil de aluno", "avatar-masculino.svg", "", student, "student")}
+          ${personRow(student ? escapeHtml(student.name) : "Nenhum aluno da turma", "Cadastro demonstrativo · perfil de aluno", "avatar-masculino.jpg", "", student, "student")}
           ${student ? studentAcademyDetails(student.account, student) : ""}
           ${student && !student.account ? `
             <form class="student-age-form" data-student-age-form>
@@ -1896,7 +2119,20 @@ const screens = {
           ${panel("Seu código de vínculo", `
             <div class="invite-preview">
               <span class="eyebrow">CÓDIGO ATUAL</span>
-              ${hasAcademy ? `<strong class="code-display">${escapeHtml(linkCode)}</strong><p>Academia: ${escapeHtml(demoAcademy.name)}. Compartilhe com alunos que já têm conta.</p><button class="button button--quiet" type="button" data-change-teacher-code>Trocar código</button>` : `<strong>Professor sem academia</strong><p>O Adm precisa vincular uma academia antes de liberar o código.</p>`}
+              ${hasAcademy ? `
+                <div class="teacher-code-value">
+                  <strong class="code-display" data-teacher-code-display>${escapeHtml(linkCode)}</strong>
+                  <button class="button button--quiet button--action" type="button" data-copy-teacher-code data-teacher-code-action>
+                    <span data-action-label>Copiar</span>
+                  </button>
+                </div>
+                <p>Academia: ${escapeHtml(demoAcademy.name)}. Compartilhe com alunos que já têm conta.</p>
+                <button class="button button--quiet button--action" type="button" data-change-teacher-code data-teacher-code-action>
+                  <span data-action-label>Trocar código</span>
+                </button>
+                <p class="login-action-error teacher-code-action-error" role="alert" data-teacher-code-error></p>
+                <div class="visually-hidden" role="status" aria-live="polite" aria-atomic="true" data-teacher-code-status></div>
+              ` : `<strong>Professor sem academia</strong><p>O Adm precisa vincular uma academia antes de liberar o código.</p>`}
             </div>
           `, "panel-card--highlight")}
           ${panel("Gerar link de uso único", `
@@ -2111,8 +2347,8 @@ const screens = {
       ${heading("VISÃO DO PROFESSOR", "Conversas", "Conversas individuais com seus alunos e instrutores. Não há conversa entre outros usuários.")}
       <div class="content-grid">
         ${panel("Conversas", `
-          ${personRow("ALUNO FICTÍCIO 01", "Aluno · última mensagem: —", "avatar-masculino.svg", "", "student", "student")}
-          ${personRow("INSTRUTOR FICTÍCIO 01", "Instrutor · última mensagem: —", "avatar-feminino.svg", "", "instructor", "student")}
+          ${personRow("ALUNO FICTÍCIO 01", "Aluno · última mensagem: —", "avatar-masculino.jpg", "", "student", "student")}
+          ${personRow("INSTRUTOR FICTÍCIO 01", "Instrutor · última mensagem: —", "avatar-feminino.jpg", "", "instructor", "student")}
         `)}
         ${panel("Mensagens", `
           <div class="chat-thread">
@@ -2151,12 +2387,13 @@ const screens = {
   },
 
   "teacher-invites"() {
+    if (isRealAdmSession()) return renderRealAdminInvitesScreen();
     return `
       ${heading("VISÃO DO ADMINISTRADOR", "Professores convidados", "Apenas o Adm gerencia a lista de professores autorizados.")}
       <div class="content-grid">
         ${panel("Lista de convites", `
-          ${personRow("PROFESSOR FICTÍCIO 01", "Estado demonstrativo · sem e-mail ou dado real", "avatar-masculino.svg", '<span class="badge badge--green">ATIVO</span>', "professor", "professor")}
-          ${personRow("PROFESSOR FICTÍCIO 02", "Convite demonstrativo", "avatar-masculino.svg", '<span class="badge badge--amber">CONVIDADO</span>', "professor-convidado", "professor")}
+          ${personRow("PROFESSOR FICTÍCIO 01", "Estado demonstrativo · sem e-mail ou dado real", "avatar-masculino.jpg", '<span class="badge badge--green">ATIVO</span>', "professor", "professor")}
+          ${personRow("PROFESSOR FICTÍCIO 02", "Convite demonstrativo", "avatar-masculino.jpg", '<span class="badge badge--amber">CONVIDADO</span>', "professor-convidado", "professor")}
           ${emptyState("Sem outros registros", "Esta lista não contém pessoas reais.")}
         `)}
         ${panel("Convidar professor", `
@@ -2228,6 +2465,7 @@ const screens = {
   },
 
   academy() {
+    if (isRealAdmSession()) return renderRealAdminAcademyScreen();
     const canEdit = canEditAcademy();
     const academyProfessors = Object.entries(demoProfiles).filter(([, profile]) =>
       profile.role === "professor" && profile.academyId === demoAcademy.id
@@ -2259,14 +2497,14 @@ const screens = {
       <div class="content-grid">
         ${academyProfessors.length ? `<div class="stack">
           ${academyProfessors.map(([account, profile]) => panel("Professor e horários", `
-            ${personRow(escapeHtml(profile.name), "Professor · uma turma", "avatar-masculino.svg", "", account, "professor")}
+            ${personRow(escapeHtml(profile.name), "Professor · uma turma", "avatar-masculino.jpg", "", account, "professor")}
             <div class="schedule-list">
               ${defaultProfessorSchedule.map(([day, hours]) => listRow(day, hours)).join("")}
             </div>
             <p class="field-help">Grade: ${publishedAcademyGrades.has(account) ? "Publicada" : "Rascunho"}.</p>
           `)).join("")}
           ${panel("Instrutores", academyInstructors.length
-            ? academyInstructors.map((profile) => personRow(escapeHtml(profile.name), "Aluno com função de apoio", "avatar-feminino.svg", "", "instructor", "student")).join("")
+            ? academyInstructors.map((profile) => personRow(escapeHtml(profile.name), "Aluno com função de apoio", "avatar-feminino.jpg", "", "instructor", "student")).join("")
             : emptyState("Nenhum Instrutor vinculado", "Instrutores autorizados da academia aparecerão aqui."))}
         </div>
         <div class="stack">
@@ -2286,7 +2524,7 @@ const screens = {
     return `
       ${heading("CONTA", "Painel do usuário", "Preferências demonstrativas; perfil e papel vêm do banco na versão funcional.")}
       <div class="content-grid">
-        ${panel("Perfil", personRow(profile.name, profile.label, "avatar-masculino.svg", "", activeDemoAccount, "self") +
+        ${panel("Perfil", personRow(profile.name, profile.label, "avatar-masculino.jpg", "", activeDemoAccount, "self") +
           (["student", "instructor"].includes(activeRole) ? studentAcademyDetails(activeDemoAccount) : "") + `
           <div class="stack" style="margin-top:18px">
             ${listRow("Papel", "Simulado para esta demonstração", "", `<span class="badge">${profile.label.toUpperCase()}</span>`)}
@@ -2306,10 +2544,10 @@ const screens = {
 
   privacy() {
     return `
-      ${heading("PRIVACIDADE", "Consentimento e política", "A tela existe no protótipo; nenhum termo é exibido como aprovado e nenhum aceite é registrado.")}
+      ${heading("PRIVACIDADE", "Rascunho de privacidade", "Texto provisório para revisão; o termo de consentimento não está implementado e nenhum aceite é registrado.")}
       <div class="content-grid">
         ${panel("Conteúdo a revisar", `
-          <div class="notice notice--pending">${privacyPlaceholder}</div>
+          <div class="privacy-draft-content">${renderPrivacyDraftContent("h3")}</div>
           <div style="margin-top:15px">
             <label class="consent-row"><input type="checkbox" disabled><span>Li e aceito o termo — indisponível até o conteúdo ser aprovado.</span></label>
           </div>
@@ -2340,16 +2578,63 @@ function closeMobileMenu() {
 
 function renderScreen(id) {
   const screen = screens[id];
-  if (!screen || !canViewScreen(id)) {
-    showToast("Esta tela não está disponível para o papel desta conta.", "error");
+  const isRealAdmin = isRealAdmSession();
+  const isRealStudentLink = id === "link-teacher" && isRealActiveStudent();
+  const realAdminRenderer = isRealAdmin
+    ? {
+      academy: renderRealAdminAcademyScreen,
+      "teacher-invites": renderRealAdminInvitesScreen,
+      "role-management": renderRealAdminManagementScreen
+    }[id]
+    : null;
+  const isRealTeacherCode = id === "teacher-code" && isRealProfessorProfile();
+  const isRealInstructorInvite = id === "instructor-invite" && !activeRole &&
+    (Boolean(realUser) || Boolean(realInstructorInviteToken));
+  const screenRenderer = isRealInstructorInvite
+    ? renderRealInstructorInviteScreen
+    : isRealStudentLink
+    ? renderRealStudentLinkScreen
+    : isRealTeacherCode
+    ? renderRealTeacherCodeScreen
+    : realAdminRenderer || screen;
+  if (!screenRenderer || !canViewScreen(id)) {
+    const message = realUser && !activeRole && ["academy", "teacher-invites", "role-management"].includes(id)
+      ? "Esta tela está disponível somente para uma conta real com papel Adm."
+      : "Esta tela não está disponível para o papel desta conta.";
+    showToast(message, "error");
     return;
   }
 
   currentScreen = id;
+  if (isRealTeacherCode) {
+    realTeacherCode = null;
+    realTeacherCodeState = "checking";
+    realTeacherCodeNotice = "";
+    realTeacherLinkRequests = [];
+    realTeacherLinkRequestsState = "checking";
+    realTeacherLinkRequestsNotice = "";
+    realInstructorInvites = [];
+    realInstructorInvitesState = "checking";
+    realInstructorInvitesNotice = "";
+    realUnregisteredStudents = [];
+    realUnregisteredStudentsState = "checking";
+    realUnregisteredStudentsNotice = "";
+  }
+  if (isRealStudentLink) {
+    realStudentLinkState = "checking";
+    realStudentLinkRequest = null;
+    realStudentLinkNotice = "";
+  }
   if (screenContent.querySelector('[data-login-action][data-action-state="success"]')) {
     showToast("Simulação concluída. Nenhum login foi realizado.");
   }
-  screenContent.innerHTML = screen();
+  screenContent.innerHTML = screenRenderer();
+  if (isRealTeacherCode) loadRealTeacherCode();
+  if (isRealTeacherCode) loadRealInstructorInvites();
+  if (isRealStudentLink) loadRealStudentLinkStatus();
+  if (id === "teacher-invites" && isRealAdmSession()) loadRealAdminInvites();
+  if (id === "academy" && isRealAdmSession()) loadRealAdminAcademiesForEdit();
+  if (id === "role-management" && isRealAdmSession()) loadRealAdminManagement();
   revokeReplacedPhotoUrls();
   screenContent.querySelectorAll('input[type="email"]').forEach(updateEmailPreview);
   if (id === "register") {
@@ -2384,6 +2669,633 @@ function renderScreen(id) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+function renderRealTeacherCodeScreen() {
+  const eligible = isRealActiveProfessor();
+  const canManageUnregisteredStudents = isRealActiveProfessorAccount();
+  const hasCode = eligible && realTeacherCodeState === "found" && Boolean(realTeacherCode);
+  let stateContent = "";
+
+  if (realTeacherCodeState === "checking") {
+    stateContent = '<p class="field-help" role="status" aria-live="polite">Consultando o código da sua turma...</p>';
+  } else if (realTeacherCodeState === "error") {
+    stateContent = `<p class="login-action-error" role="alert">${escapeHtml(realTeacherCodeNotice)}</p>
+      <p class="field-help">Volte a esta tela para tentar consultar novamente.</p>`;
+  } else if (realProfile && realProfile.ativo !== true) {
+    stateContent = '<div class="notice notice--pending" role="status">Seu perfil de Professor está inativo. O código não pode ser exibido ou gerado; aguarde a liberação pelo Adm.</div>';
+  } else if (!realProfile || !realProfile.academia_id) {
+    stateContent = '<div class="notice notice--pending" role="status">Seu perfil de Professor ainda não está vinculado a uma academia. O código só fica disponível após o vínculo.</div>';
+  } else {
+    stateContent = `
+      <div class="teacher-code-value"${hasCode ? "" : " hidden"}>
+        <strong class="code-display" data-teacher-code-display${hasCode ? "" : " hidden"}>${hasCode ? escapeHtml(realTeacherCode) : ""}</strong>
+        <button class="button button--quiet button--action" type="button" data-copy-teacher-code data-teacher-code-action${hasCode ? "" : " hidden"}>
+          <span data-action-label>Copiar</span>
+        </button>
+      </div>
+      <p class="field-help" data-teacher-code-empty${hasCode ? " hidden" : ""}>${hasCode ? "" : "Ainda não há código para esta turma."}</p>
+      <div class="teacher-code-controls">
+        <button class="button button--primary button--action" type="button" data-generate-real-teacher-code data-teacher-code-action>
+          <span data-action-label>${hasCode ? "Trocar código" : "Gerar código"}</span>
+        </button>
+      </div>
+      <p class="login-action-error teacher-code-action-error" role="alert" data-teacher-code-error></p>
+      <div class="visually-hidden" role="status" aria-live="polite" aria-atomic="true" data-teacher-code-status></div>
+    `;
+  }
+
+  return `
+    ${heading("VISÃO DO PROFESSOR", "Código e convites", "Consulte e compartilhe somente o código de vínculo da sua turma.")}
+    <div class="content-grid">
+      ${panel("Seu código de vínculo", `<div class="invite-preview">
+        <span class="eyebrow">CÓDIGO ATUAL</span>
+        ${stateContent}
+      </div>`, "panel-card--highlight")}
+      ${eligible ? panel("Convites de Instrutor", renderRealInstructorInvites()) : ""}
+      ${eligible ? panel("Pedidos de vínculo", renderRealTeacherLinkRequests()) : ""}
+      ${canManageUnregisteredStudents ? panel("Alunos sem registro", renderRealUnregisteredStudents()) : ""}
+    </div>
+  `;
+}
+
+function renderRealInstructorInvites() {
+  let listContent = "";
+  if (realInstructorInvitesState === "checking") {
+    listContent = '<p class="field-help" role="status" aria-live="polite">Consultando convites...</p>';
+  } else if (realInstructorInvitesState === "error") {
+    listContent = `<p class="login-action-error" role="alert">${escapeHtml(realInstructorInvitesNotice || "Não foi possível consultar os convites. Tente novamente mais tarde.")}</p>`;
+  } else if (!realInstructorInvites.length) {
+    listContent = '<div class="empty-state"><div><strong>Nenhum convite</strong><p>Os convites de uso único aparecerão aqui.</p></div></div>';
+  } else {
+    listContent = realInstructorInvites.map((invite, index) => {
+      const status = realInstructorInviteStatus(invite);
+      return `
+        <div class="real-instructor-invite-row">
+          <div class="real-instructor-invite-copy">
+            <strong>Convite ${index + 1}</strong>
+            <small>${status}</small>
+          </div>
+          ${status === "Pendente" ? `
+            <div class="real-instructor-invite-action">
+              <button class="button button--danger button--small button--action" type="button" data-real-instructor-revoke data-instructor-invite-index="${index}" data-real-instructor-invite-action aria-describedby="real-instructor-revoke-error-${index} real-instructor-revoke-status-${index}">
+                <span data-action-label>Revogar</span>
+              </button>
+              <p class="login-action-error" id="real-instructor-revoke-error-${index}" role="alert" aria-atomic="true"></p>
+              <span class="visually-hidden" id="real-instructor-revoke-status-${index}" role="status" aria-live="polite" aria-atomic="true"></span>
+            </div>
+          ` : ""}
+        </div>
+      `;
+    }).join("");
+  }
+
+  return `
+    <div class="real-instructor-invites">
+      <p class="panel-copy">Gere um link individual de uso único, válido por três dias. Só pode ser aceito por uma conta nova ou por um Aluno adulto.</p>
+      <div class="real-instructor-invite-action">
+        <button class="button button--primary button--action" type="button" data-real-instructor-generate data-real-instructor-invite-action aria-describedby="real-instructor-generate-error real-instructor-generate-status">
+          <span data-action-label>Gerar convite</span>
+        </button>
+        <p class="login-action-error" id="real-instructor-generate-error" role="alert" aria-atomic="true"></p>
+        <div class="field-help" id="real-instructor-generate-status" role="status" aria-live="polite" aria-atomic="true"></div>
+      </div>
+      ${realInstructorInviteUrl ? `
+        <div class="real-instructor-invite-copy-action">
+          <p class="field-help">Link pronto. O token não é exibido; copie e compartilhe com a pessoa convidada.</p>
+          <button class="button button--quiet button--action" type="button" data-real-instructor-copy data-real-instructor-invite-action aria-describedby="real-instructor-copy-error real-instructor-copy-status">
+            <span data-action-label>Copiar link</span>
+          </button>
+          <p class="login-action-error" id="real-instructor-copy-error" role="alert" aria-atomic="true"></p>
+          <div class="field-help" id="real-instructor-copy-status" role="status" aria-live="polite" aria-atomic="true"></div>
+        </div>
+      ` : ""}
+      <div class="real-instructor-invite-list">${listContent}</div>
+    </div>
+  `;
+}
+
+function renderRealInstructorInviteScreen() {
+  if (!realUser) {
+    return `
+      ${heading("CONVITE DE INSTRUTOR", "Aceitar convite", "Entre com Google para verificar o convite recebido.")}
+      <div class="auth-card">
+        <p class="panel-copy">O link é de uso único e expira em três dias. Não exibimos o código do convite nesta tela.</p>
+        <button class="button button--google button--action" type="button" data-login-action aria-describedby="google-login-error">
+          <span data-action-label>Fazer login com o Google</span>
+        </button>
+        <div class="login-action-error" id="google-login-error" role="alert" aria-atomic="true"></div>
+        <div class="visually-hidden" id="login-action-status" role="status" aria-live="polite" aria-atomic="true"></div>
+      </div>
+    `;
+  }
+
+  const isNewAccount = realProfileState === "missing";
+  const isAdultStudent = realProfileState === "found" && realProfile &&
+    realProfile.papel === "aluno" && realProfile.idade_declarada === "adulto";
+  let accountState = "";
+  if (realProfileState === "checking") {
+    accountState = '<p class="field-help" role="status" aria-live="polite">Consultando a conta...</p>';
+  } else if (realProfileState === "error") {
+    accountState = `<p class="login-action-error" role="alert">${escapeHtml(realProfileNotice || "Não foi possível consultar sua conta. Tente novamente mais tarde.")}</p>`;
+  } else if (realProfileState === "found" && realProfile && realProfile.papel === "aluno" && !isAdultStudent) {
+    accountState = '<div class="notice notice--pending" role="status">Este convite só pode ser aceito por quem declarou ser adulto. Menores não podem assumir o papel de Instrutor.</div>';
+  } else if (realProfileState === "found" && !isAdultStudent) {
+    accountState = '<div class="notice notice--pending" role="status">Este convite só pode ser aceito por uma conta nova ou por uma conta de Aluno adulto.</div>';
+  } else if (isNewAccount || isAdultStudent) {
+    accountState = `
+      <form data-real-instructor-accept-form>
+        ${realInstructorInviteToken
+          ? '<p class="notice notice--info" role="status">Convite recebido. O código não é exibido.</p>'
+          : `<div class="field">
+              <label for="real-instructor-invite-link">Link de convite</label>
+              <input id="real-instructor-invite-link" name="link" type="password" autocomplete="off" spellcheck="false" aria-describedby="real-instructor-invite-link-help">
+              <small class="field-help" id="real-instructor-invite-link-help">Cole o link recebido. O código ficará oculto.</small>
+            </div>`}
+        ${isNewAccount ? `
+          <div class="field">
+            <label for="real-instructor-invite-name">Nome</label>
+            <input id="real-instructor-invite-name" name="nome" type="text" autocomplete="name" maxlength="80" required>
+          </div>
+          <label class="consent-row">
+            <input id="real-instructor-invite-adult" name="adulto" type="checkbox" required>
+            <span>Declaro que tenho 18 anos ou mais.</span>
+          </label>
+        ` : ""}
+        <div class="real-instructor-invite-action">
+          <button class="button button--primary button--action" type="submit" data-real-instructor-accept data-real-instructor-invite-action aria-describedby="real-instructor-accept-error real-instructor-accept-status">
+            <span data-action-label>Aceitar convite</span>
+          </button>
+          <p class="login-action-error" id="real-instructor-accept-error" role="alert" aria-atomic="true"></p>
+          <div class="field-help" id="real-instructor-accept-status" role="status" aria-live="polite" aria-atomic="true"></div>
+        </div>
+      </form>
+    `;
+  } else {
+    accountState = '<p class="field-help" role="status" aria-live="polite">Não foi possível verificar se esta conta pode aceitar o convite. Atualize a página e tente novamente.</p>';
+  }
+
+  return `
+    ${heading("CONVITE DE INSTRUTOR", "Aceitar convite", "Só contas novas ou Alunos adultos podem aceitar.")}
+    <div class="content-grid">
+      ${panel("Convite de uso único", `
+        <p class="panel-copy">O convite expira em três dias. Ao aceitar, sua conta passa a Instrutor e fica vinculada ao Professor que enviou o convite.</p>
+        <p class="field-help">A idade é declarada; não pedimos data de nascimento.</p>
+        ${accountState}
+      `)}
+    </div>
+  `;
+}
+
+function realInstructorInviteStatus(invite) {
+  if (invite.consumido_em) return "Usado";
+  if (invite.revogado_em) return "Revogado";
+  const expiresAt = Date.parse(invite.expira_em);
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return "Expirado";
+  return "Pendente";
+}
+
+async function loadRealInstructorInvites() {
+  const sequence = ++realInstructorInvitesSequence;
+  realInstructorInvites = [];
+  realInstructorInvitesState = "checking";
+  realInstructorInvitesNotice = "";
+  if (!authClient || !realUser || !isRealActiveProfessor()) {
+    realInstructorInvitesState = "error";
+    realInstructorInvitesNotice = "Esta ação exige uma conta Google de Professor ativa e vinculada a uma academia.";
+    if (sequence === realInstructorInvitesSequence && currentScreen === "teacher-code") {
+      screenContent.innerHTML = renderRealTeacherCodeScreen();
+    }
+    return;
+  }
+
+  try {
+    const { data, error } = await authClient.rpc("listar_convites_instrutor");
+    if (sequence !== realInstructorInvitesSequence || currentScreen !== "teacher-code") return;
+    if (error) {
+      realInstructorInvitesState = "error";
+      realInstructorInvitesNotice = navigator.onLine === false
+        ? "Falha de rede ao consultar os convites. Verifique sua conexão e tente novamente."
+        : "Não foi possível consultar os convites. Tente novamente mais tarde.";
+    } else if (!Array.isArray(data) || data.some((invite) =>
+      !invite || typeof invite.convite_id !== "string" ||
+      typeof invite.expira_em !== "string" ||
+      !(invite.consumido_em === null || typeof invite.consumido_em === "string") ||
+      !(invite.revogado_em === null || typeof invite.revogado_em === "string")
+    )) {
+      realInstructorInvitesState = "error";
+      realInstructorInvitesNotice = "O servidor retornou uma lista de convites inesperada. Tente novamente mais tarde.";
+    } else {
+      realInstructorInvites = data.map((invite) => ({
+        id: invite.convite_id,
+        expira_em: invite.expira_em,
+        consumido_em: invite.consumido_em,
+        revogado_em: invite.revogado_em
+      }));
+      realInstructorInvitesState = "found";
+    }
+  } catch {
+    if (sequence !== realInstructorInvitesSequence || currentScreen !== "teacher-code") return;
+    realInstructorInvitesState = "error";
+    realInstructorInvitesNotice = navigator.onLine === false
+      ? "Falha de rede ao consultar os convites. Verifique sua conexão e tente novamente."
+      : "Não foi possível consultar os convites. Tente novamente mais tarde.";
+  }
+
+  if (sequence === realInstructorInvitesSequence && currentScreen === "teacher-code") {
+    screenContent.innerHTML = renderRealTeacherCodeScreen();
+  }
+}
+
+function renderRealStudentLinkScreen() {
+  const pendingRequest = realStudentLinkState === "found" &&
+    realStudentLinkRequest && realStudentLinkRequest.status === "pendente";
+  const statusMessages = {
+    pendente: "Seu pedido está pendente e aguarda a decisão do Professor.",
+    aprovado: "Seu último pedido foi aprovado. Você pode enviar outro pedido para mudar de Professor.",
+    recusado: "Seu último pedido foi recusado. Confira o código antes de tentar novamente.",
+    cancelado: "Seu último pedido foi cancelado. Você pode enviar um novo pedido."
+  };
+  let requestState = "";
+  if (realStudentLinkState === "checking") {
+    requestState = '<p class="field-help" role="status" aria-live="polite">Consultando o estado do pedido...</p>';
+  } else if (realStudentLinkState === "error") {
+    requestState = `<p class="login-action-error" role="alert">${escapeHtml(realStudentLinkNotice)}</p>`;
+  } else if (realStudentLinkRequest) {
+    requestState = `<div class="notice ${pendingRequest ? "notice--pending" : "notice--info"}" role="status">${escapeHtml(statusMessages[realStudentLinkRequest.status] || "O estado do último pedido não está disponível.")}</div>`;
+  } else if (realStudentLinkState === "found") {
+    requestState = '<div class="empty-state"><div><strong>Nenhum pedido anterior</strong><p>Quando você enviar um pedido, o estado aparecerá aqui.</p></div></div>';
+  }
+
+  const form = realStudentLinkState === "found" && !pendingRequest
+    ? `<form data-real-student-link-form>
+        <div class="field">
+          <label for="real-student-link-code">Código de 6 caracteres</label>
+          <input id="real-student-link-code" name="codigo" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="real-student-link-help">
+          <small class="field-help" id="real-student-link-help">Digite ou cole o código recebido do Professor. Espaços serão removidos automaticamente.</small>
+        </div>
+        <div class="form-actions">
+          <button class="button button--primary button--action" type="submit" data-real-student-link-submit aria-describedby="real-student-link-error real-student-link-status">
+            <span data-action-label>Enviar pedido</span>
+          </button>
+        </div>
+        <div class="login-action-error" id="real-student-link-error" role="alert" aria-atomic="true"></div>
+        <div class="field-help" id="real-student-link-status" role="status" aria-live="polite"></div>
+      </form>`
+    : "";
+
+  return `
+    ${heading("CONTA GOOGLE · ALUNO", "Vincular a um Professor", "Envie seu código para solicitar um vínculo. A demonstração continua separada.") }
+    <div class="content-grid">
+      ${panel("Pedido de vínculo", `${requestState}${form}`, "panel-card--highlight")}
+    </div>
+  `;
+}
+
+function renderRealTeacherLinkRequests() {
+  if (realTeacherLinkRequestsState === "checking") {
+    return '<p class="field-help" role="status" aria-live="polite">Consultando pedidos pendentes...</p>';
+  }
+  if (realTeacherLinkRequestsState === "error") {
+    return `<p class="login-action-error" role="alert">${escapeHtml(realTeacherLinkRequestsNotice)}</p>`;
+  }
+  if (!realTeacherLinkRequests.length) {
+    return '<div class="empty-state"><div><strong>Nenhum pedido pendente</strong><p>Novos pedidos aparecerão aqui.</p></div></div>';
+  }
+  return realTeacherLinkRequests.map((request, index) => `
+    <article class="link-request-row">
+      <strong>${escapeHtml(request.studentName)}</strong>
+      <small>Pedido de vínculo</small>
+      <div class="row-actions">
+        <button class="button button--small button--primary button--action" type="button" data-real-link-decision="approve" data-request-id="${escapeHtml(request.id)}" aria-describedby="real-link-request-error-${index} real-link-request-status-${index}">
+          <span data-action-label>Aprovar</span>
+        </button>
+        <button class="button button--small button--danger button--action" type="button" data-real-link-decision="reject" data-request-id="${escapeHtml(request.id)}" aria-describedby="real-link-request-error-${index} real-link-request-status-${index}">
+          <span data-action-label>Recusar</span>
+        </button>
+      </div>
+      <div class="login-action-error" id="real-link-request-error-${index}" role="alert" aria-atomic="true"></div>
+      <div class="field-help" id="real-link-request-status-${index}" role="status" aria-live="polite"></div>
+    </article>
+  `).join("");
+}
+
+function renderRealUnregisteredStudents() {
+  const rows = realUnregisteredStudentsState === "checking"
+    ? '<p class="field-help" role="status" aria-live="polite">Consultando alunos sem registro...</p>'
+    : realUnregisteredStudentsState === "error"
+      ? `<p class="login-action-error" role="alert">${escapeHtml(realUnregisteredStudentsNotice)}</p>`
+      : realUnregisteredStudents.length
+        ? `<div class="stack">${realUnregisteredStudents.map((student, index) => {
+          const initials = Array.from(student.nome.trim())[0] || "A";
+          const ageLabel = student.idade_declarada === "menor" ? "Menor de 18 anos · somente avatar" :
+            student.idade_declarada === "adulto" ? "Adulto · somente avatar" : "Idade ainda não declarada · somente avatar";
+          const ageSelect = `
+            <form class="real-unregistered-age-form" data-real-unregistered-age-form data-student-id="${escapeHtml(student.id)}">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="real-unregistered-age-${index}">Idade declarada</label>
+                  <select id="real-unregistered-age-${index}" name="idade_declarada" aria-required="true">
+                    <option value="nao_declarada" disabled${student.idade_declarada === "nao_declarada" ? " selected" : ""}>Ainda não declarada</option>
+                    <option value="adulto"${student.idade_declarada === "adulto" ? " selected" : ""}>Adulto</option>
+                    <option value="menor"${student.idade_declarada === "menor" ? " selected" : ""}>Menor de 18 anos</option>
+                  </select>
+                </div>
+                <div class="form-actions">
+                  <button class="button button--primary button--action" type="submit" data-real-unregistered-age-save aria-describedby="real-unregistered-age-error-${index} real-unregistered-age-status-${index}">
+                    <span data-action-label>Salvar idade</span>
+                  </button>
+                </div>
+              </div>
+              <div class="login-action-error" id="real-unregistered-age-error-${index}" role="alert" aria-atomic="true"></div>
+              <div class="field-help" id="real-unregistered-age-status-${index}" role="status" aria-live="polite"></div>
+            </form>`;
+          return `
+            <article class="real-unregistered-student-row">
+              <div class="person-row">
+                <span class="avatar avatar--small avatar--initials" aria-hidden="true">${escapeHtml(initials)}</span>
+                <span class="person-copy"><strong>${escapeHtml(student.nome)}</strong><small>${escapeHtml(ageLabel)}</small></span>
+              </div>
+              ${ageSelect}
+            </article>
+          `;
+        }).join("")}</div>`
+        : '<div class="empty-state"><div><strong>Nenhum aluno sem registro</strong><p>Cadastre um aluno sem conta para gerenciar a declaração de idade.</p></div></div>';
+
+  return `
+    <form class="real-unregistered-create-form" data-real-unregistered-create-form>
+      <div class="form-grid">
+        <div class="field field--wide">
+          <label for="real-unregistered-name">Nome do aluno</label>
+          <input id="real-unregistered-name" name="nome" type="text" autocomplete="off" maxlength="160" aria-describedby="real-unregistered-create-help">
+          <small class="field-help" id="real-unregistered-create-help">Informe de 1 a 80 caracteres. Não é necessário telefone, e-mail ou data de nascimento.</small>
+        </div>
+        <div class="field field--wide">
+          <label for="real-unregistered-create-age">Idade declarada</label>
+          <select id="real-unregistered-create-age" name="idade_declarada" aria-required="true">
+            <option value="">Selecione</option>
+            <option value="adulto">Adulto</option>
+            <option value="menor">Menor de 18 anos</option>
+          </select>
+          <small class="field-help">Menores usam somente avatar; este cadastro não solicita nem armazena foto ou data de nascimento.</small>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="button button--primary button--action" type="submit" data-real-unregistered-create aria-describedby="real-unregistered-create-error real-unregistered-create-status">
+          <span data-action-label>Cadastrar aluno sem conta</span>
+        </button>
+      </div>
+      <div class="login-action-error" id="real-unregistered-create-error" role="alert" aria-atomic="true"></div>
+      <div class="field-help" id="real-unregistered-create-status" role="status" aria-live="polite"></div>
+    </form>
+    <div class="real-unregistered-student-list">${rows}</div>
+  `;
+}
+
+async function loadRealStudentLinkStatus() {
+  if (currentScreen !== "link-teacher") return;
+  const sequence = ++realStudentLinkRequestSequence;
+  const userId = realUser && realUser.id;
+  realStudentLinkState = "checking";
+  realStudentLinkRequest = null;
+  realStudentLinkNotice = "";
+  screenContent.innerHTML = renderRealStudentLinkScreen();
+  if (!authClient || !userId || !isRealActiveStudent()) {
+    realStudentLinkState = "error";
+    realStudentLinkNotice = "Esta ação exige uma conta Google de Aluno ativa.";
+    if (sequence === realStudentLinkRequestSequence && currentScreen === "link-teacher") {
+      screenContent.innerHTML = renderRealStudentLinkScreen();
+    }
+    return;
+  }
+
+  try {
+    const { data, error } = await authClient.from("pedidos_vinculo")
+      .select("status")
+      .eq("aluno_id", userId)
+      .order("criado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sequence !== realStudentLinkRequestSequence || currentScreen !== "link-teacher") return;
+    if (error) {
+      realStudentLinkState = "error";
+      realStudentLinkNotice = navigator.onLine === false
+        ? "Falha de rede ao consultar o pedido. Verifique sua conexão e tente novamente."
+        : "Não foi possível consultar o estado do pedido. Tente novamente mais tarde.";
+    } else if (data && !["pendente", "aprovado", "recusado", "cancelado"].includes(data.status)) {
+      realStudentLinkState = "error";
+      realStudentLinkNotice = "O estado do pedido retornado pelo banco não é reconhecido.";
+    } else {
+      realStudentLinkRequest = data || null;
+      realStudentLinkState = "found";
+    }
+  } catch {
+    if (sequence !== realStudentLinkRequestSequence || currentScreen !== "link-teacher") return;
+    realStudentLinkState = "error";
+    realStudentLinkNotice = navigator.onLine === false
+      ? "Falha de rede ao consultar o pedido. Verifique sua conexão e tente novamente."
+      : "Não foi possível consultar o estado do pedido. Tente novamente mais tarde.";
+  }
+
+  if (sequence === realStudentLinkRequestSequence && currentScreen === "link-teacher") {
+    screenContent.innerHTML = renderRealStudentLinkScreen();
+  }
+}
+
+async function loadRealTeacherCode() {
+  const sequence = ++realTeacherCodeRequestSequence;
+  realTeacherCode = null;
+  realTeacherCodeState = "checking";
+  realTeacherCodeNotice = "";
+  screenContent.innerHTML = renderRealTeacherCodeScreen();
+
+  if (!authClient || !realUser) {
+    realTeacherCodeState = "error";
+    realTeacherCodeNotice = "Sua sessão real não está ativa. Entre novamente com o Google.";
+    screenContent.innerHTML = renderRealTeacherCodeScreen();
+    return;
+  }
+
+  try {
+    const { data: profile, error: profileError } = await authClient.from("perfis")
+      .select("papel,academia_id,ativo")
+      .eq("id", realUser.id)
+      .maybeSingle();
+    if (profileError) {
+      if (sequence !== realTeacherCodeRequestSequence || currentScreen !== "teacher-code") return;
+      realTeacherCodeState = "error";
+      realTeacherCodeNotice = realTeacherCodeErrorMessage(profileError, "read");
+      realTeacherLinkRequestsState = "error";
+      realTeacherLinkRequestsNotice = navigator.onLine === false
+        ? "Falha de rede ao consultar os pedidos. Verifique sua conexão e tente novamente."
+        : "Não foi possível confirmar a permissão para consultar os pedidos.";
+      realUnregisteredStudentsState = "error";
+      realUnregisteredStudentsNotice = navigator.onLine === false
+        ? "Falha de rede ao consultar os alunos sem registro. Verifique sua conexão e tente novamente."
+        : "Não foi possível confirmar a permissão para consultar os alunos sem registro.";
+      screenContent.innerHTML = renderRealTeacherCodeScreen();
+      return;
+    }
+    if (sequence !== realTeacherCodeRequestSequence || currentScreen !== "teacher-code") return;
+    if (!profile || profile.papel !== "professor") {
+      realProfile = profile ? { ...realProfile, ...profile } : null;
+      realProfileState = profile ? "found" : "missing";
+      realTeacherCodeState = "error";
+      realTeacherCodeNotice = "Não foi possível confirmar um perfil de Professor ativo. Confira sua sessão e tente novamente.";
+      renderNavigation();
+      if (!canViewScreen("teacher-code")) renderScreen("real-account");
+      else screenContent.innerHTML = renderRealTeacherCodeScreen();
+      return;
+    }
+
+    realProfile = { ...realProfile, ...profile };
+    realProfileState = "found";
+    renderNavigation();
+    if (profile.ativo !== true) {
+      realTeacherCodeState = "blocked";
+      if (currentScreen === "teacher-code") screenContent.innerHTML = renderRealTeacherCodeScreen();
+      return;
+    }
+
+    loadRealProfessorStudentRecords();
+    if (!profile.academia_id) {
+      realTeacherCodeState = "blocked";
+      if (currentScreen === "teacher-code") screenContent.innerHTML = renderRealTeacherCodeScreen();
+      return;
+    }
+
+    loadRealTeacherLinkRequests();
+    const { data: classroom, error: classroomError } = await authClient.from("turmas")
+      .select("codigo")
+      .eq("professor_id", realUser.id)
+      .maybeSingle();
+    if (classroomError) {
+      realTeacherCodeState = "error";
+      realTeacherCodeNotice = realTeacherCodeErrorMessage(classroomError, "read");
+    } else if (!classroom) {
+      realTeacherCodeState = "missing";
+    } else if (typeof classroom.codigo !== "string" ||
+        !/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(classroom.codigo)) {
+      realTeacherCodeState = "error";
+      realTeacherCodeNotice = "O código da turma não está disponível em um formato válido. Tente novamente mais tarde.";
+    } else {
+      realTeacherCode = classroom.codigo;
+      realTeacherCodeState = "found";
+    }
+  } catch (error) {
+    realTeacherCodeState = "error";
+    realTeacherCodeNotice = realTeacherCodeErrorMessage(error, "read");
+  }
+
+  if (sequence === realTeacherCodeRequestSequence && currentScreen === "teacher-code") {
+    screenContent.innerHTML = renderRealTeacherCodeScreen();
+  }
+}
+
+async function loadRealTeacherLinkRequests() {
+  if (currentScreen !== "teacher-code") return;
+  const sequence = ++realTeacherLinkRequestsSequence;
+  const userId = realUser && realUser.id;
+  realTeacherLinkRequests = [];
+  realTeacherLinkRequestsState = "checking";
+  realTeacherLinkRequestsNotice = "";
+  if (!authClient || !userId || !isRealActiveProfessor()) {
+    realTeacherLinkRequestsState = "error";
+    realTeacherLinkRequestsNotice = "Esta leitura exige uma conta Google de Professor ativa vinculada a uma academia.";
+    if (sequence === realTeacherLinkRequestsSequence && currentScreen === "teacher-code") {
+      screenContent.innerHTML = renderRealTeacherCodeScreen();
+    }
+    return;
+  }
+
+  try {
+    const { data: requests, error } = await authClient.from("pedidos_vinculo")
+      .select("id,aluno_id")
+      .eq("professor_id", userId)
+      .eq("status", "pendente")
+      .order("criado_em", { ascending: true });
+    if (sequence !== realTeacherLinkRequestsSequence || currentScreen !== "teacher-code") return;
+    if (error) {
+      realTeacherLinkRequestsState = "error";
+      realTeacherLinkRequestsNotice = navigator.onLine === false
+        ? "Falha de rede ao consultar os pedidos. Verifique sua conexão e tente novamente."
+        : "Não foi possível consultar os pedidos. Tente novamente mais tarde.";
+    } else if (!requests || requests.length === 0) {
+      realTeacherLinkRequestsState = "found";
+    } else {
+      const studentIds = [...new Set(requests.map((request) => request.aluno_id).filter(Boolean))];
+      const { data: profiles, error: profilesError } = await authClient.from("perfis")
+        .select("id,nome")
+        .in("id", studentIds);
+      if (sequence !== realTeacherLinkRequestsSequence || currentScreen !== "teacher-code") return;
+      if (profilesError) {
+        realTeacherLinkRequestsState = "error";
+        realTeacherLinkRequestsNotice = navigator.onLine === false
+          ? "Falha de rede ao consultar os nomes dos alunos. Verifique sua conexão e tente novamente."
+          : "Não foi possível consultar os nomes dos alunos. Tente novamente mais tarde.";
+      } else {
+        const namesById = new Map((profiles || []).map((profile) => [profile.id, profile.nome]));
+        realTeacherLinkRequests = requests.map((request) => ({
+          id: request.id,
+          studentName: namesById.get(request.aluno_id) || "Nome não informado"
+        }));
+        realTeacherLinkRequestsState = "found";
+      }
+    }
+  } catch {
+    realTeacherLinkRequestsState = "error";
+    realTeacherLinkRequestsNotice = navigator.onLine === false
+      ? "Falha de rede ao consultar os pedidos. Verifique sua conexão e tente novamente."
+      : "Não foi possível consultar os pedidos. Tente novamente mais tarde.";
+  }
+
+  if (sequence === realTeacherLinkRequestsSequence && currentScreen === "teacher-code") {
+    screenContent.innerHTML = renderRealTeacherCodeScreen();
+  }
+}
+
+async function loadRealProfessorStudentRecords() {
+  if (currentScreen !== "teacher-code") return;
+  const sequence = ++realUnregisteredStudentsSequence;
+  const userId = realUser && realUser.id;
+  realUnregisteredStudents = [];
+  realUnregisteredStudentsState = "checking";
+  realUnregisteredStudentsNotice = "";
+  if (!authClient || !userId || !isRealActiveProfessorAccount()) {
+    realUnregisteredStudentsState = "error";
+    realUnregisteredStudentsNotice = "Esta leitura exige uma conta Google de Professor ativa.";
+    if (sequence === realUnregisteredStudentsSequence && currentScreen === "teacher-code") {
+      screenContent.innerHTML = renderRealTeacherCodeScreen();
+    }
+    return;
+  }
+
+  try {
+    const { data: students, error } = await authClient.from("alunos_sem_conta")
+      .select("id,nome,idade_declarada")
+      .eq("professor_id", userId)
+      .order("criado_em", { ascending: false });
+    if (sequence !== realUnregisteredStudentsSequence || currentScreen !== "teacher-code") return;
+    if (error) {
+      realUnregisteredStudentsState = "error";
+      realUnregisteredStudentsNotice = navigator.onLine === false
+        ? "Falha de rede ao consultar os alunos sem registro. Verifique sua conexão e tente novamente."
+        : "Não foi possível consultar os alunos sem registro. Tente novamente mais tarde.";
+    } else {
+      realUnregisteredStudents = students || [];
+      realUnregisteredStudentsState = "found";
+    }
+  } catch {
+    if (sequence !== realUnregisteredStudentsSequence || currentScreen !== "teacher-code") return;
+    realUnregisteredStudentsState = "error";
+    realUnregisteredStudentsNotice = navigator.onLine === false
+      ? "Falha de rede ao consultar os alunos sem registro. Verifique sua conexão e tente novamente."
+      : "Não foi possível consultar os alunos sem registro. Tente novamente mais tarde.";
+  }
+
+  if (sequence === realUnregisteredStudentsSequence && currentScreen === "teacher-code") {
+    screenContent.innerHTML = renderRealTeacherCodeScreen();
+  }
+}
+
 function updateUserPanelProfile() {
   const profile = demoProfiles[activeDemoAccount];
   document.querySelector("#user-panel-profile-academy").textContent =
@@ -2395,8 +3307,1245 @@ function canEditAcademy() {
   return activeRole === "adm" || (activeRole === "professor" && profile && profile.academyId === demoAcademy.id);
 }
 
+function isRealAdmSession() {
+  return Boolean(!activeRole && realUser && realProfileState === "found" && realProfile &&
+    realProfile.papel === "adm" && realProfile.ativo === true);
+}
+
+function isRealProfessorProfile() {
+  return Boolean(!activeRole && realUser && realProfileState === "found" && realProfile &&
+    realProfile.papel === "professor");
+}
+
+function isRealActiveProfessor() {
+  return Boolean(isRealProfessorProfile() && realProfile.ativo === true && realProfile.academia_id);
+}
+
+function isRealActiveProfessorAccount() {
+  return Boolean(isRealProfessorProfile() && realProfile.ativo === true);
+}
+
+function isRealActiveStudent() {
+  return Boolean(!activeRole && realUser && realProfileState === "found" && realProfile &&
+    realProfile.papel === "aluno" && realProfile.ativo === true);
+}
+
+function realInstructorInviteReturnMessage(code) {
+  const messages = {
+    nao_autenticado: "Entre com Google para aceitar este convite.",
+    convite_invalido_ou_expirado: "O convite é inválido ou expirou. Peça um novo link ao Professor.",
+    convite_ja_usado_ou_revogado: "Este convite já foi usado ou revogado. Peça um novo link ao Professor.",
+    papel_nao_permitido: "Use uma conta nova ou uma conta de Aluno para aceitar este convite.",
+    idade_nao_adulta: "Este convite só pode ser aceito por uma pessoa que declarou ser adulta.",
+    vinculado_outro_professor: "Esta conta já está vinculada a outro Professor e não pode aceitar este convite.",
+    email_nao_confirmado: "Confirme o e-mail da conta Google antes de aceitar o convite.",
+    nome_invalido: "Informe um nome com até 80 caracteres para criar o perfil."
+  };
+  return messages[code] || "O servidor retornou uma resposta inesperada. Tente novamente mais tarde.";
+}
+
+function extractRealInstructorInviteToken(value) {
+  const input = value.trim();
+  if (!input) return "";
+  try {
+    const url = new URL(input, window.location.href);
+    const token = url.searchParams.get("convite_instrutor");
+    if (token) return token;
+  } catch {
+    return input;
+  }
+  return input;
+}
+
+async function refreshRealProfileAfterInstructorInvite() {
+  const userId = realUser && realUser.id;
+  if (!authClient || !userId) {
+    realProfile = null;
+    realProfileState = "error";
+    realProfileNotice = "Convite aceito, mas não foi possível atualizar o perfil. Recarregue a página.";
+  } else {
+    try {
+      const { data, error } = await authClient.from("perfis")
+        .select("id,papel,nome,academia_id,ativo,idade_declarada")
+        .eq("id", userId)
+        .maybeSingle();
+      if (error || !data) throw new Error("Perfil indisponível.");
+      realProfile = data;
+      realProfileState = "found";
+      realProfileNotice = "";
+    } catch {
+      realProfile = null;
+      realProfileState = "error";
+      realProfileNotice = "Convite aceito, mas não foi possível atualizar o perfil. Recarregue a página.";
+    }
+  }
+  renderNavigation();
+  renderScreen("real-account");
+}
+
+function handleRealInstructorInviteSubmit(form) {
+  const button = form.querySelector("[data-real-instructor-accept]");
+  const nameInput = form.querySelector("#real-instructor-invite-name");
+  const ageCheck = form.querySelector("#real-instructor-invite-adult");
+  const linkInput = form.querySelector("#real-instructor-invite-link");
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-instructor-accept-error"),
+    announcement: form.querySelector("#real-instructor-accept-status"),
+    buttons: [...form.querySelectorAll("button,input")],
+    loadingText: "Verificando...",
+    loadingMessage: "Validando e aceitando o convite.",
+    successMessage: "Convite aceito. Sua conta foi atualizada como Instrutor.",
+    successLabel: "Convite aceito",
+    errorMessage: "Não foi possível aceitar o convite. Confira os dados e tente novamente.",
+    afterSuccess: refreshRealProfileAfterInstructorInvite
+  }, async () => {
+    if (!authClient || !realUser) return { errorMessage: "Entre com Google para aceitar este convite." };
+    if (realProfileState !== "missing" && realProfileState !== "found") {
+      return { errorMessage: "Não foi possível verificar sua conta. Atualize a página e tente novamente." };
+    }
+    const isNewAccount = realProfileState === "missing";
+    const isAdultStudent = realProfileState === "found" && realProfile &&
+      realProfile.papel === "aluno" && realProfile.idade_declarada === "adulto";
+    if (!isNewAccount && !isAdultStudent) {
+      return { errorMessage: "Este convite só pode ser aceito por uma conta nova ou por uma conta de Aluno adulto." };
+    }
+
+    const token = realInstructorInviteToken || extractRealInstructorInviteToken(linkInput ? linkInput.value : "");
+    if (!/^[0-9a-f]{64}$/.test(token)) {
+      return { errorMessage: "O link de convite é inválido ou expirou. Peça um novo link ao Professor." };
+    }
+
+    let name = "";
+    let age = "adulto";
+    if (isNewAccount) {
+      name = nameInput ? nameInput.value.trim() : "";
+      const nameLength = Array.from(name).length;
+      if (nameLength < 1 || nameLength > 80 || /[\u0000-\u001f\u007f-\u009f]/.test(name)) {
+        return { errorMessage: "Informe um nome válido com até 80 caracteres." };
+      }
+      if (!ageCheck || !ageCheck.checked) {
+        return { errorMessage: "Confirme a declaração de que tem 18 anos ou mais." };
+      }
+    } else {
+      name = typeof realProfile.nome === "string" ? realProfile.nome : "";
+    }
+
+    try {
+      const { data: validation, error: validationError } = await authClient.rpc("validar_convite_instrutor", {
+        p_token: token
+      });
+      if (validationError) {
+        return { errorMessage: navigator.onLine === false
+          ? "Falha de rede ao validar o convite. Verifique sua conexão e tente novamente."
+          : "Não foi possível validar o convite. Tente novamente mais tarde." };
+      }
+      if (validation !== "ok") {
+        return { errorMessage: typeof validation === "string"
+          ? realInstructorInviteReturnMessage(validation)
+          : "O servidor retornou uma resposta inesperada. Tente novamente mais tarde." };
+      }
+
+      const { data, error } = await authClient.rpc("consumir_convite_instrutor", {
+        p_token: token,
+        p_nome: name,
+        p_idade_declarada: age
+      });
+      if (error) {
+        return { errorMessage: navigator.onLine === false
+          ? "Falha de rede ao aceitar o convite. Verifique sua conexão e tente novamente."
+          : "Não foi possível aceitar o convite. Tente novamente mais tarde." };
+      }
+      if (data !== "ok") {
+        return { errorMessage: typeof data === "string"
+          ? realInstructorInviteReturnMessage(data)
+          : "O servidor retornou uma resposta inesperada. Tente novamente mais tarde." };
+      }
+
+      realInstructorInviteToken = "";
+      if (linkInput) linkInput.value = "";
+      if (nameInput) nameInput.value = "";
+      if (ageCheck) ageCheck.checked = false;
+      return {};
+    } catch {
+      return { errorMessage: navigator.onLine === false
+        ? "Falha de rede ao aceitar o convite. Verifique sua conexão e tente novamente."
+        : "Não foi possível aceitar o convite. Tente novamente mais tarde." };
+    }
+  });
+}
+
+function handleRealStudentLinkSubmit(form) {
+  const button = form.querySelector("[data-real-student-link-submit]");
+  const input = form.querySelector("#real-student-link-code");
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-student-link-error"),
+    announcement: form.querySelector("#real-student-link-status"),
+    buttons: [button, input],
+    loadingText: "Enviando...",
+    loadingMessage: "Enviando pedido de vínculo.",
+    successMessage: "Pedido enviado. Aguarde a decisão do Professor.",
+    errorMessage: "Não foi possível enviar o pedido. Confira a mensagem e tente novamente.",
+    afterSuccess: loadRealStudentLinkStatus
+  }, async () => {
+    const userId = realUser && realUser.id;
+    if (!authClient || !userId || !isRealActiveStudent()) {
+      return { errorMessage: "Esta ação exige uma conta Google de Aluno ativa." };
+    }
+
+    const code = input.value.replace(/\s/g, "").toUpperCase();
+    input.value = code;
+    if (!/^[0-9A-F]{6}$/.test(code)) {
+      return { errorMessage: "Informe um código válido com 6 caracteres hexadecimais." };
+    }
+
+    try {
+      const { data, error } = await authClient.rpc("solicitar_vinculo", { p_codigo: code });
+      if (error) {
+        return {
+          errorMessage: navigator.onLine === false
+            ? "Falha de rede ao enviar o pedido. Verifique sua conexão e tente novamente."
+            : "Não foi possível enviar o pedido. Confira o código e tente novamente."
+        };
+      }
+      if (data && data.ok === true) return {};
+      if (data && data.ok === false && data.bloqueado === true) {
+        return { errorMessage: "O limite de tentativas foi atingido. Aguarde 15 minutos antes de tentar novamente." };
+      }
+      if (data && data.ok === false) {
+        return { errorMessage: "Não foi possível enviar o pedido. Confira o código ou se já existe um vínculo ou pedido pendente." };
+      }
+      return { errorMessage: "O servidor retornou uma resposta inesperada. Tente novamente mais tarde." };
+    } catch {
+      return {
+        errorMessage: navigator.onLine === false
+          ? "Falha de rede ao enviar o pedido. Verifique sua conexão e tente novamente."
+          : "Não foi possível enviar o pedido. Tente novamente mais tarde."
+      };
+    }
+  });
+}
+
+function handleRealUnregisteredCreateSubmit(form) {
+  const button = form.querySelector("[data-real-unregistered-create]");
+  const nameInput = form.querySelector("#real-unregistered-name");
+  const ageInput = form.querySelector("#real-unregistered-create-age");
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-unregistered-create-error"),
+    announcement: form.querySelector("#real-unregistered-create-status"),
+    buttons: [...form.querySelectorAll("button,input,select")],
+    loadingText: "Salvando...",
+    loadingMessage: "Cadastrando aluno sem conta.",
+    successMessage: "Aluno sem conta cadastrado.",
+    errorMessage: "Não foi possível cadastrar o aluno. Confira os dados e tente novamente.",
+    afterSuccess: loadRealProfessorStudentRecords
+  }, async () => {
+    if (!authClient || !realUser || !isRealActiveProfessorAccount()) {
+      return { errorMessage: "Esta ação exige uma conta Google de Professor ativa." };
+    }
+    const name = nameInput.value.trim();
+    const nameLength = Array.from(name).length;
+    if (nameLength < 1 || nameLength > 80) {
+      return { errorMessage: "O nome precisa ter de 1 a 80 caracteres." };
+    }
+    if (/[\u0000-\u001f\u007f-\u009f]/.test(name)) {
+      return { errorMessage: "O nome não pode conter caracteres de controle." };
+    }
+    const age = ageInput.value;
+    if (!["adulto", "menor"].includes(age)) {
+      return { errorMessage: "Selecione Adulto ou Menor de 18 anos." };
+    }
+
+    try {
+      const { data, error } = await authClient.rpc("criar_aluno_sem_conta", {
+        p_nome: name,
+        p_idade_declarada: age
+      });
+      if (error) {
+        return {
+          errorMessage: navigator.onLine === false
+            ? "Falha de rede ao cadastrar o aluno. Verifique sua conexão e tente novamente."
+            : "Não foi possível cadastrar o aluno. Confira os dados e tente novamente."
+        };
+      }
+      if (typeof data === "string" && data) return {};
+      if (data === null) return { errorMessage: "Não foi possível cadastrar o aluno. Verifique sua conta e os dados informados." };
+      return { errorMessage: "O servidor retornou uma resposta inesperada. Tente novamente mais tarde." };
+    } catch {
+      return {
+        errorMessage: navigator.onLine === false
+          ? "Falha de rede ao cadastrar o aluno. Verifique sua conexão e tente novamente."
+          : "Não foi possível cadastrar o aluno. Tente novamente mais tarde."
+      };
+    }
+  });
+}
+
+function handleRealUnregisteredAgeSubmit(form) {
+  const button = form.querySelector("[data-real-unregistered-age-save]");
+  const ageInput = form.querySelector('[name="idade_declarada"]');
+  runButtonAction(button, {
+    feedback: form.querySelector('[role="alert"]'),
+    announcement: form.querySelector('[role="status"]'),
+    buttons: [...form.querySelectorAll("button,select")],
+    loadingText: "Salvando...",
+    loadingMessage: "Atualizando a idade declarada.",
+    successMessage: "Idade declarada atualizada.",
+    errorMessage: "Não foi possível atualizar a idade. Tente novamente.",
+    afterSuccess: loadRealProfessorStudentRecords
+  }, async () => {
+    if (!authClient || !realUser || !isRealActiveProfessorAccount()) {
+      return { errorMessage: "Esta ação exige uma conta Google de Professor ativa." };
+    }
+    const studentId = form.dataset.studentId;
+    const age = ageInput.value;
+    if (!studentId) return { errorMessage: "Este cadastro não está disponível. Atualize a tela." };
+    if (!["adulto", "menor"].includes(age)) {
+      return { errorMessage: "Selecione Adulto ou Menor de 18 anos." };
+    }
+
+    try {
+      const { data, error } = await authClient.rpc("atualizar_idade_aluno_sem_conta", {
+        p_aluno_id: studentId,
+        p_idade_declarada: age
+      });
+      if (error) {
+        return {
+          errorMessage: navigator.onLine === false
+            ? "Falha de rede ao atualizar a idade. Verifique sua conexão e tente novamente."
+            : "Não foi possível atualizar a idade. Tente novamente mais tarde."
+        };
+      }
+      if (data === true) return {};
+      if (data === false) return { errorMessage: "O cadastro não está disponível para atualização. Atualize a lista e tente novamente." };
+      return { errorMessage: "O servidor retornou uma resposta inesperada. Tente novamente mais tarde." };
+    } catch {
+      return {
+        errorMessage: navigator.onLine === false
+          ? "Falha de rede ao atualizar a idade. Verifique sua conexão e tente novamente."
+          : "Não foi possível atualizar a idade. Tente novamente mais tarde."
+      };
+    }
+  });
+}
+
+function realTeacherNameReturnMessage(code) {
+  const messages = {
+    nao_autenticado: "Sua sessão Google não está autenticada. Entre novamente para definir o nome.",
+    sem_permissao: "Seu perfil não tem permissão para definir o nome. Esta ação exige um Professor ativo.",
+    nome_invalido: "O nome precisa ter de 2 a 80 caracteres e não pode conter caracteres de controle."
+  };
+  return messages[code] || "O servidor retornou uma resposta inesperada. Atualize a tela e tente novamente.";
+}
+
+function realTeacherNameSupabaseErrorMessage(error, afterWrite = false) {
+  if (!authClient || !realUser) return "Sua sessão Google não está ativa. Entre novamente e tente outra vez.";
+  const message = error && typeof error.message === "string" ? error.message : "";
+  const networkError = navigator.onLine === false || error instanceof TypeError || /network|fetch|connection|timeout/i.test(message);
+  if (networkError) {
+    return afterWrite
+      ? "O nome foi salvo, mas houve uma falha de rede ao confirmar a leitura. Atualize a tela."
+      : "Falha de rede ao definir o nome. Verifique sua conexão e tente novamente.";
+  }
+  return afterWrite
+    ? "O nome foi salvo, mas não foi possível confirmar a leitura do perfil. Atualize a tela."
+    : "Não foi possível definir o nome. Tente novamente mais tarde.";
+}
+
+function handleRealTeacherNameSubmit(form) {
+  const button = form.querySelector("[data-real-teacher-name-save]");
+  const input = form.querySelector("#real-teacher-name");
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-teacher-name-error"),
+    announcement: form.querySelector("#real-teacher-name-status"),
+    buttons: [button, input],
+    loadingText: "Salvando...",
+    loadingMessage: "Salvando o nome no seu perfil.",
+    successMessage: "Nome definido e confirmado no perfil.",
+    errorMessage: "Não foi possível definir o nome. Confira a mensagem e tente novamente."
+  }, async () => {
+    const userId = realUser && realUser.id;
+    if (!authClient || !userId) return { errorMessage: "Sua sessão Google não está ativa. Entre novamente e tente outra vez." };
+    if (!isRealActiveProfessor()) return { errorMessage: "Apenas um Professor ativo vinculado a uma academia pode definir o nome." };
+
+    const name = input.value.trim();
+    const nameLength = Array.from(name).length;
+    if (nameLength < 2 || nameLength > 80) {
+      return { errorMessage: "O nome precisa ter de 2 a 80 caracteres." };
+    }
+    if (/[\u0000-\u001f\u007f-\u009f]/.test(name)) {
+      return { errorMessage: "O nome não pode conter caracteres de controle." };
+    }
+
+    let nameWasSaved = false;
+    try {
+      const { data, error } = await authClient.rpc("definir_nome_professor", { p_nome: name });
+      if (error) {
+        logRealProfileSupabaseError("definir nome do Professor", error);
+        return { errorMessage: realTeacherNameSupabaseErrorMessage(error) };
+      }
+      if (data !== "ok") return { errorMessage: realTeacherNameReturnMessage(data) };
+      nameWasSaved = true;
+
+      const { data: profile, error: profileError } = await authClient
+        .from("perfis")
+        .select("nome")
+        .eq("id", userId)
+        .maybeSingle();
+      if (profileError) {
+        logRealProfileSupabaseError("confirmar nome do Professor", profileError);
+        return { errorMessage: realTeacherNameSupabaseErrorMessage(profileError, true) };
+      }
+      if (!profile || typeof profile.nome !== "string" || !profile.nome.trim()) {
+        return { errorMessage: "O nome foi salvo, mas não foi possível confirmar o valor no perfil. Atualize a tela." };
+      }
+      if (!realUser || realUser.id !== userId || !isRealActiveProfessor()) {
+        return { errorMessage: "O nome foi salvo, mas a sessão mudou antes da confirmação. Atualize a tela." };
+      }
+
+      const savedName = profile.nome.trim();
+      realProfile = { ...realProfile, nome: savedName };
+      const profileName = screenContent.querySelector("#real-profile-name");
+      if (profileName) profileName.textContent = savedName;
+      const missingNameNotice = screenContent.querySelector("#real-teacher-name-missing");
+      if (missingNameNotice) missingNameNotice.remove();
+      input.value = savedName;
+    } catch (error) {
+      logRealProfileSupabaseError("definir nome do Professor", error);
+      return { errorMessage: realTeacherNameSupabaseErrorMessage(error, nameWasSaved) };
+    }
+  });
+}
+
+function realTeacherCodeErrorMessage(error, action) {
+  if (!authClient || !realUser) return "Sua sessão real não está ativa. Entre novamente com o Google.";
+  if (navigator.onLine === false || error instanceof TypeError) {
+    return "Falha de rede. Verifique sua conexão e tente novamente.";
+  }
+  return action === "generate"
+    ? "Não foi possível gerar ou trocar o código. Tente novamente mais tarde."
+    : "Não foi possível consultar o código. Tente novamente mais tarde.";
+}
+
+function realAdminGuardError() {
+  if (!authClient || !realUser) return "Sua sessão real não está ativa. Entre com a conta Google e tente novamente.";
+  if (!isRealAdmSession()) return "Esta ação está disponível somente para uma conta real com papel Adm.";
+  return "";
+}
+
+function logRealAdminDatabaseError(action, error) {
+  console.error(`Falha Supabase ao ${action}.`, {
+    code: error && typeof error.code === "string" ? error.code : null,
+    message: error && typeof error.message === "string" ? error.message : ""
+  });
+}
+
+function realAdminDatabaseErrorMessage(error, action) {
+  const guardError = realAdminGuardError();
+  if (guardError) return guardError;
+  if (action === "invite" && error && error.code === "23505") {
+    return "Já existe um convite ou cadastro para esse e-mail.";
+  }
+  if (navigator.onLine === false || error instanceof TypeError) {
+    return "Falha de rede. Verifique sua conexão e tente novamente.";
+  }
+  return action === "read"
+    ? "Não foi possível carregar os dados. Tente novamente."
+    : "Não foi possível concluir a operação. Tente novamente.";
+}
+
+function matchesDatabaseInviteEmailCheck(email) {
+  const characters = Array.from(email);
+  for (let at = 1; at < characters.length; at += 1) {
+    if (characters[at] !== "@") continue;
+    for (let dot = at + 2; dot < characters.length - 1; dot += 1) {
+      if (characters[dot] === ".") return true;
+    }
+  }
+  return false;
+}
+
 function academyPhotoText() {
   return demoAcademy.photo === "icon" ? "⌂" : escapeHtml(demoAcademy.name.trim().split(/\s+/).slice(0, 2).map((word) => Array.from(word)[0] || "").join("").toLocaleUpperCase("pt-BR"));
+}
+
+function renderRealAdminAcademyResult() {
+  if (realCreatedAcademy) {
+    const photoMessage = realCreatedAcademy.foto_fundo_url ? "URL da foto de fundo cadastrada." : "Sem foto de fundo.";
+    return `<div class="notice notice--info"><strong>Academia lida do banco:</strong> ${escapeHtml(realCreatedAcademy.nome)}<br><small>${photoMessage}</small></div>`;
+  }
+  if (realCreatedAcademyId) {
+    return `<p class="field-help">A academia foi criada. A leitura ainda não foi concluída; tente novamente para ler este registro.</p>`;
+  }
+  return `<p class="field-help">Nenhuma academia foi criada nesta sessão.</p>`;
+}
+
+function renderRealAdminAcademyScreen() {
+  return `
+    ${heading("CONTA REAL · ADM", "Academia", "Cadastre ou edite academias no banco. Telefone e e-mail não são enviados.")}
+    ${panel("Criar academia", `
+      <form data-academy-form data-real-academy-form>
+        <div class="form-grid">
+          <div class="field field--wide">
+            <label for="academy-name">Nome da academia</label>
+            <input id="academy-name" name="name" aria-required="true" autocomplete="organization">
+          </div>
+          <div class="field field--wide">
+            <label for="academy-photo-url">URL da foto de fundo (opcional)</label>
+            <input id="academy-photo-url" name="foto_fundo_url" type="text">
+          </div>
+        </div>
+        <div class="form-actions">
+          <div class="academy-save-action">
+            <button class="button button--primary button--action" type="submit" data-academy-save aria-describedby="real-academy-error real-academy-status">
+              <span data-action-label>${realCreatedAcademyId ? "Ler academia criada" : "Criar academia"}</span>
+            </button>
+            <div class="login-action-error" id="real-academy-error" role="alert"></div>
+            <div class="field-help" id="real-academy-status" role="status" aria-live="polite"></div>
+          </div>
+        </div>
+      </form>
+      <div id="real-academy-result" aria-live="polite">${renderRealAdminAcademyResult()}</div>
+    `)}
+    ${panel("Editar academia", `
+      <div id="real-admin-academy-list">Carregando academias...</div>
+      <p class="login-action-error" id="real-admin-academy-list-error" role="alert"></p>
+    `)}
+  `;
+}
+
+function renderRealAdminAcademyRows() {
+  if (!realAdminAcademies.length) return `<p class="field-help">Nenhuma academia encontrada.</p>`;
+  return realAdminAcademies.map((academy, index) => {
+    const errorId = `real-academy-edit-error-${index}`;
+    const statusId = `real-academy-edit-status-${index}`;
+    return `
+      <form class="real-admin-academy-row" data-real-admin-academy-form data-academy-id="${escapeHtml(academy.id)}" data-academy-version="${escapeHtml(String(academy.versao_edicao))}">
+        <div class="form-grid">
+          <div class="field field--wide">
+            <label for="real-academy-edit-name-${index}">Nome da academia</label>
+            <input id="real-academy-edit-name-${index}" name="nome" value="${escapeHtml(academy.nome)}" autocomplete="organization">
+          </div>
+          <div class="field field--wide">
+            <label for="real-academy-edit-photo-${index}">URL da foto de fundo (opcional)</label>
+            <input id="real-academy-edit-photo-${index}" name="foto_fundo_url" value="${escapeHtml(academy.foto_fundo_url || "")}">
+          </div>
+        </div>
+        <div class="form-actions">
+          <div class="academy-save-action">
+            <button class="button button--primary button--action" type="submit" data-real-academy-save aria-describedby="${errorId} ${statusId}">
+              <span data-action-label>Salvar alterações</span>
+            </button>
+            <div class="login-action-error" id="${errorId}" role="alert"></div>
+            <div class="field-help" id="${statusId}" role="status" aria-live="polite"></div>
+          </div>
+        </div>
+      </form>
+    `;
+  }).join("");
+}
+
+function renderRealAdminInvitesScreen() {
+  return `
+    ${heading("CONTA REAL · ADM", "Professores convidados", "Convites reais são listados do banco. Somente convites pendentes podem ser excluídos.")}
+    <div class="content-grid">
+      ${panel("Convites reais", `
+        <div id="real-invite-list" aria-live="polite">Carregando convites...</div>
+        <p class="login-action-error" id="real-invite-list-error" role="alert"></p>
+      `)}
+      ${panel("Convidar professor", `
+        <form data-real-admin-invite-form>
+          <div class="field">
+            <label for="real-invite-email">E-mail</label>
+            <input id="real-invite-email" name="email" type="text" inputmode="email" autocomplete="email" aria-required="true">
+          </div>
+          <div class="field" style="margin-top:12px">
+            <label for="real-invite-academy">Academia</label>
+            <select id="real-invite-academy" name="academia_id" aria-required="true" disabled>
+              <option value="">Carregando academias...</option>
+            </select>
+            <div class="login-action-error" id="real-invite-academy-error" role="alert"></div>
+          </div>
+          <div class="form-actions">
+            <div class="academy-save-action">
+              <button class="button button--primary button--action" type="submit" data-real-invite-submit aria-describedby="real-invite-error real-invite-status" disabled>
+                <span data-action-label>Convidar professor</span>
+              </button>
+              <div class="login-action-error" id="real-invite-error" role="alert"></div>
+              <div class="field-help" id="real-invite-status" role="status" aria-live="polite"></div>
+            </div>
+          </div>
+        </form>
+        <p class="field-help">Informe somente dados fictícios ou autorizados para este convite.</p>
+      `)}
+    </div>
+  `;
+}
+
+function renderRealAdminManagementScreen() {
+  return `
+    ${heading("CONTA REAL · ADM", "Papéis e autorizações", "Consulte Professores e Instrutores e gerencie os Professores pelo banco.")}
+    ${panel("Academia", `
+      <div class="field">
+        <label for="real-admin-academy">Academia</label>
+        <select id="real-admin-academy" aria-describedby="real-admin-academy-error" disabled>
+          <option value="">Carregando academias...</option>
+        </select>
+        <div class="login-action-error" id="real-admin-academy-error" role="alert"></div>
+      </div>
+    `)}
+    <div id="real-admin-management" aria-live="polite">
+      <p class="field-help">Carregando Professores e Instrutores...</p>
+    </div>
+  `;
+}
+
+function renderRealAdminManagementDetails(academyId, profiles, replacementCandidates) {
+  const academy = realAdminAcademies.find((item) => item.id === academyId);
+  const professors = profiles.filter((profile) => profile.papel === "professor");
+  const activeProfessors = professors.filter((profile) => profile.ativo === true);
+  const instructors = profiles.filter((profile) => profile.papel === "instrutor");
+  const activeOptions = activeProfessors.map((profile) =>
+    `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.nome || "Nome não definido")}</option>`
+  ).join("");
+  const replacementOptions = replacementCandidates.map((profile) =>
+    `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.nome || "Nome não definido")}</option>`
+  ).join("");
+  const rows = profiles.map((profile, index) => {
+    const roleLabel = profile.papel === "professor" ? "Professor" : "Instrutor";
+    const statusLabel = profile.papel === "professor" ? (profile.ativo ? "Ativo" : "Inativo") : "Vinculado";
+    const errorId = `real-professor-action-error-${index}`;
+    const statusId = `real-professor-action-status-${index}`;
+    const action = profile.papel !== "professor" ? "" : `
+      <div class="academy-save-action">
+        <button class="button button--small ${profile.ativo ? "button--danger" : "button--quiet"} button--action" type="button"
+          data-real-professor-action="${profile.ativo ? "deactivate" : "reactivate"}"
+          data-professor-id="${escapeHtml(profile.id)}" aria-describedby="${errorId} ${statusId}">
+          <span data-action-label>${profile.ativo ? "Desativar Professor" : "Reativar Professor"}</span>
+        </button>
+        <div class="login-action-error" id="${errorId}" role="alert"></div>
+        <div class="field-help" id="${statusId}" role="status" aria-live="polite"></div>
+      </div>
+    `;
+    return `
+      <div class="list-row real-admin-professor-row">
+        <span class="row-copy">
+          <strong>${escapeHtml(profile.nome || "Nome não definido")}</strong>
+          <small>${roleLabel} · ${statusLabel}</small>
+        </span>
+        ${action}
+      </div>
+    `;
+  }).join("");
+  const admLinkStatus = realProfile && realProfile.academia_id === academyId
+    ? "Sua conta Adm está vinculada a esta academia."
+    : "Sua conta Adm ainda não está vinculada a esta academia.";
+  const noActiveNotice = activeProfessors.length
+    ? ""
+    : `<div class="notice notice--info"><strong>Academia sem Professor ativo.</strong><br>Se houver Professor inativo, você pode reativá-lo; para a troca, selecione um Professor inativo com convite aceito.</div>`;
+  const instructorMessage = instructors.length
+    ? ""
+    : `<p class="field-help">Nenhum Instrutor vinculado a esta academia.</p>`;
+  return `
+    ${noActiveNotice}
+    <div class="content-grid">
+      ${panel("Vincular Adm a Professor", `
+        <p class="field-help">${admLinkStatus}</p>
+        <form data-real-admin-bind-form>
+          <div class="field">
+            <label for="real-admin-bind-professor">Professor ativo</label>
+            <select id="real-admin-bind-professor" ${activeProfessors.length ? "" : "disabled"}>
+              <option value="">${activeProfessors.length ? "Selecione um Professor" : "Nenhum Professor ativo"}</option>
+              ${activeOptions}
+            </select>
+          </div>
+          <div class="form-actions">
+            <div class="academy-save-action">
+              <button class="button button--primary button--action" type="submit" data-real-admin-bind
+                aria-describedby="real-admin-bind-error real-admin-bind-status" ${activeProfessors.length ? "" : "disabled"}>
+                <span data-action-label>Vincular Adm</span>
+              </button>
+              <div class="login-action-error" id="real-admin-bind-error" role="alert"></div>
+              <div class="field-help" id="real-admin-bind-status" role="status" aria-live="polite"></div>
+            </div>
+          </div>
+        </form>
+      `)}
+      ${panel("Trocar Professor", `
+        <p>Somente Professores inativos da academia com convite aceito aparecem para seleção.</p>
+        <form data-real-admin-switch-form>
+          <div class="field">
+            <label for="real-admin-replacement-professor">Novo Professor</label>
+            <select id="real-admin-replacement-professor" ${replacementCandidates.length ? "" : "disabled"}>
+              <option value="">${replacementCandidates.length ? "Selecione um Professor" : "Nenhum Professor elegível"}</option>
+              ${replacementOptions}
+            </select>
+          </div>
+          <div class="form-actions">
+            <div class="academy-save-action">
+              <button class="button button--primary button--action" type="submit" data-real-admin-switch
+                aria-describedby="real-admin-switch-error real-admin-switch-status" ${replacementCandidates.length ? "" : "disabled"}>
+                <span data-action-label>Trocar Professor</span>
+              </button>
+              <div class="login-action-error" id="real-admin-switch-error" role="alert"></div>
+              <div class="field-help" id="real-admin-switch-status" role="status" aria-live="polite"></div>
+            </div>
+          </div>
+        </form>
+      `)}
+    </div>
+    ${panel(`Professores e Instrutores · ${escapeHtml(academy ? academy.nome : "")}`, `
+      ${profiles.length ? rows : `<p class="field-help">Nenhum Professor ou Instrutor encontrado nesta academia.</p>`}
+      ${instructorMessage}
+    `)}
+  `;
+}
+
+function renderRealAdminInviteRows(invites) {
+  if (!invites.length) return `<p class="field-help">Nenhum convite encontrado.</p>`;
+  const academyNames = new Map(realAdminAcademies.map((academy) => [academy.id, academy.nome]));
+  return invites.map((invite, index) => {
+    const statusLabel = invite.status === "convidado" ? "Convidado"
+      : invite.status === "ativo" ? "Ativo"
+        : invite.status === "revogado" ? "Revogado" : invite.status;
+    const errorId = `real-invite-delete-error-${index}`;
+    const statusId = `real-invite-delete-status-${index}`;
+    return `
+      <div class="list-row real-admin-invite-row">
+        <span class="row-copy">
+          <strong>${escapeHtml(invite.email)}</strong>
+          <small>${escapeHtml(academyNames.get(invite.academia_id) || "Academia não carregada")} · ${escapeHtml(statusLabel)}</small>
+        </span>
+        ${invite.status === "convidado" ? `
+          <div class="academy-save-action">
+            <button class="button button--small button--quiet button--action" type="button" data-real-invite-delete="${escapeHtml(invite.email)}" aria-describedby="${errorId} ${statusId}">
+              <span data-action-label>Excluir convite</span>
+            </button>
+            <div class="login-action-error" id="${errorId}" role="alert"></div>
+            <div class="field-help" id="${statusId}" role="status" aria-live="polite"></div>
+          </div>
+        ` : ""}
+      </div>
+    `;
+  }).join("");
+}
+
+async function loadRealAdminInvites() {
+  const guardError = realAdminGuardError();
+  realAdminAcademies = [];
+  const academySelect = screenContent.querySelector("#real-invite-academy");
+  const inviteList = screenContent.querySelector("#real-invite-list");
+  const academyError = screenContent.querySelector("#real-invite-academy-error");
+  const listError = screenContent.querySelector("#real-invite-list-error");
+  const inviteButton = screenContent.querySelector("[data-real-invite-submit]");
+  if (guardError) {
+    if (academyError) academyError.textContent = guardError;
+    if (listError) listError.textContent = guardError;
+    return false;
+  }
+
+  let success = true;
+  try {
+    const { data, error } = await authClient.from("academias")
+      .select("id,nome,foto_fundo_url,versao_edicao")
+      .order("nome", { ascending: true });
+    if (error) {
+      logRealAdminDatabaseError("listar academias para convite", error);
+      if (academyError) academyError.textContent = realAdminDatabaseErrorMessage(error, "read");
+      if (academySelect) {
+        academySelect.replaceChildren(new Option("Não foi possível carregar academias", ""));
+        academySelect.disabled = true;
+      }
+      if (inviteButton) inviteButton.disabled = true;
+      success = false;
+    } else {
+      realAdminAcademies = data || [];
+      if (academyError) academyError.textContent = "";
+      if (academySelect) {
+        academySelect.replaceChildren(new Option(
+          realAdminAcademies.length ? "Selecione uma academia" : "Cadastre uma academia primeiro",
+          ""
+        ));
+        realAdminAcademies.forEach((academy) => {
+          const option = new Option(academy.nome, academy.id);
+          academySelect.add(option);
+        });
+        academySelect.disabled = realAdminAcademies.length === 0;
+      }
+      if (inviteButton) inviteButton.disabled = realAdminAcademies.length === 0;
+    }
+  } catch (error) {
+    logRealAdminDatabaseError("listar academias para convite", error);
+    if (academyError) academyError.textContent = realAdminDatabaseErrorMessage(error, "read");
+    if (academySelect) {
+      academySelect.replaceChildren(new Option("Não foi possível carregar academias", ""));
+      academySelect.disabled = true;
+    }
+    if (inviteButton) inviteButton.disabled = true;
+    success = false;
+  }
+
+  try {
+    const { data, error } = await authClient.from("professores_convidados").select("email,academia_id,status");
+    if (error) {
+      logRealAdminDatabaseError("listar convites de professor", error);
+      if (listError) listError.textContent = realAdminDatabaseErrorMessage(error, "read");
+      success = false;
+    } else if (inviteList) {
+      inviteList.innerHTML = renderRealAdminInviteRows(data || []);
+      if (listError) listError.textContent = "";
+    }
+  } catch (error) {
+    logRealAdminDatabaseError("listar convites de professor", error);
+    if (listError) listError.textContent = realAdminDatabaseErrorMessage(error, "read");
+    success = false;
+  }
+  return success;
+}
+
+async function loadRealAdminAcademiesForEdit() {
+  const list = screenContent.querySelector("#real-admin-academy-list");
+  const listError = screenContent.querySelector("#real-admin-academy-list-error");
+  const guardError = realAdminGuardError();
+  if (guardError) {
+    if (list) list.textContent = guardError;
+    if (listError) listError.textContent = guardError;
+    return false;
+  }
+  try {
+    const { data, error } = await authClient.from("academias")
+      .select("id,nome,foto_fundo_url,versao_edicao")
+      .order("nome", { ascending: true });
+    if (error) {
+      logRealAdminDatabaseError("listar academias para edição", error);
+      if (listError) listError.textContent = realAdminDatabaseErrorMessage(error, "read");
+      if (list) list.textContent = "Não foi possível carregar as academias.";
+      return false;
+    }
+    realAdminAcademies = data || [];
+    if (listError) listError.textContent = "";
+    if (list) list.innerHTML = renderRealAdminAcademyRows();
+    return true;
+  } catch (error) {
+    logRealAdminDatabaseError("listar academias para edição", error);
+    if (listError) listError.textContent = realAdminDatabaseErrorMessage(error, "read");
+    if (list) list.textContent = "Não foi possível carregar as academias.";
+    return false;
+  }
+}
+
+async function loadRealAdminManagement() {
+  const academySelect = screenContent.querySelector("#real-admin-academy");
+  const management = screenContent.querySelector("#real-admin-management");
+  const guardError = realAdminGuardError();
+  if (guardError) {
+    if (management) management.textContent = guardError;
+    return false;
+  }
+  try {
+    const { data, error } = await authClient.from("academias")
+      .select("id,nome,foto_fundo_url,versao_edicao")
+      .order("nome", { ascending: true });
+    if (error) {
+      logRealAdminDatabaseError("listar academias para gestão de Professores", error);
+      if (academySelect) {
+        academySelect.replaceChildren(new Option("Não foi possível carregar academias", ""));
+        academySelect.disabled = true;
+      }
+      if (management) management.textContent = realAdminDatabaseErrorMessage(error, "read");
+      return false;
+    }
+    realAdminAcademies = data || [];
+    if (!academySelect || !management) return false;
+    academySelect.replaceChildren(new Option(
+      realAdminAcademies.length ? "Selecione uma academia" : "Nenhuma academia encontrada",
+      ""
+    ));
+    realAdminAcademies.forEach((academy) => academySelect.add(new Option(academy.nome, academy.id)));
+    if (!realAdminAcademies.length) {
+      academySelect.disabled = true;
+      management.innerHTML = `<p class="field-help">Cadastre uma academia antes de gerenciar seus Professores.</p>`;
+      return true;
+    }
+    const preferredAcademy = realProfile && realAdminAcademies.some((academy) => academy.id === realProfile.academia_id)
+      ? realProfile.academia_id
+      : realAdminAcademies[0].id;
+    academySelect.value = preferredAcademy;
+    academySelect.disabled = false;
+    return await loadRealAdminManagementForAcademy(preferredAcademy);
+  } catch (error) {
+    logRealAdminDatabaseError("listar academias para gestão de Professores", error);
+    if (academySelect) {
+      academySelect.replaceChildren(new Option("Não foi possível carregar academias", ""));
+      academySelect.disabled = true;
+    }
+    if (management) management.textContent = realAdminDatabaseErrorMessage(error, "read");
+    return false;
+  }
+}
+
+async function loadRealAdminManagementForAcademy(academyId) {
+  const management = screenContent.querySelector("#real-admin-management");
+  const guardError = realAdminGuardError();
+  if (guardError) {
+    if (management) management.textContent = guardError;
+    return false;
+  }
+  if (!realAdminAcademies.some((academy) => academy.id === academyId)) {
+    if (management) management.textContent = "Selecione uma academia cadastrada.";
+    return false;
+  }
+  if (management) management.innerHTML = `<p class="field-help">Carregando Professores e Instrutores...</p>`;
+  try {
+    const { data: profiles, error: profileError } = await authClient.from("perfis")
+      .select("id,papel,nome,academia_id,ativo")
+      .eq("academia_id", academyId)
+      .in("papel", ["professor", "instrutor"])
+      .order("nome", { ascending: true });
+    if (profileError) {
+      logRealAdminDatabaseError("listar Professores e Instrutores", profileError);
+      if (management) management.innerHTML = `<p class="login-action-error" role="alert">${realAdminDatabaseErrorMessage(profileError, "read")}</p>`;
+      return false;
+    }
+    const { data: invitations, error: invitationError } = await authClient.from("professores_convidados")
+      .select("perfil_id")
+      .eq("academia_id", academyId)
+      .eq("status", "ativo")
+      .not("perfil_id", "is", null);
+    if (invitationError) {
+      logRealAdminDatabaseError("listar convites aceitos para troca de Professor", invitationError);
+      if (management) management.innerHTML = `<p class="login-action-error" role="alert">${realAdminDatabaseErrorMessage(invitationError, "read")}</p>`;
+      return false;
+    }
+    const acceptedProfileIds = new Set((invitations || []).map((invite) => invite.perfil_id));
+    const replacementCandidates = (profiles || []).filter((profile) =>
+      profile.papel === "professor" && profile.ativo === false && acceptedProfileIds.has(profile.id)
+    );
+    if (management) management.innerHTML = renderRealAdminManagementDetails(academyId, profiles || [], replacementCandidates);
+    return true;
+  } catch (error) {
+    logRealAdminDatabaseError("carregar gestão de Professores", error);
+    if (management) management.innerHTML = `<p class="login-action-error" role="alert">${realAdminDatabaseErrorMessage(error, "read")}</p>`;
+    return false;
+  }
+}
+
+function realAdminAcademyRpcMessage(code) {
+  return {
+    nao_autenticado: "Sua sessão real não está ativa. Entre com a conta Google e tente novamente.",
+    sem_permissao: "Esta ação está disponível somente para uma conta Adm ativa.",
+    nome_invalido: "Informe um nome com 2 a 80 caracteres.",
+    academia_nao_encontrada: "A academia não foi encontrada. Atualize a tela e tente novamente.",
+    conflito_versao: "A academia foi alterada por outra operação. Recarregue a tela e aplique suas mudanças novamente."
+  }[code] || "Não foi possível atualizar a academia. Tente novamente.";
+}
+
+function realAdminProfessorRpcMessage(code) {
+  return {
+    nao_autenticado: "Sua sessão real não está ativa. Entre com a conta Google e tente novamente.",
+    sem_permissao: "Esta ação está disponível somente para uma conta Adm ativa.",
+    academia_nao_encontrada: "A academia não foi encontrada. Atualize a tela e tente novamente.",
+    professor_invalido: "O Professor não atende aos critérios desta operação. Confira o estado da conta e tente novamente.",
+    mesmo_professor: "Selecione um Professor diferente do atual.",
+    novo_professor_com_dados_proprios: "O novo Professor já possui vínculos, turma ou dados próprios e não pode receber esta transferência.",
+    sem_professor_atual: "Não há um Professor anterior disponível para esta troca.",
+    nao_pode_desativar_a_si_mesmo: "Não é possível desativar a própria conta.",
+    professor_ja_inativo: "Este Professor já está inativo.",
+    professor_ja_ativo: "Este Professor já está ativo.",
+    professor_ativo_na_academia: "A academia já possui um Professor ativo. Desative-o ou troque-o antes de reativar outro."
+  }[code] || "Não foi possível concluir a operação com o Professor. Tente novamente.";
+}
+
+function handleRealAdminAcademySubmit(form) {
+  const button = form.querySelector("[data-academy-save]");
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-academy-error"),
+    announcement: form.querySelector("#real-academy-status"),
+    buttons: [button, ...form.querySelectorAll("input")],
+    loadingText: realCreatedAcademyId ? "Lendo..." : "Criando...",
+    loadingMessage: realCreatedAcademyId ? "Lendo a academia criada no banco." : "Criando academia no banco.",
+    successMessage: "Academia criada e lida do banco.",
+    errorMessage: "Não foi possível concluir a operação. Tente novamente.",
+    afterSuccess: () => { loadRealAdminAcademiesForEdit(); }
+  }, async () => {
+    const guardError = realAdminGuardError();
+    if (guardError) return { errorMessage: guardError };
+    if (!realCreatedAcademyId) {
+      const name = form.querySelector("#academy-name").value.trim();
+      const nameLength = Array.from(name).length;
+      if (nameLength < 2 || nameLength > 80) return { errorMessage: "Informe um nome com 2 a 80 caracteres." };
+      const photoUrl = form.querySelector("#academy-photo-url").value.trim();
+      realCreatedAcademy = null;
+      try {
+        const { data, error } = await authClient.from("academias")
+          .insert({ nome: name, foto_fundo_url: photoUrl || null })
+          .select("id")
+          .single();
+        if (error) {
+          logRealAdminDatabaseError("criar academia", error);
+          return { errorMessage: realAdminDatabaseErrorMessage(error, "createAcademy") };
+        }
+        if (!data || !data.id) return { errorMessage: "A academia foi enviada, mas não foi possível confirmar o registro. Tente novamente." };
+        realCreatedAcademyId = data.id;
+      } catch (error) {
+        logRealAdminDatabaseError("criar academia", error);
+        return { errorMessage: realAdminDatabaseErrorMessage(error, "createAcademy") };
+      }
+    }
+
+    try {
+      const { data, error } = await authClient.from("academias")
+        .select("id,nome,foto_fundo_url")
+        .eq("id", realCreatedAcademyId)
+        .single();
+      if (error) {
+        logRealAdminDatabaseError("ler academia criada", error);
+        const result = screenContent.querySelector("#real-academy-result");
+        if (result) result.textContent = "A academia foi criada, mas a leitura não foi concluída. Use Tentar de novo para ler o mesmo registro.";
+        return { errorMessage: realAdminDatabaseErrorMessage(error, "read") };
+      }
+      realCreatedAcademy = data;
+      realCreatedAcademyId = null;
+      const result = screenContent.querySelector("#real-academy-result");
+      if (result) result.innerHTML = renderRealAdminAcademyResult();
+    } catch (error) {
+      logRealAdminDatabaseError("ler academia criada", error);
+      const result = screenContent.querySelector("#real-academy-result");
+      if (result) result.textContent = "A academia foi criada, mas a leitura não foi concluída. Use Tentar de novo para ler o mesmo registro.";
+      return { errorMessage: realAdminDatabaseErrorMessage(error, "read") };
+    }
+  });
+}
+
+function handleRealAdminAcademyEditSubmit(form) {
+  const button = form.querySelector("[data-real-academy-save]");
+  const nameInput = form.querySelector('[name="nome"]');
+  const photoInput = form.querySelector('[name="foto_fundo_url"]');
+  const name = nameInput.value.trim();
+  const nameLength = Array.from(name).length;
+  const photoUrl = photoInput.value.trim();
+  const version = Number(form.dataset.academyVersion);
+  runButtonAction(button, {
+    feedback: form.querySelector('[role="alert"]'),
+    announcement: form.querySelector('[role="status"]'),
+    buttons: [button, nameInput, photoInput],
+    loadingText: "Salvando...",
+    loadingMessage: "Atualizando os dados da academia no banco.",
+    successMessage: "Academia atualizada no banco.",
+    errorMessage: "Não foi possível atualizar a academia. Tente novamente.",
+    afterSuccess: () => { loadRealAdminAcademiesForEdit(); }
+  }, async () => {
+    const guardError = realAdminGuardError();
+    if (guardError) return { errorMessage: guardError };
+    if (nameLength < 2 || nameLength > 80) return { errorMessage: "Informe um nome com 2 a 80 caracteres." };
+    if (!Number.isSafeInteger(version) || version < 0) return { errorMessage: "Não foi possível verificar a versão atual. Recarregue a tela." };
+    try {
+      const { data, error } = await authClient.rpc("atualizar_academia", {
+        p_academia_id: form.dataset.academyId,
+        p_nome: name,
+        p_foto_fundo_url: photoUrl || null,
+        p_versao_esperada: version
+      });
+      if (error) {
+        logRealAdminDatabaseError("atualizar academia", error);
+        return { errorMessage: realAdminDatabaseErrorMessage(error, "updateAcademy") };
+      }
+      const result = Array.isArray(data) ? data[0] : data;
+      if (!result || result.codigo !== "ok") return { errorMessage: realAdminAcademyRpcMessage(result && result.codigo) };
+    } catch (error) {
+      logRealAdminDatabaseError("atualizar academia", error);
+      return { errorMessage: realAdminDatabaseErrorMessage(error, "updateAcademy") };
+    }
+  });
+}
+
+function handleRealAdminBindSubmit(form) {
+  const button = form.querySelector("[data-real-admin-bind]");
+  const professorSelect = form.querySelector("#real-admin-bind-professor");
+  const academySelect = screenContent.querySelector("#real-admin-academy");
+  const professorId = professorSelect.value;
+  const academyId = academySelect.value;
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-admin-bind-error"),
+    announcement: form.querySelector("#real-admin-bind-status"),
+    buttons: [button, professorSelect, academySelect],
+    loadingText: "Vinculando...",
+    loadingMessage: "Vinculando sua conta Adm ao Professor.",
+    successMessage: "Conta Adm vinculada à academia.",
+    errorMessage: "Não foi possível vincular o Adm ao Professor. Tente novamente.",
+    afterSuccess: () => { loadRealAdminManagementForAcademy(academyId); }
+  }, async () => {
+    const guardError = realAdminGuardError();
+    if (guardError) return { errorMessage: guardError };
+    if (!realAdminAcademies.some((academy) => academy.id === academyId) || !professorId) {
+      return { errorMessage: "Selecione um Professor ativo desta academia." };
+    }
+    try {
+      const { data, error } = await authClient.rpc("vincular_adm_professor", { p_professor: professorId });
+      if (error) {
+        logRealAdminDatabaseError("vincular Adm ao Professor", error);
+        return { errorMessage: realAdminDatabaseErrorMessage(error, "update") };
+      }
+      if (data !== true) {
+        return { errorMessage: "Não foi possível vincular. Confira se sua conta tem permissão e se o Professor está ativo e vinculado a uma academia." };
+      }
+      realProfile = { ...realProfile, academia_id: academyId };
+    } catch (error) {
+      logRealAdminDatabaseError("vincular Adm ao Professor", error);
+      return { errorMessage: realAdminDatabaseErrorMessage(error, "update") };
+    }
+  });
+}
+
+function handleRealAdminSwitchSubmit(form) {
+  const button = form.querySelector("[data-real-admin-switch]");
+  const professorSelect = form.querySelector("#real-admin-replacement-professor");
+  const academySelect = screenContent.querySelector("#real-admin-academy");
+  const professorId = professorSelect.value;
+  const academyId = academySelect.value;
+  if (!window.confirm("Confirma a troca do Professor desta academia?")) return;
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-admin-switch-error"),
+    announcement: form.querySelector("#real-admin-switch-status"),
+    buttons: [button, professorSelect, academySelect],
+    loadingText: "Trocando...",
+    loadingMessage: "Trocando o Professor e transferindo os vínculos previstos no banco.",
+    successMessage: "Troca de Professor concluída.",
+    errorMessage: "Não foi possível trocar o Professor. Tente novamente.",
+    afterSuccess: () => { loadRealAdminManagementForAcademy(academyId); }
+  }, async () => {
+    const guardError = realAdminGuardError();
+    if (guardError) return { errorMessage: guardError };
+    if (!realAdminAcademies.some((academy) => academy.id === academyId) || !professorId) {
+      return { errorMessage: "Selecione um Professor elegível desta academia." };
+    }
+    try {
+      const { data, error } = await authClient.rpc("trocar_professor_academia", {
+        p_academia: academyId,
+        p_novo_professor: professorId
+      });
+      if (error) {
+        logRealAdminDatabaseError("trocar Professor da academia", error);
+        return { errorMessage: realAdminDatabaseErrorMessage(error, "update") };
+      }
+      if (data !== "ok") return { errorMessage: realAdminProfessorRpcMessage(data) };
+    } catch (error) {
+      logRealAdminDatabaseError("trocar Professor da academia", error);
+      return { errorMessage: realAdminDatabaseErrorMessage(error, "update") };
+    }
+  });
+}
+
+function handleRealAdminProfessorAction(button) {
+  const action = button.dataset.realProfessorAction;
+  const professorId = button.dataset.professorId;
+  const row = button.closest(".real-admin-professor-row");
+  const deactivate = action === "deactivate";
+  const confirmation = deactivate
+    ? "Desativar este Professor? A academia poderá ficar sem Professor ativo."
+    : "Reativar este Professor? A operação será recusada se a academia já tiver outro Professor ativo.";
+  if (!window.confirm(confirmation)) return;
+  const functionName = deactivate ? "desativar_professor" : "reativar_professor";
+  runButtonAction(button, {
+    feedback: row.querySelector('[role="alert"]'),
+    announcement: row.querySelector('[role="status"]'),
+    buttons: [button, screenContent.querySelector("#real-admin-academy"), ...screenContent.querySelectorAll("[data-real-professor-action]")],
+    loadingText: deactivate ? "Desativando..." : "Reativando...",
+    loadingMessage: deactivate ? "Desativando Professor no banco." : "Reativando Professor no banco.",
+    successMessage: deactivate ? "Professor desativado." : "Professor reativado.",
+    errorMessage: "Não foi possível alterar o estado do Professor. Tente novamente.",
+    afterSuccess: () => { loadRealAdminManagementForAcademy(screenContent.querySelector("#real-admin-academy").value); }
+  }, async () => {
+    const guardError = realAdminGuardError();
+    if (guardError) return { errorMessage: guardError };
+    if (!["deactivate", "reactivate"].includes(action) || !professorId) {
+      return { errorMessage: "Não foi possível identificar a ação. Recarregue a tela e tente novamente." };
+    }
+    try {
+      const { data, error } = await authClient.rpc(functionName, { p_professor: professorId });
+      if (error) {
+        logRealAdminDatabaseError(`ação ${action} de Professor`, error);
+        return { errorMessage: realAdminDatabaseErrorMessage(error, "update") };
+      }
+      if (data !== "ok") return { errorMessage: realAdminProfessorRpcMessage(data) };
+    } catch (error) {
+      logRealAdminDatabaseError(`ação ${action} de Professor`, error);
+      return { errorMessage: realAdminDatabaseErrorMessage(error, "update") };
+    }
+  });
+}
+
+function handleRealAdminInviteSubmit(form) {
+  const button = form.querySelector("[data-real-invite-submit]");
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-invite-error"),
+    announcement: form.querySelector("#real-invite-status"),
+    buttons: [button, ...form.querySelectorAll("input, select")],
+    loadingText: "Convidando...",
+    loadingMessage: "Salvando convite no banco.",
+    successMessage: "Convite de professor criado no banco.",
+    errorMessage: "Não foi possível criar o convite. Tente novamente.",
+    afterSuccess: () => { loadRealAdminInvites(); }
+  }, async () => {
+    const guardError = realAdminGuardError();
+    if (guardError) return { errorMessage: guardError };
+    const emailInput = form.querySelector("#real-invite-email");
+    const email = emailInput.value.trim().toLowerCase();
+    emailInput.value = email;
+    if (!matchesDatabaseInviteEmailCheck(email)) {
+      return { errorMessage: "Informe um e-mail no formato aceito pelo banco." };
+    }
+    const academyId = form.querySelector("#real-invite-academy").value;
+    if (!realAdminAcademies.some((academy) => academy.id === academyId)) {
+      return { errorMessage: "Selecione uma academia cadastrada." };
+    }
+    try {
+      const { error } = await authClient.from("professores_convidados").insert({
+        email,
+        academia_id: academyId
+      });
+      if (error) {
+        logRealAdminDatabaseError("criar convite de professor", error);
+        return { errorMessage: realAdminDatabaseErrorMessage(error, "invite") };
+      }
+      form.reset();
+    } catch (error) {
+      logRealAdminDatabaseError("criar convite de professor", error);
+      return { errorMessage: realAdminDatabaseErrorMessage(error, "invite") };
+    }
+  });
+}
+
+function handleRealAdminInviteDelete(button) {
+  const row = button.closest(".real-admin-invite-row");
+  runButtonAction(button, {
+    feedback: row.querySelector("#real-invite-delete-error"),
+    announcement: row.querySelector("#real-invite-delete-status"),
+    buttons: [button],
+    loadingText: "Excluindo...",
+    loadingMessage: "Excluindo convite pendente do banco.",
+    successMessage: "Convite pendente excluído do banco.",
+    errorMessage: "Não foi possível excluir o convite. Tente novamente.",
+    afterSuccess: () => { loadRealAdminInvites(); }
+  }, async () => {
+    const guardError = realAdminGuardError();
+    if (guardError) return { errorMessage: guardError };
+    try {
+      const { data, error } = await authClient.from("professores_convidados")
+        .delete()
+        .eq("email", button.dataset.realInviteDelete)
+        .eq("status", "convidado")
+        .select("email")
+        .maybeSingle();
+      if (error) {
+        logRealAdminDatabaseError("excluir convite pendente", error);
+        return { errorMessage: realAdminDatabaseErrorMessage(error, "deleteInvite") };
+      }
+      if (!data) return { errorMessage: "O convite não está mais pendente ou não foi encontrado." };
+    } catch (error) {
+      logRealAdminDatabaseError("excluir convite pendente", error);
+      return { errorMessage: realAdminDatabaseErrorMessage(error, "deleteInvite") };
+    }
+  });
 }
 
 function updateEmailPreview(input) {
@@ -2473,7 +4622,7 @@ function runLoadingAction(button, complete) {
 
 const actionResetTimers = new WeakMap();
 
-async function runButtonAction(button, { feedback, announcement, buttons, loadingText, loadingMessage, successMessage, errorMessage, afterSuccess, disableAfterSuccess = false }, action) {
+async function runButtonAction(button, { feedback, announcement, buttons, loadingText, loadingMessage, successMessage, successLabel, errorMessage, afterSuccess, disableAfterSuccess = false }, action) {
   if (button.disabled) return;
   const label = button.querySelector("[data-action-label]");
   if (!label || !feedback || !announcement) {
@@ -2532,16 +4681,18 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
       succeeded = true;
       button.removeAttribute("aria-busy");
       button.dataset.actionState = "success";
-      label.textContent = "✓ Concluído";
+      label.textContent = successLabel || "✓ Concluído";
       announcement.textContent = successMessage;
       if (afterSuccess) {
         await new Promise((resolve) => window.setTimeout(resolve, 2500));
         if (button.isConnected) afterSuccess();
         else showToast(successMessage);
       } else {
+        const nextLabel = outcome && outcome.nextLabel ? outcome.nextLabel : originalText;
+        button.dataset.originalLabel = nextLabel;
         actionResetTimers.set(button, window.setTimeout(() => {
           delete button.dataset.actionState;
-          label.textContent = originalText;
+          label.textContent = nextLabel;
         }, 2500));
       }
     } else {
@@ -2634,32 +4785,165 @@ function syncRealSessionPanel() {
   }
 }
 
+function logRealProfileSupabaseError(action, error) {
+  console.error(`Falha Supabase ao ${action}.`, {
+    code: error && typeof error.code === "string" ? error.code : null,
+    message: error && typeof error.message === "string" ? error.message : ""
+  });
+}
+
+function realProfileErrorMessage(error) {
+  if (!authClient || !realUser) return "Sua sessão real não está ativa. Entre novamente com o Google.";
+  if (navigator.onLine === false || error instanceof TypeError) return "Falha de rede. Verifique sua conexão e tente novamente.";
+  return "Não foi possível consultar ou ativar seu perfil. Tente novamente mais tarde.";
+}
+
+function activateProfessorOnce(userId) {
+  if (professorActivationSessionUserId === userId && professorActivationPromise) {
+    return professorActivationPromise;
+  }
+  professorActivationSessionUserId = userId;
+  professorActivationPromise = (async () => {
+    if (!authClient || !realUser || realUser.id !== userId) {
+      return { state: "error", message: "Sua sessão real não está ativa. Entre novamente com o Google." };
+    }
+
+    try {
+      const { data: activated, error } = await authClient.rpc("ativar_professor");
+      if (error) {
+        logRealProfileSupabaseError("ativar o perfil de Professor", error);
+        return { state: "error", message: realProfileErrorMessage(error) };
+      }
+      if (activated === false) {
+        return {
+          state: "missing",
+          message: "Não há convite pendente para este e-mail Google ou o e-mail ainda não está confirmado. Confira a conta e tente novamente mais tarde."
+        };
+      }
+      if (activated !== true) {
+        return { state: "error", message: "Não foi possível confirmar a ativação do perfil de Professor." };
+      }
+
+      const { data: profile, error: profileError } = await authClient.from("perfis")
+        .select("id,papel,nome,academia_id,ativo")
+        .eq("id", userId)
+        .maybeSingle();
+      if (profileError) {
+        logRealProfileSupabaseError("ler o perfil de Professor ativado", profileError);
+        return { state: "error", message: realProfileErrorMessage(profileError) };
+      }
+      if (!profile) {
+        return { state: "error", message: "A ativação foi confirmada, mas não foi possível localizar o perfil atualizado." };
+      }
+      return { state: "activated", profile };
+    } catch (error) {
+      logRealProfileSupabaseError("ativar o perfil de Professor", error);
+      return { state: "error", message: realProfileErrorMessage(error) };
+    }
+  })();
+  return professorActivationPromise;
+}
+
 async function updateRealSession(session) {
   const sequence = ++authCheckSequence;
   const previousUser = realUser;
   realUser = session && session.user ? { id: session.user.id, email: session.user.email } : null;
+  realTeacherCodeRequestSequence += 1;
+  realStudentLinkRequestSequence += 1;
+  realTeacherLinkRequestsSequence += 1;
+  realInstructorInvitesSequence += 1;
+  realUnregisteredStudentsSequence += 1;
+  realTeacherCode = null;
+  realTeacherCodeState = "idle";
+  realTeacherCodeNotice = "";
+  realInstructorInvites = [];
+  realInstructorInvitesState = "idle";
+  realInstructorInvitesNotice = "";
   syncRealSessionPanel();
   if (!realUser) {
+    realProfile = null;
+    realProfileNotice = "";
+    realProfessorActivated = false;
+    professorActivationSessionUserId = null;
+    professorActivationPromise = null;
+    realAdminAcademies = [];
+    realCreatedAcademyId = null;
+    realCreatedAcademy = null;
+    realInstructorInviteUrl = "";
     if (!activeRole && previousUser) {
       document.querySelector("#profile-button").hidden = true;
+      renderNavigation();
       renderScreen("login");
     }
     return;
   }
+  if (previousUser && previousUser.id !== realUser.id) {
+    realProfileNotice = "";
+    realProfessorActivated = false;
+    professorActivationSessionUserId = null;
+    professorActivationPromise = null;
+    realInstructorInviteToken = "";
+    realInstructorInviteUrl = "";
+  }
   realProfileState = "checking";
-  if (!activeRole && (!previousUser || previousUser.id !== realUser.id || currentScreen === "real-account")) renderScreen("real-account");
+  realProfile = null;
+  if (!activeRole && currentScreen === "teacher-code") {
+    realTeacherCodeState = "checking";
+    screenContent.innerHTML = renderRealTeacherCodeScreen();
+  }
+  if (!activeRole && (!previousUser || previousUser.id !== realUser.id || currentScreen === "real-account") &&
+      !(currentScreen === "instructor-invite" && realInstructorInviteToken)) renderScreen("real-account");
   try {
-    const { data, error } = await authClient.from("perfis").select("id").eq("id", realUser.id).maybeSingle();
+    if (!authClient) throw new Error("Sessão indisponível.");
+    const { data, error } = await authClient.from("perfis")
+      .select("id,papel,nome,academia_id,ativo,idade_declarada")
+      .eq("id", realUser.id)
+      .maybeSingle();
+    if (error) throw error;
     if (sequence !== authCheckSequence) return;
-    if (error) throw new Error("Consulta de perfil indisponível.");
-    realProfileState = data ? "found" : "missing";
+    if (data) {
+      realProfile = data;
+      realProfileState = "found";
+      realProfileNotice = "";
+    } else {
+      const activation = await activateProfessorOnce(realUser.id);
+      if (sequence !== authCheckSequence) return;
+      realProfileNotice = activation.message || "";
+      if (activation.state === "activated") {
+        realProfile = activation.profile;
+        realProfileState = "found";
+        realProfessorActivated = true;
+      } else {
+        realProfile = null;
+        realProfileState = activation.state === "missing" ? "missing" : "error";
+        realProfessorActivated = false;
+      }
+    }
   } catch (error) {
     if (sequence !== authCheckSequence) return;
+    logRealProfileSupabaseError("consultar o perfil", error);
     recordDiagnostic("Erro ao consultar perfil");
-    console.error("Não foi possível consultar o perfil.");
+    realProfile = null;
+    realProfileNotice = realProfileErrorMessage(error);
     realProfileState = "error";
   }
-  if (!activeRole && currentScreen === "real-account") renderScreen("real-account");
+  renderNavigation();
+  if (!activeRole && currentScreen === "teacher-code" && isRealProfessorProfile()) {
+    loadRealTeacherCode();
+    loadRealInstructorInvites();
+  }
+  else if (!activeRole && currentScreen === "link-teacher" && isRealActiveStudent()) renderScreen("link-teacher");
+  else if (!activeRole && currentScreen === "real-account") renderScreen("real-account");
+  else if (!activeRole && currentScreen === "instructor-invite") renderScreen("instructor-invite");
+  else if (!activeRole && !canViewScreen(currentScreen)) renderScreen("real-account");
+}
+
+function removeInstructorInviteTokenFromUrl() {
+  const query = new URLSearchParams(window.location.search);
+  if (!query.has("convite_instrutor")) return;
+  query.delete("convite_instrutor");
+  const search = query.toString();
+  history.replaceState(null, "", `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`);
 }
 
 async function initializeRealAuth() {
@@ -2677,17 +4961,22 @@ async function initializeRealAuth() {
     const feedback = document.querySelector("#google-login-error");
     if (feedback) feedback.textContent = loginNotice;
   }
-  if (authConfigurationError()) return;
+  if (authConfigurationError()) {
+    removeInstructorInviteTokenFromUrl();
+    return;
+  }
   try {
     authClient = window.supabase.createClient(window.TATAME_SUPABASE_CONFIG.url, window.TATAME_SUPABASE_CONFIG.publicKey.trim());
     const { data, error } = await authClient.auth.getSession();
     if (error) throw new Error("Sessão indisponível.");
+    removeInstructorInviteTokenFromUrl();
     await updateRealSession(data.session);
     authClient.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" && realSignoutInProgress) return;
       window.setTimeout(() => { updateRealSession(session); }, 0);
     });
   } catch (error) {
+    removeInstructorInviteTokenFromUrl();
     recordDiagnostic("Erro ao recuperar sessão");
     console.error("Não foi possível recuperar a sessão.");
     loginNotice = "Não foi possível recuperar a sessão. Confira a conexão e tente novamente.";
@@ -2715,7 +5004,11 @@ function realGoogleLogin(button) {
     if (realUser) return { errorMessage: "Já existe uma conta Google conectada. Saia dela antes de entrar novamente." };
     if (!authClient) return { errorMessage: "O login não está disponível. Recarregue a página e tente novamente." };
     try {
-      const redirectTo = `${window.location.origin}${window.location.pathname}`;
+      const redirectUrl = new URL(window.location.href);
+      redirectUrl.search = "";
+      redirectUrl.hash = "";
+      if (realInstructorInviteToken) redirectUrl.searchParams.set("convite_instrutor", realInstructorInviteToken);
+      const redirectTo = redirectUrl.toString();
       const { data, error } = await authClient.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo, skipBrowserRedirect: true }
@@ -2787,7 +5080,11 @@ function setTheme() {
 }
 
 renderNavigation();
-renderScreen(new URLSearchParams(window.location.search).has("convite") ? "register" : "login");
+const initialQuery = new URLSearchParams(window.location.search);
+removeInstructorInviteTokenFromUrl();
+renderScreen(initialQuery.has("convite_instrutor")
+  ? "instructor-invite"
+  : initialQuery.has("convite") ? "register" : "login");
 document.querySelector("#app-version").textContent = APP_VERSION;
 document.querySelector("#diagnostics-version").textContent = `Versão do app: ${APP_VERSION}`;
 syncRealSessionPanel();
@@ -2803,6 +5100,18 @@ if (window.ResizeObserver) {
 document.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
+
+  const realProfessorAction = target.closest("[data-real-professor-action]");
+  if (realProfessorAction instanceof HTMLButtonElement && isRealAdmSession()) {
+    handleRealAdminProfessorAction(realProfessorAction);
+    return;
+  }
+
+  const realInviteDeleteButton = target.closest("[data-real-invite-delete]");
+  if (realInviteDeleteButton && isRealAdmSession()) {
+    handleRealAdminInviteDelete(realInviteDeleteButton);
+    return;
+  }
 
   const ageConfirmation = target.closest("[data-confirm-profile-age]");
   if (ageConfirmation instanceof HTMLButtonElement) {
@@ -2862,7 +5171,7 @@ document.addEventListener("click", (event) => {
         photo: accepted
           ? current.photo && current.photo.kind === "upload"
             ? current.photo
-            : { kind: "google", url: "assets/avatars/avatar-feminino.svg", zoom: 1, x: 50, y: 50 }
+            : { kind: "google", url: "assets/avatars/avatar-feminino.jpg", zoom: 1, x: 50, y: 50 }
           : current.photo && current.photo.kind === "google" ? null : current.photo,
         onboardingComplete: true
       });
@@ -3362,6 +5671,54 @@ document.addEventListener("click", (event) => {
   }
 
   const linkDecision = target.closest("[data-link-decision]");
+  const realLinkDecision = target.closest("[data-real-link-decision]");
+  if (realLinkDecision instanceof HTMLButtonElement) {
+    const approve = realLinkDecision.dataset.realLinkDecision === "approve";
+    if (!window.confirm(approve ? "Aprovar este pedido de vínculo?" : "Recusar este pedido de vínculo?")) return;
+    const row = realLinkDecision.closest(".link-request-row");
+    const buttons = [...row.querySelectorAll("[data-real-link-decision]")];
+    runButtonAction(realLinkDecision, {
+      feedback: row.querySelector('[role="alert"]'),
+      announcement: row.querySelector('[role="status"]'),
+      buttons,
+      loadingText: approve ? "Aprovando..." : "Recusando...",
+      loadingMessage: approve ? "Aprovando pedido de vínculo." : "Recusando pedido de vínculo.",
+      successMessage: approve ? "Pedido aprovado." : "Pedido recusado.",
+      successLabel: approve ? "Aprovado" : "Recusado",
+      errorMessage: "Não foi possível decidir o pedido. Atualize a tela e tente novamente.",
+      afterSuccess: loadRealTeacherLinkRequests
+    }, async () => {
+      const requestId = realLinkDecision.dataset.requestId;
+      if (!authClient || !realUser || !isRealActiveProfessor()) {
+        return { errorMessage: "Esta ação exige uma conta Google de Professor ativa vinculada a uma academia." };
+      }
+      if (!requestId) return { errorMessage: "Este pedido não está disponível. Atualize a lista." };
+      try {
+        const { data, error } = await authClient.rpc("decidir_pedido", {
+          p_pedido: requestId,
+          p_aprovar: approve
+        });
+        if (error) {
+          return {
+            errorMessage: navigator.onLine === false
+              ? "Falha de rede ao decidir o pedido. Verifique sua conexão e tente novamente."
+              : "Não foi possível decidir o pedido. Tente novamente mais tarde."
+          };
+        }
+        if (data === true) return {};
+        if (data === false) return { errorMessage: "O pedido não está mais pendente ou não pode ser decidido. Atualize a lista." };
+        return { errorMessage: "O servidor retornou uma resposta inesperada. Tente novamente mais tarde." };
+      } catch {
+        return {
+          errorMessage: navigator.onLine === false
+            ? "Falha de rede ao decidir o pedido. Verifique sua conexão e tente novamente."
+            : "Não foi possível decidir o pedido. Tente novamente mais tarde."
+        };
+      }
+    });
+    return;
+  }
+
   if (linkDecision) {
     const request = linkRequests.find((item) => item.id === linkDecision.dataset.requestId);
     if (!request || activeRole !== "professor" || request.professorAccount !== activeDemoAccount) {
@@ -3397,14 +5754,226 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  if (target.closest("[data-change-teacher-code]")) {
-    if (activeRole !== "professor" || !demoProfiles[activeDemoAccount].academyId) {
-      showToast("Não foi possível trocar o código.", "error");
+  const copyTeacherCodeButton = target.closest("[data-copy-teacher-code]");
+  if (copyTeacherCodeButton) {
+    const preview = copyTeacherCodeButton.closest(".invite-preview");
+    const codeElement = preview && preview.querySelector("[data-teacher-code-display]");
+    const feedback = preview && preview.querySelector("[data-teacher-code-error]");
+    const announcement = preview && preview.querySelector("[data-teacher-code-status]");
+    const buttons = [...screenContent.querySelectorAll("[data-teacher-code-action]")];
+    runButtonAction(copyTeacherCodeButton, {
+      feedback,
+      announcement,
+      buttons,
+      loadingText: "Copiando...",
+      loadingMessage: "Copiando somente o código de seis caracteres.",
+      successMessage: "Código de seis caracteres copiado.",
+      successLabel: "Copiado",
+      errorMessage: "Não foi possível copiar. Selecione o código e use Ctrl+C para copiá-lo."
+    }, async () => {
+      if (!codeElement) return { errorMessage: "O código não está disponível. Atualize a tela e tente novamente." };
+      const errorMessage = await copyTeacherCode(codeElement);
+      return errorMessage ? { errorMessage } : undefined;
+    });
+    return;
+  }
+
+  const generateInstructorInviteButton = target.closest("[data-real-instructor-generate]");
+  if (generateInstructorInviteButton) {
+    const section = generateInstructorInviteButton.closest(".real-instructor-invites");
+    const feedback = section && section.querySelector("#real-instructor-generate-error");
+    const announcement = section && section.querySelector("#real-instructor-generate-status");
+    runButtonAction(generateInstructorInviteButton, {
+      feedback,
+      announcement,
+      buttons: [...section.querySelectorAll("[data-real-instructor-invite-action]")],
+      loadingText: "Gerando...",
+      loadingMessage: "Gerando convite de uso único.",
+      successMessage: "Convite gerado. O link está pronto para copiar.",
+      successLabel: "Convite gerado",
+      errorMessage: "Não foi possível gerar o convite. Verifique a conexão e tente novamente.",
+      afterSuccess: loadRealInstructorInvites
+    }, async () => {
+      if (!authClient || !realUser || !isRealActiveProfessor()) {
+        return { errorMessage: "Esta ação exige uma conta Google de Professor ativa e vinculada a uma academia." };
+      }
+      try {
+        const { data, error } = await authClient.rpc("gerar_convite_instrutor");
+        if (error) {
+          return { errorMessage: navigator.onLine === false
+            ? "Falha de rede ao gerar o convite. Verifique sua conexão e tente novamente."
+            : "Não foi possível gerar o convite. Tente novamente mais tarde." };
+        }
+        if (typeof data !== "string" || !/^[0-9a-f]{64}$/.test(data)) {
+          return { errorMessage: "Não foi possível gerar um convite válido. Tente novamente mais tarde." };
+        }
+        const inviteUrl = new URL(window.location.href);
+        inviteUrl.search = "";
+        inviteUrl.hash = "";
+        inviteUrl.searchParams.set("convite_instrutor", data);
+        realInstructorInviteUrl = inviteUrl.href;
+        return {};
+      } catch {
+        return { errorMessage: navigator.onLine === false
+          ? "Falha de rede ao gerar o convite. Verifique sua conexão e tente novamente."
+          : "Não foi possível gerar o convite. Tente novamente mais tarde." };
+      }
+    });
+    return;
+  }
+
+  const copyInstructorInviteButton = target.closest("[data-real-instructor-copy]");
+  if (copyInstructorInviteButton) {
+    const section = copyInstructorInviteButton.closest(".real-instructor-invites");
+    const feedback = section && section.querySelector("#real-instructor-copy-error");
+    const announcement = section && section.querySelector("#real-instructor-copy-status");
+    runButtonAction(copyInstructorInviteButton, {
+      feedback,
+      announcement,
+      buttons: [...section.querySelectorAll("[data-real-instructor-invite-action]")],
+      loadingText: "Copiando...",
+      loadingMessage: "Copiando o link do convite.",
+      successMessage: "Link copiado. Ele é de uso único e expira em três dias.",
+      successLabel: "Copiado",
+      errorMessage: "Não foi possível copiar o link. Tente novamente."
+    }, async () => {
+      const errorMessage = await copyInstructorInviteLink(realInstructorInviteUrl);
+      return errorMessage ? { errorMessage } : undefined;
+    });
+    return;
+  }
+
+  const revokeInstructorInviteButton = target.closest("[data-real-instructor-revoke]");
+  if (revokeInstructorInviteButton) {
+    const index = Number(revokeInstructorInviteButton.dataset.instructorInviteIndex);
+    const invite = Number.isInteger(index) ? realInstructorInvites[index] : null;
+    if (!invite || realInstructorInviteStatus(invite) !== "Pendente") {
+      showToast("Este convite não está mais pendente. Atualize a lista.", "error");
       return;
     }
-    teacherLinkCodes.set(activeDemoAccount, createUniqueTeacherLinkCode(activeDemoAccount));
-    renderScreen("teacher-code");
-    showToast("Código de vínculo trocado.");
+    if (!window.confirm("Revogar este convite? O link deixará de funcionar.")) return;
+    const row = revokeInstructorInviteButton.closest(".real-instructor-invite-row");
+    const feedback = row && row.querySelector('[role="alert"]');
+    const announcement = row && row.querySelector('[role="status"]');
+    const section = revokeInstructorInviteButton.closest(".real-instructor-invites");
+    runButtonAction(revokeInstructorInviteButton, {
+      feedback,
+      announcement,
+      buttons: [...section.querySelectorAll("[data-real-instructor-invite-action]")],
+      loadingText: "Revogando...",
+      loadingMessage: "Revogando convite.",
+      successMessage: "Convite revogado.",
+      successLabel: "Revogado",
+      errorMessage: "Não foi possível revogar o convite. Atualize a lista e tente novamente.",
+      afterSuccess: loadRealInstructorInvites
+    }, async () => {
+      if (!authClient || !realUser || !isRealActiveProfessor()) {
+        return { errorMessage: "Esta ação exige uma conta Google de Professor ativa e vinculada a uma academia." };
+      }
+      try {
+        const { data, error } = await authClient.rpc("revogar_convite_instrutor", {
+          p_convite_id: invite.id
+        });
+        if (error) {
+          return { errorMessage: navigator.onLine === false
+            ? "Falha de rede ao revogar o convite. Verifique sua conexão e tente novamente."
+            : "Não foi possível revogar o convite. Atualize a lista e tente novamente." };
+        }
+        if (data === true) return {};
+        if (data === false) return { errorMessage: "Este convite não está mais pendente ou não pode ser revogado." };
+        return { errorMessage: "O servidor retornou uma resposta inesperada. Tente novamente mais tarde." };
+      } catch {
+        return { errorMessage: navigator.onLine === false
+          ? "Falha de rede ao revogar o convite. Verifique sua conexão e tente novamente."
+          : "Não foi possível revogar o convite. Atualize a lista e tente novamente." };
+      }
+    });
+    return;
+  }
+
+  const generateRealTeacherCodeButton = target.closest("[data-generate-real-teacher-code]");
+  if (generateRealTeacherCodeButton) {
+    const hadCode = Boolean(realTeacherCode);
+    if (hadCode && !window.confirm("Trocar o código? O código atual deixará de valer assim que o novo for gerado.")) return;
+    const preview = generateRealTeacherCodeButton.closest(".invite-preview");
+    const feedback = preview && preview.querySelector("[data-teacher-code-error]");
+    const announcement = preview && preview.querySelector("[data-teacher-code-status]");
+    const buttons = [...screenContent.querySelectorAll("[data-teacher-code-action]")];
+    runButtonAction(generateRealTeacherCodeButton, {
+      feedback,
+      announcement,
+      buttons,
+      loadingText: hadCode ? "Trocando..." : "Gerando...",
+      loadingMessage: hadCode ? "Trocando o código da turma." : "Gerando o código da turma.",
+      successMessage: hadCode ? "Código trocado. O código anterior não é mais válido." : "Código da turma gerado.",
+      successLabel: hadCode ? "Código trocado" : "Código gerado",
+      errorMessage: "Não foi possível gerar ou trocar o código. Verifique a conexão e se seu perfil continua ativo e vinculado à academia."
+    }, async () => {
+      if (!authClient || !realUser) {
+        return { errorMessage: "Sua sessão real não está ativa. Entre novamente com o Google." };
+      }
+      if (!isRealActiveProfessor()) {
+        return { errorMessage: "Somente um Professor ativo e vinculado a uma academia pode gerar ou trocar o código." };
+      }
+      try {
+        const { data, error } = await authClient.rpc("gerar_codigo");
+        if (error) return { errorMessage: realTeacherCodeErrorMessage(error, "generate") };
+        if (data === null) {
+          return {
+            errorMessage: "Não foi possível gerar ou trocar o código. Confirme se seu perfil continua ativo e vinculado à academia e tente novamente."
+          };
+        }
+        if (typeof data !== "string" || !/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(data)) {
+          return { errorMessage: "A geração não retornou um código de seis caracteres válido. Tente novamente." };
+        }
+        const codeDisplay = preview && preview.querySelector("[data-teacher-code-display]");
+        const codeValue = codeDisplay && codeDisplay.closest(".teacher-code-value");
+        const copyButton = preview && preview.querySelector("[data-copy-teacher-code]");
+        const emptyMessage = preview && preview.querySelector("[data-teacher-code-empty]");
+        if (!codeDisplay || !codeValue || !copyButton || !emptyMessage) {
+          return { errorMessage: "Não foi possível atualizar a tela com o novo código. Atualize e tente novamente." };
+        }
+        realTeacherCode = data;
+        realTeacherCodeState = "found";
+        codeDisplay.textContent = data;
+        codeDisplay.hidden = false;
+        codeValue.hidden = false;
+        copyButton.hidden = false;
+        emptyMessage.hidden = true;
+        return { nextLabel: "Trocar código" };
+      } catch (error) {
+        return { errorMessage: realTeacherCodeErrorMessage(error, "generate") };
+      }
+    });
+    return;
+  }
+
+  const changeTeacherCodeButton = target.closest("[data-change-teacher-code]");
+  if (changeTeacherCodeButton) {
+    const preview = changeTeacherCodeButton.closest(".invite-preview");
+    const codeDisplay = preview && preview.querySelector("[data-teacher-code-display]");
+    const feedback = preview && preview.querySelector("[data-teacher-code-error]");
+    const announcement = preview && preview.querySelector("[data-teacher-code-status]");
+    const buttons = [...screenContent.querySelectorAll("[data-teacher-code-action]")];
+    runButtonAction(changeTeacherCodeButton, {
+      feedback,
+      announcement,
+      buttons,
+      loadingText: "Trocando...",
+      loadingMessage: "Trocando o código fictício desta sessão.",
+      successMessage: "Código fictício trocado.",
+      successLabel: "Código trocado",
+      errorMessage: "Não foi possível trocar o código fictício. Tente novamente."
+    }, async () => {
+      const professor = demoProfiles[activeDemoAccount];
+      if (!codeDisplay || activeRole !== "professor" || !professor || !professor.academyId) {
+        return { errorMessage: "Não foi possível trocar o código fictício. Confira a conta demonstrativa." };
+      }
+      const code = createUniqueTeacherLinkCode(activeDemoAccount);
+      teacherLinkCodes.set(activeDemoAccount, code);
+      codeDisplay.textContent = code;
+      return { nextLabel: "Trocar código" };
+    });
     return;
   }
 
@@ -3946,10 +6515,21 @@ document.addEventListener("input", (event) => {
   }
 });
 
+document.addEventListener("change", (event) => {
+  const target = event.target;
+  if (target instanceof HTMLSelectElement && target.id === "real-admin-academy" && isRealAdmSession()) {
+    loadRealAdminManagementForAcademy(target.value);
+  }
+});
+
 document.addEventListener("submit", (event) => {
   if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-academy-form]")) return;
   event.preventDefault();
   const form = event.target;
+  if (isRealAdmSession()) {
+    handleRealAdminAcademySubmit(form);
+    return;
+  }
   const account = activeDemoAccount;
   const name = form.querySelector("#academy-name").value.trim();
   const phone = form.querySelector("#academy-phone").value.trim();
@@ -3974,6 +6554,60 @@ document.addEventListener("submit", (event) => {
     const photo = document.querySelector("#academy-photo");
     if (photo) photo.innerHTML = academyPhotoText();
   });
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-student-link-form]")) return;
+  event.preventDefault();
+  handleRealStudentLinkSubmit(event.target);
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-unregistered-create-form]")) return;
+  event.preventDefault();
+  handleRealUnregisteredCreateSubmit(event.target);
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-unregistered-age-form]")) return;
+  event.preventDefault();
+  handleRealUnregisteredAgeSubmit(event.target);
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-teacher-name-form]")) return;
+  event.preventDefault();
+  handleRealTeacherNameSubmit(event.target);
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-admin-academy-form]")) return;
+  event.preventDefault();
+  handleRealAdminAcademyEditSubmit(event.target);
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-admin-bind-form]")) return;
+  event.preventDefault();
+  handleRealAdminBindSubmit(event.target);
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-admin-switch-form]")) return;
+  event.preventDefault();
+  handleRealAdminSwitchSubmit(event.target);
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-admin-invite-form]")) return;
+  event.preventDefault();
+  handleRealAdminInviteSubmit(event.target);
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-instructor-accept-form]")) return;
+  event.preventDefault();
+  handleRealInstructorInviteSubmit(event.target);
 });
 
 document.addEventListener("submit", (event) => {
@@ -4374,6 +7008,9 @@ function closeOnSwipe(element, direction, close) {
 
 closeOnSwipe(sidebar, -1, closeMobileMenu);
 closeOnSwipe(userPanel, 1, closeUserPanel);
+
+const privacyModalContent = document.querySelector("#privacy-modal-content");
+privacyModalContent.innerHTML = renderPrivacyDraftContent("h3");
 
 privacyDialog.addEventListener("click", (event) => {
   if (event.target === privacyDialog) privacyDialog.close();

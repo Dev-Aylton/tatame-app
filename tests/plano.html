@@ -52,13 +52,17 @@
           <h2 id="tasks-title">Etapas e tarefas</h2>
         </div>
         <div class="filters" role="group" aria-label="Filtrar tarefas por estado">
+          <label class="show-validated-control">
+            <input id="show-validated" type="checkbox" aria-controls="phase-list">
+            <span>Mostrar validados</span>
+          </label>
           <button class="filter-button is-active" type="button" data-filter="todos" aria-pressed="true">Todos</button>
           <button class="filter-button" type="button" data-filter="pendente" aria-pressed="false">Pendentes</button>
           <button class="filter-button" type="button" data-filter="feito" aria-pressed="false">Feitos</button>
           <button class="filter-button" type="button" data-filter="validado" aria-pressed="false">Validados</button>
         </div>
       </div>
-      <p class="section-description">Os estados refletem o plano mantido no README: [ ] pendente, [x] feito e aguardando sua validação, [v] validado por você.</p>
+      <p class="section-description">Os estados refletem o plano mantido no README: [ ] pendente, [x] feito e aguardando sua validação, [v] validado por você. Os itens validados ficam ocultos por padrão. As telas reais de gestão do Adm e o código de vínculo do Professor estão ligados ao banco e aguardam teste manual e validação.</p>
       <div class="phase-list" id="phase-list" aria-live="polite"></div>
     </section>
 

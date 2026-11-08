@@ -42,11 +42,23 @@ window.PLANO_TATAME = [
       ["pendente", "A partir dos casos validados, mapear fluxos de acesso e permissões; definir somente as tabelas e políticas RLS necessárias e respectivos testes positivos/negativos. [PENDENTE]"],
       ["pendente", "Construir um protótipo navegável de todas as telas da F1 do roadmap e dos requisitos confirmados do instrutor (acesso/convites, aluno, professor, Adm, pagamentos, graduações, atalhos e privacidade), mantendo a identidade visual: web otimizada para notebook com sidebar à esquerda e painel do usuário oculto à direita; mobile priorizado para iPhone 13 ou superior com navegação inferior e áreas seguras. Usar fixtures fictícias nesta etapa intermediária; as telas simuladas serão ligadas ao Supabase nos Lotes 1 a 3. Manter termo e política como conteúdo pendente; validar visualmente com o usuário antes da integração dos fluxos reais. No lançamento fictício em dinheiro, foram adicionados busca, confirmação, desfazer e estorno; faltam priorização por cobrança vinculada, testes responsivos e validação do usuário. [SIMULADO]"],
       ["pendente", "Configurar e validar login Google real, recuperação de sessão, consulta de perfil e saída, mantendo a demonstração separada. Integração inicial criada; faltam configuração manual, testes reais, conferência responsiva e validação do usuário. [PENDENTE]"],
+      ["validado", "Ativar uma única vez por sessão o perfil de Professor convidado após o retorno do Google; reler papel e nome do banco e explicar a recusa sem revelar qual condição falhou. Validado pelo Aylton. [REAL]"],
+      ["feito", "Rascunhar supabase/migrations/20261109_10_definir_nome_professor.sql para o Professor ativo definir o próprio nome; migration aplicada no banco após conferência do desenvolvedor."],
+      ["feito", "Ligar ao app o campo para definir o nome do Professor real ativo pela RPC definir_nome_professor; validar a entrada, traduzir os retornos e reler o nome do banco após salvar. Feito; aguardando teste manual e validação do usuário. [REAL]"],
       ["feito", "Acrescentar ao protótipo a graduação manual de faixa superior pelo Professor, com data, confirmação e histórico; falta conferir os testes responsivos e validar o fluxo com o usuário. [SIMULADO]"],
       ["pendente", "Ampliar a simulação de graduação para faixas e graus adultos e cadastro inicial, e o painel com versão, diagnósticos, atualização e sincronização simuladas. Implementação parcial; faltam testes funcionais e responsivos completos e validação do usuário. [SIMULADO]"],
       ["pendente", "Persistir o estado fictício no navegador. Pagamentos, contas, alunos, vínculos e graduações implementados; faltam conversas, testes de falhas de armazenamento e validação. Arquivos de comprovantes não são armazenados. [SIMULADO]"],
       ["pendente", "Cadastrar e editar academia fictícia por Adm e Professor vinculado, com telefone, e-mail e foto simulada. Implementação inicial com persistência local; faltam testes completos, validação do usuário e decisões sobre autoria e conflitos. [SIMULADO]"],
+      ["validado", "Criar academia no banco pela conta real de Adm, inserindo nome e URL de foto de fundo opcional e lendo o registro criado; Validado pelo Aylton. [REAL]"],
+      ["feito", "Convidar Professor pela conta real de Adm, normalizando e-mail, escolhendo academia, listando convites reais e permitindo excluir somente os pendentes; aguardando testes manuais e validação do usuário. [REAL]"],
+      ["feito", "Ligar ao banco as telas reais do Adm para editar academias, vincular o Adm a Professor, consultar Professores e Instrutores, trocar Professor e desativar/reativar; aguardando teste manual e validação do usuário. [REAL]"],
+      ["feito", "Conectar ao banco os vínculos reais de Aluno e Professor: Aluno ativo envia código e consulta o último pedido; Professor ativo lista, aprova/recusa pedidos, gera e copia o código e administra alunos sem conta com idade declarada. Manter a demonstração simulada. Feito; aguardam testes reais, conferência responsiva e validação do usuário. [REAL]"],
+      ["feito", "Vincular o Aluno real pelo código de seis caracteres usando solicitar_vinculo; falta teste manual com conta real, conferência responsiva e validação do usuário. [REAL]"],
+      ["feito", "Permitir ao Professor real listar e decidir pedidos de vínculo; faltam testes manuais de aprovação/recusa, conferência responsiva e validação do usuário. [REAL]"],
+      ["feito", "Gerenciar alunos sem registro pela conta real do Professor, incluindo idade declarada; faltam testes manuais, conferência responsiva e validação do usuário. [REAL]"],
+      ["feito", "Gerar, listar, revogar e aceitar convites reais de Instrutor, preservando a demonstração simulada; faltam testes com contas reais, conferência responsiva e validação do usuário. [REAL]"],
       ["feito", "Simular declaração de idade, consentimento e fotos de perfil, com enquadramento local e permissões por papel. Implementado em memória, sem rede ou armazenamento persistente; inclui classificação pelo Professor de alunos sem registro e restrição de fotos para menores. A cópia Google usa avatar local demonstrativo; o limite de arquivo de 5 MB é provisório. Caso F1-AVATAR-01 pendente de execução e validação do usuário. [SIMULADO]"],
+      ["validado", "Substituir os avatares de pessoas do protótipo por fotos JPG locais masculino/feminino, quadradas em 512x512 e com recorte circular centralizado; sem novo campo de gênero/estilo. Validado pelo Aylton. [SIMULADO]"],
       ["pendente", "Implementar e testar a exclusão fictícia de conta, apagando dados pessoais e preservando pagamentos, vínculos e graduações da outra parte com identificação anonimizada como Conta excluída. Área de risco com confirmação e botão demonstrativo acrescentada; nenhum dado é apagado. Faltam exclusão, testes funcionais completos e validação. [PENDENTE]"],
       ["pendente", "Investigar e corrigir a rolagem com a roda do mouse em telas largas, sem alterar o layout do celular; ajustado o bloqueio de encadeamento no body para tela larga. Faltam reprodução com roda, confirmação da causa e testes em telas, papéis e modais."],
       ["pendente", "Revisar com o usuário o desenho do Lote 1; só depois criar migrations incrementais, sem executá-las. A aplicação não dependerá delas até o desenvolvedor confirmar que foram revisadas e aplicadas."],
@@ -89,6 +101,8 @@ window.PLANO_TATAME = [
 
 const phaseList = document.querySelector("#phase-list");
 const filterButtons = [...document.querySelectorAll(".filter-button")];
+const showValidatedControl = document.querySelector("#show-validated");
+let currentFilter = "todos";
 const tasks = window.PLANO_TATAME.flatMap((phase, phaseIndex) =>
   phase.tasks.map((task, taskIndex) => ({
     phaseIndex,
@@ -124,19 +138,25 @@ function updateSummary() {
   document.querySelector("#progress-note").textContent = `${validated + done} de ${total} itens feitos ou validados; ${validated} validados por você. Itens feitos aguardam sua validação.`;
 }
 
-function renderPhases(filter = "todos") {
+function renderPhases(filter = currentFilter) {
+  currentFilter = filter;
   phaseList.replaceChildren();
 
   window.PLANO_TATAME.forEach((phase, phaseIndex) => {
     const visibleTasks = phase.tasks
       .map((task, taskIndex) => ({ status: task[0], title: task[1], taskIndex }))
-      .filter((task) => filter === "todos" || task.status === filter);
+      .filter((task) => {
+        if (filter === "todos") return showValidatedControl.checked || task.status !== "validado";
+        if (filter === "validado") return showValidatedControl.checked && task.status === "validado";
+        return task.status === filter;
+      });
 
     if (!visibleTasks.length) return;
 
-    const section = document.createElement("section");
+    const section = document.createElement("details");
     section.className = "phase-card";
-    const heading = document.createElement("div");
+    section.open = phase.tasks.some((task) => task[0] === "feito" || task[0] === "pendente");
+    const heading = document.createElement("summary");
     heading.className = "phase-heading";
     const titleGroup = document.createElement("div");
     titleGroup.append(
@@ -177,6 +197,7 @@ function renderPhases(filter = "todos") {
 
 filterButtons.forEach((button) => {
   button.addEventListener("click", () => {
+    if (button.dataset.filter === "validado") showValidatedControl.checked = true;
     filterButtons.forEach((candidate) => {
       const active = candidate === button;
       candidate.classList.toggle("is-active", active);
@@ -184,6 +205,18 @@ filterButtons.forEach((button) => {
     });
     renderPhases(button.dataset.filter);
   });
+});
+
+showValidatedControl.addEventListener("change", () => {
+  if (!showValidatedControl.checked && currentFilter === "validado") {
+    currentFilter = "todos";
+    filterButtons.forEach((button) => {
+      const active = button.dataset.filter === currentFilter;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+  }
+  renderPhases();
 });
 
 updateSummary();

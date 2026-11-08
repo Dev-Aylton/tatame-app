@@ -352,6 +352,7 @@ textarea:focus-visible {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 .profile-orb img {
@@ -700,7 +701,7 @@ body[data-theme="light"] .button--google:focus-visible {
   cursor: progress;
 }
 
-.button--action:is([data-login-action], [data-register-action], [data-link-action], [data-student-action], [data-professor-payment-action], [data-grade-action], [data-panel-action], [data-student-create-action], [data-delete-account], [data-academy-save], [data-academy-photo], [data-real-signout], [data-confirm-profile-age], [data-consent-google], [data-continue-unregistered], [data-review-photo-consent], [data-open-photo-file], [data-remove-profile-photo], [data-save-profile-photo], [data-save-student-age])[aria-busy="true"]::after {
+.button--action:is([data-login-action], [data-register-action], [data-link-action], [data-student-action], [data-professor-payment-action], [data-grade-action], [data-panel-action], [data-student-create-action], [data-delete-account], [data-academy-save], [data-academy-photo], [data-real-signout], [data-confirm-profile-age], [data-consent-google], [data-continue-unregistered], [data-review-photo-consent], [data-open-photo-file], [data-remove-profile-photo], [data-save-profile-photo], [data-save-student-age], [data-teacher-code-action], [data-real-teacher-name-save], [data-real-link-decision], [data-real-student-link-submit], [data-real-unregistered-create], [data-real-unregistered-age-save], [data-real-instructor-generate], [data-real-instructor-copy], [data-real-instructor-revoke], [data-real-instructor-accept])[aria-busy="true"]::after {
   content: "";
   width: 14px;
   height: 14px;
@@ -902,6 +903,7 @@ form[data-accept-demo-invite] .register-action-error {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 .avatar--small {
@@ -916,11 +918,97 @@ form[data-accept-demo-invite] .register-action-error {
   flex-basis: 104px;
 }
 
+.avatar--initials {
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
 .person-row {
   display: flex;
   min-width: 0;
   align-items: center;
   gap: 11px;
+}
+
+.real-unregistered-student-row {
+  display: grid;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+
+.real-unregistered-student-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.real-unregistered-age-form .form-grid {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.real-unregistered-age-form .form-actions {
+  margin-top: 0;
+}
+
+.real-instructor-invites,
+.real-instructor-invite-list {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+.real-instructor-invite-list {
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.real-instructor-invite-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.real-instructor-invite-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.real-instructor-invite-copy strong {
+  overflow-wrap: anywhere;
+}
+
+.real-instructor-invite-copy small {
+  color: var(--muted);
+}
+
+.real-instructor-invite-action,
+.real-instructor-invite-copy-action {
+  display: grid;
+  min-width: 0;
+  justify-items: start;
+  gap: 6px;
+}
+
+.real-instructor-invite-action .button,
+.real-instructor-invite-copy-action .button {
+  min-height: 44px;
+}
+
+.real-instructor-invite-action .login-action-error {
+  max-width: 100%;
+}
+
+.real-instructor-invite-copy-action p {
+  margin: 0;
 }
 
 .person-copy {
@@ -1329,6 +1417,18 @@ form[data-accept-demo-invite] .register-action-error {
   max-width: 100%;
 }
 
+.real-admin-academy-row + .real-admin-academy-row {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.real-admin-professor-row .academy-save-action {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+
 .field input::placeholder,
 .field textarea::placeholder,
 .search-input::placeholder {
@@ -1701,6 +1801,7 @@ form[data-accept-demo-invite] .register-action-error {
 .privacy-dialog {
   width: min(520px, calc(100vw - 32px));
   max-height: min(80dvh, 640px);
+  overflow-y: auto;
   padding: 24px;
   border: 1px solid #44474d;
   border-radius: 18px;
@@ -2299,12 +2400,20 @@ form[data-accept-demo-invite] .register-action-error {
 
 .privacy-page-header {
   display: flex;
+  flex-wrap: wrap;
   min-height: 68px;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   margin-bottom: clamp(24px, 6vw, 64px);
   border-bottom: 1px solid var(--line);
+}
+
+.privacy-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .privacy-page-card {
@@ -2321,6 +2430,42 @@ form[data-accept-demo-invite] .register-action-error {
 
 .privacy-page-card .panel-copy {
   margin-top: 15px;
+}
+
+.privacy-draft-content {
+  overflow-wrap: anywhere;
+}
+
+.privacy-draft-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.privacy-draft-section h2,
+.privacy-draft-section h3 {
+  margin: 0 0 10px;
+  font-size: clamp(17px, 3vw, 21px);
+}
+
+.privacy-draft-section p,
+.privacy-draft-section li {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.privacy-draft-section p {
+  margin: 0 0 12px;
+}
+
+.privacy-draft-section ul {
+  margin: 10px 0 16px;
+  padding-left: 22px;
+}
+
+.privacy-draft-section li + li {
+  margin-top: 7px;
 }
 
 .dialog-heading {
@@ -2345,6 +2490,40 @@ form[data-accept-demo-invite] .register-action-error {
 .code-display {
   font-size: 24px;
   letter-spacing: .18em;
+}
+
+.teacher-code-value {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.teacher-code-value .code-display {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: clamp(22px, 6vw, 28px);
+  letter-spacing: .12em;
+}
+
+.teacher-code-value .button,
+.teacher-code-controls .button {
+  min-height: 44px;
+}
+
+.teacher-code-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.teacher-code-action-error {
+  max-width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  overflow: visible;
 }
 
 .receipt-compare {
@@ -3047,6 +3226,14 @@ body[data-theme="light"] .button--primary {
     gap: 12px;
   }
 
+  .real-instructor-invite-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .real-unregistered-age-form .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .field--wide {
     grid-column: auto;
   }
@@ -3080,6 +3267,14 @@ body[data-theme="light"] .button--primary {
 
   .list-row {
     align-items: flex-start;
+  }
+
+  .real-admin-professor-row {
+    flex-direction: column;
+  }
+
+  .real-admin-professor-row .academy-save-action {
+    justify-items: start;
   }
 
   .student-entry {
