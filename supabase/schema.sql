@@ -1,7 +1,7 @@
 -- ============================================================================
 -- TATAME · schema.sql · DESCRIÇÃO DO ESTADO ATUAL DO BANCO REAL
 -- Projeto Supabase: tatame
--- Estado verificado em: 07/11/2026
+-- Estado verificado em: 08/11/2026
 --
 -- ATENÇÃO: este arquivo NÃO é migration e NÃO deve ser executado.
 -- O banco real é a fonte da verdade; este arquivo é apenas uma descrição
@@ -10,11 +10,18 @@
 --   (B) supabase/migrations/20261107_01_academias_perfis.sql
 --       supabase/migrations/20261107_02_ativar_professor.sql
 --       supabase/migrations/20261107_03_vinculo_aluno_professor.sql
+--       supabase/migrations/20261107_04_ajustes_codigo_adm.sql
+--       supabase/migrations/20261108_05_alunos_sem_conta.sql
+--       supabase/migrations/20261108_06_idade_declarada_perfis.sql
+--       supabase/migrations/20261108_07_convites_instrutor.sql
+--       supabase/migrations/20261108_08_edicao_academia_auditoria.sql
+-- O comportamento das funções das migrations 05 a 08 NÃO foi testado com
+-- contas reais; somente estrutura e permissões foram conferidas por leitura.
 -- ============================================================================
 
 
 -- ============================================================================
--- TABELAS (7)
+-- TABELAS (10: 7 das migrations 01-04, mais 1 de _05, 1 de _07 e 1 de _08)
 -- ============================================================================
 
 -- public.academias
@@ -22,6 +29,7 @@
 --   nome            text        NOT NULL  check (char_length(btrim(nome)) between 2 and 80)
 --   foto_fundo_url  text        NULL
 --   criado_em       timestamptz NOT NULL  default now()
+--   versao_edicao   bigint      NOT NULL  default 1  check (versao_edicao > 0)
 --   Índices: nenhum além da PK.
 
 -- public.perfis
@@ -32,6 +40,8 @@
 --   academia_id  uuid        NULL      FK -> academias(id) on delete restrict
 --   ativo        boolean     NOT NULL  default true
 --   criado_em    timestamptz NOT NULL  default now()
+--   idade_declarada text     NOT NULL  default 'nao_declarada'
+--                                check (idade_declarada in ('nao_declarada','adulto','menor'))
 --   Índices: perfis_academia_idx (academia_id).
 
 -- public.professores_convidados
@@ -75,9 +85,40 @@
 --   bloqueado_ate  timestamptz NULL
 --   Índices: nenhum além da PK.
 
+-- public.alunos_sem_conta
+--   id                uuid        NOT NULL  default gen_random_uuid()   PK
+--   professor_id      uuid        NOT NULL  FK -> perfis(id) on delete cascade
+--   nome              text        NOT NULL  check (char_length(btrim(nome)) between 1 and 80)
+--   idade_declarada   text        NOT NULL  default 'nao_declarada'
+--                                         check (idade_declarada in ('nao_declarada','adulto','menor'))
+--   criado_em         timestamptz NOT NULL  default now()
+--   Índices: alunos_sem_conta_professor_idx (professor_id, criado_em DESC), além da PK.
+
+-- public.convites_instrutor
+--   id            uuid        NOT NULL  default gen_random_uuid()   PK
+--   professor_id  uuid        NOT NULL  FK -> perfis(id) on delete cascade
+--   token_hash    text        NOT NULL  UNIQUE; check 64 caracteres hexadecimais minúsculos
+--   criado_em     timestamptz NOT NULL  default now()
+--   expira_em     timestamptz NOT NULL  check (expira_em > criado_em)
+--   consumido_em  timestamptz NULL
+--   revogado_em   timestamptz NULL
+--   CHECK: não pode estar consumido e revogado ao mesmo tempo.
+--   Índices: convites_instrutor_pkey, convites_instrutor_token_hash_key,
+--            convites_instrutor_professor_idx (professor_id, criado_em DESC),
+--            convites_instrutor_expiracao_idx (expira_em) para convites ativos.
+
+-- public.academias_log_edicao
+--   id           uuid        NOT NULL  default gen_random_uuid()   PK
+--   academia_id  uuid        NOT NULL  FK -> academias(id) on delete restrict
+--   alterado_por uuid        NOT NULL  (UUID autenticado, sem FK)
+--   alterado_em  timestamptz NOT NULL  default now()
+--   campos       text[]      NOT NULL  check não vazio e limitado a nome/foto_fundo_url
+--   Índices: academias_log_edicao_pkey e academias_log_edicao_academia_idx
+--            (academia_id, alterado_em DESC).
+
 
 -- ============================================================================
--- RLS · ligado nas 7 tabelas · 14 políticas (todas para o papel authenticated)
+-- RLS · ligado nas 10 tabelas · 15 políticas (14 base + 1 de _05)
 -- ============================================================================
 
 -- academias (3 políticas)
@@ -111,6 +152,15 @@
 -- pedidos_vinculo (1 política)
 --   pedidos_select         SELECT  using: (aluno_id = (SELECT auth.uid()) OR professor_id = (SELECT auth.uid()))
 
+-- alunos_sem_conta (1 política)
+--   alunos_sem_conta_select_professor
+--                           SELECT  using: (professor_id = (SELECT auth.uid())
+--                                            AND (SELECT public.papel_atual()) = 'professor')
+
+-- convites_instrutor: RLS ligado e NENHUMA política; authenticated não tem SELECT.
+-- academias_log_edicao: RLS ligado e NENHUMA política.
+-- _06, _07 e _08 não acrescentam políticas.
+
 -- tentativas_codigo: RLS ligado e NENHUMA política, de propósito
 --   (tabela interna, acessada somente pelas funções security definer).
 
@@ -119,22 +169,25 @@
 -- PERMISSÕES DE TABELA/COLUNA (conforme grants das migrations)
 -- ============================================================================
 
--- anon: nenhuma permissão em nenhuma das 7 tabelas.
+-- anon: nenhuma permissão em nenhuma das 10 tabelas.
 -- authenticated:
---   academias:              SELECT; INSERT (nome, foto_fundo_url); UPDATE (nome, foto_fundo_url)
---   perfis:                 SELECT; UPDATE (nome, foto_url)
+--   academias:              SELECT; INSERT (nome, foto_fundo_url); nenhuma permissão UPDATE
+--   perfis:                 SELECT; UPDATE (nome); sem UPDATE em foto_url
 --   professores_convidados: SELECT, DELETE; INSERT (email, academia_id)
 --   turmas:                 SELECT
 --   vinculos:               SELECT
 --   pedidos_vinculo:        SELECT
 --   tentativas_codigo:      nenhuma permissão
+--   alunos_sem_conta:       SELECT; nenhuma permissão INSERT/UPDATE/DELETE
+--   convites_instrutor:     nenhuma permissão de tabela, inclusive SELECT
+--   academias_log_edicao:   nenhuma permissão, inclusive SELECT
 
 
 -- ============================================================================
--- FUNÇÕES (12) · todas security definer, schema public
+-- FUNÇÕES (22: 21 do Tatame + rls_auto_enable) · schema public
 -- ============================================================================
 
--- Funções do Tatame (11) · texto completo no arquivo de origem indicado:
+-- Funções do Tatame (21 = 11 em _01-04 + 2 em _05 + 2 em _06 + 5 em _07 + 1 em _08):
 --   papel_atual()                              returns text     · stable   · sql     · EXECUTE: authenticated · origem: migrations/20261107_01_academias_perfis.sql
 --   academia_atual()                           returns uuid     · stable   · sql     · EXECUTE: authenticated · origem: migrations/20261107_01_academias_perfis.sql
 --   ativar_professor()                         returns boolean  · volatile · plpgsql · EXECUTE: authenticated · origem: migrations/20261107_02_ativar_professor.sql
@@ -151,7 +204,19 @@
 --   decidir_pedido(p_pedido uuid, p_aprovar boolean) returns boolean · volatile · plpgsql · EXECUTE: authenticated · origem: migrations/20261107_03_vinculo_aluno_professor.sql
 --   vincular_adm_professor(p_professor uuid)   returns boolean  · volatile · plpgsql · EXECUTE: authenticated · origem: migrations/20261107_04_ajustes_codigo_adm.sql
 --     (só papel adm; vínculo direto sem código nem aprovação)
---   (todas as 11 com set search_path = ''; anon sem execução em nenhuma)
+--   criar_aluno_sem_conta(p_nome text, p_idade_declarada text default 'nao_declarada')
+--                                             returns uuid · volatile · plpgsql · EXECUTE: authenticated · origem: migrations/20261108_05_alunos_sem_conta.sql
+--   atualizar_idade_aluno_sem_conta(p_aluno_id uuid, p_idade_declarada text) returns boolean · volatile · plpgsql · EXECUTE: authenticated · origem: migrations/20261108_05_alunos_sem_conta.sql
+--   declarar_idade_conta(p_idade_declarada text) returns boolean · volatile · plpgsql · EXECUTE: authenticated · origem: migrations/20261108_06_idade_declarada_perfis.sql
+--   definir_foto_perfil(p_foto_url text) returns boolean · volatile · plpgsql · EXECUTE: authenticated · origem: migrations/20261108_06_idade_declarada_perfis.sql
+--   gerar_convite_instrutor() returns text · volatile · plpgsql · EXECUTE: authenticated · origem: migrations/20261108_07_convites_instrutor.sql
+--   listar_convites_instrutor() returns table (convite_id, criado_em, expira_em, consumido_em, revogado_em) · volatile · plpgsql · EXECUTE: authenticated · origem: migrations/20261108_07_convites_instrutor.sql
+--   validar_convite_instrutor(p_token text) returns text · volatile · plpgsql · EXECUTE: authenticated · origem: migrations/20261108_07_convites_instrutor.sql
+--   consumir_convite_instrutor(p_token text, p_nome text, p_idade_declarada text) returns text · volatile · plpgsql · EXECUTE: authenticated · origem: migrations/20261108_07_convites_instrutor.sql
+--   revogar_convite_instrutor(p_convite_id uuid) returns boolean · volatile · plpgsql · EXECUTE: authenticated · origem: migrations/20261108_07_convites_instrutor.sql
+--   atualizar_academia(p_academia_id uuid, p_nome text, p_foto_fundo_url text, p_versao_esperada bigint)
+--       returns table (codigo text, versao bigint) · volatile · plpgsql · EXECUTE: authenticated · origem: migrations/20261108_08_edicao_academia_auditoria.sql
+--   (todas as 21 com set search_path = ''; anon sem execução em nenhuma)
 --
 --   rls_auto_enable()                          returns (não verificado) · volatile · criada pelo Supabase,
 --     NÃO pertence às migrations. Hipótese não confirmada: efeito da opção
@@ -178,9 +243,8 @@
 -- ============================================================================
 -- PENDÊNCIAS DO BANCO
 -- ============================================================================
--- - Link de uso único (instrutor / aluno pré-cadastrado, validade de 3 dias).
+-- - Link de uso único para aluno pré-cadastrado, validade de 3 dias.
 -- - Funções do Adm.
--- - Promoção a instrutor.
 -- - Remoção de professor/instrutor.
 -- - Cobranças.
 -- - Pagamentos.

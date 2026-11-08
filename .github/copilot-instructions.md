@@ -39,3 +39,12 @@ Projeto: PWA de gestão de academia de jiu-jitsu (nome Tatame). Interface e comm
 2. **Botões de ação** (entrar, enviar, baixar, importar, salvar, confirmar etc.): todo botão de ação deve ter estados visíveis e acessíveis: normal, pressionado, foco, desabilitado, carregando (ex.: "Enviando..."), sucesso e erro. O estado fica DENTRO do botão; erro aparece só quando ocorre, com explicação simples e o que fazer, perto do botão, com role="alert". Bloqueio contra toque duplo, nunca só cor. Para importar e baixar, cobrir também arquivo inválido, arquivo grande demais e cancelado. Usar o padrão existente (runButtonAction), sem criar outro.
 
 3. **Conferência visual:** em toda alteração de interface, conferir que nada se sobreponha indevidamente, que textos não fiquem quebrados ou cortados e que itens não fiquem desalinhados, em 360, 390, 430 e 768 px, nos temas claro e escuro, antes do resumo final. Se não conseguir conferir alguma largura, informar.
+
+## Regra de execução econômica (modo executar, sem repensar)
+
+1. Execute exatamente o que o prompt pede. As decisões já foram tomadas pelo usuário e pelo Claude; não reabra, não reavalie e não proponha alternativas.
+2. Não faça análise ampla nem releia arquivos que o prompt não cita. Abra só o que for necessário para a edição pedida.
+3. Não explique raciocínio durante o trabalho e não repita no resumo o que já está nos arquivos.
+4. Dúvida real (conflito entre o prompt e uma regra do projeto): relate no resumo e siga com o resto. Pergunte só se for impossível continuar.
+5. Não faça melhorias, refatorações ou verificações extras que o prompt não pediu.
+6. Mantenha todas as regras existentes: branch, sem commit/push sem pedido, fechar abas/servidores/shells, resumo final de até 10 linhas (feito / parcial / não feito por item).

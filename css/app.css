@@ -40,7 +40,6 @@ body {
   min-height: 100dvh;
   margin: 0;
   overflow-x: hidden;
-  overscroll-behavior-y: none;
   font-size: 16px;
   background: var(--bg);
   color: var(--text);
@@ -245,6 +244,7 @@ textarea:focus-visible {
 .mobile-nav-icon svg,
 .user-panel-icon svg,
 .user-panel-avatar svg,
+.profile-orb svg,
 .mobile-menu-button svg {
   display: block;
   width: 100%;
@@ -328,8 +328,10 @@ textarea:focus-visible {
 
 .profile-orb {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  overflow: hidden;
   place-items: center;
   border: 1px solid var(--accent-text);
   border-radius: 50%;
@@ -342,6 +344,19 @@ textarea:focus-visible {
   display: block;
   width: 24px;
   height: 24px;
+}
+
+.profile-orb img,
+.user-panel-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.profile-orb img {
+  border-radius: 50%;
 }
 
 .profile-button-copy strong,
@@ -677,11 +692,16 @@ body[data-theme="light"] .button--google:focus-visible {
   color: var(--muted);
 }
 
+.button--danger.button--action:disabled:not([aria-busy="true"]) {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
 .button--action[aria-busy="true"] {
   cursor: progress;
 }
 
-.button--action:is([data-login-action], [data-register-action], [data-link-action], [data-student-action], [data-professor-payment-action], [data-grade-action], [data-panel-action], [data-student-create-action])[aria-busy="true"]::after {
+.button--action:is([data-login-action], [data-register-action], [data-link-action], [data-student-action], [data-professor-payment-action], [data-grade-action], [data-panel-action], [data-student-create-action], [data-delete-account], [data-academy-save], [data-academy-photo], [data-real-signout], [data-confirm-profile-age], [data-consent-google], [data-continue-unregistered], [data-review-photo-consent], [data-open-photo-file], [data-remove-profile-photo], [data-save-profile-photo], [data-save-student-age], [data-teacher-code-action], [data-real-teacher-name-save], [data-real-link-decision], [data-real-student-link-submit], [data-real-unregistered-create], [data-real-unregistered-age-save], [data-real-instructor-generate], [data-real-instructor-copy], [data-real-instructor-revoke], [data-real-instructor-accept])[aria-busy="true"]::after {
   content: "";
   width: 14px;
   height: 14px;
@@ -869,9 +889,9 @@ form[data-accept-demo-invite] .register-action-error {
 }
 
 .avatar {
-  width: 48px;
-  height: 48px;
-  flex: 0 0 48px;
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
   overflow: hidden;
   border: 2px solid var(--line);
   border-radius: 50%;
@@ -883,12 +903,27 @@ form[data-accept-demo-invite] .register-action-error {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 .avatar--small {
-  width: 36px;
-  height: 36px;
-  flex-basis: 36px;
+  width: 44px;
+  height: 44px;
+  flex-basis: 44px;
+}
+
+.avatar--large {
+  width: 104px;
+  height: 104px;
+  flex-basis: 104px;
+}
+
+.avatar--initials {
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .person-row {
@@ -896,6 +931,84 @@ form[data-accept-demo-invite] .register-action-error {
   min-width: 0;
   align-items: center;
   gap: 11px;
+}
+
+.real-unregistered-student-row {
+  display: grid;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+
+.real-unregistered-student-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.real-unregistered-age-form .form-grid {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.real-unregistered-age-form .form-actions {
+  margin-top: 0;
+}
+
+.real-instructor-invites,
+.real-instructor-invite-list {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+.real-instructor-invite-list {
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.real-instructor-invite-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.real-instructor-invite-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.real-instructor-invite-copy strong {
+  overflow-wrap: anywhere;
+}
+
+.real-instructor-invite-copy small {
+  color: var(--muted);
+}
+
+.real-instructor-invite-action,
+.real-instructor-invite-copy-action {
+  display: grid;
+  min-width: 0;
+  justify-items: start;
+  gap: 6px;
+}
+
+.real-instructor-invite-action .button,
+.real-instructor-invite-copy-action .button {
+  min-height: 44px;
+}
+
+.real-instructor-invite-action .login-action-error {
+  max-width: 100%;
+}
+
+.real-instructor-invite-copy-action p {
+  margin: 0;
 }
 
 .person-copy {
@@ -1226,6 +1339,11 @@ form[data-accept-demo-invite] .register-action-error {
   gap: 7px;
 }
 
+.field[hidden],
+.field-help[hidden] {
+  display: none;
+}
+
 .field--wide {
   grid-column: 1 / -1;
 }
@@ -1255,6 +1373,60 @@ form[data-accept-demo-invite] .register-action-error {
 .field textarea {
   min-height: 84px;
   resize: vertical;
+}
+
+.email-preview {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.academy-details {
+  margin-bottom: 20px;
+}
+
+.academy-details .field {
+  align-self: start;
+}
+
+.academy-photo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.academy-photo {
+  display: grid;
+  width: 80px;
+  height: 80px;
+  flex: 0 0 80px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  color: var(--accent-text);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.academy-save-action {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.real-admin-academy-row + .real-admin-academy-row {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.real-admin-professor-row .academy-save-action {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
 }
 
 .field input::placeholder,
@@ -1340,8 +1512,10 @@ form[data-accept-demo-invite] .register-action-error {
 }
 
 .auth-visual img {
-  width: 62px;
-  height: 62px;
+  display: block;
+  width: 200px;
+  height: 200px;
+  margin: 0 auto;
 }
 
 .auth-visual h2 {
@@ -1627,6 +1801,7 @@ form[data-accept-demo-invite] .register-action-error {
 .privacy-dialog {
   width: min(520px, calc(100vw - 32px));
   max-height: min(80dvh, 640px);
+  overflow-y: auto;
   padding: 24px;
   border: 1px solid #44474d;
   border-radius: 18px;
@@ -1699,6 +1874,194 @@ form[data-accept-demo-invite] .register-action-error {
   font-size: 14px;
   line-height: 1.65;
   overflow-wrap: anywhere;
+}
+
+.photo-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(90dvh, 760px);
+  margin: auto;
+  padding: clamp(18px, 5vw, 28px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 28px 90px rgb(0 0 0 / 55%);
+}
+
+.photo-dialog::backdrop {
+  background: rgb(0 0 0 / 72%);
+  backdrop-filter: blur(3px);
+}
+
+.photo-dialog h2 {
+  margin: 8px 0 0;
+  font-size: clamp(20px, 5vw, 26px);
+}
+
+.photo-dialog p {
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.photo-dialog [role="alert"]:empty,
+.photo-dialog [role="status"]:empty {
+  display: none;
+}
+
+.profile-onboarding-options {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.profile-onboarding-options legend {
+  padding-inline: 5px;
+}
+
+.profile-onboarding-copy {
+  margin: 12px 0;
+  color: var(--muted);
+}
+
+.profile-onboarding-options {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.profile-onboarding-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-onboarding-actions .button {
+  width: 100%;
+  min-height: 48px;
+  white-space: normal;
+}
+
+.profile-onboarding-actions [role="alert"]:not(:empty) {
+  color: var(--alert);
+}
+
+.profile-onboarding-option {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  cursor: pointer;
+}
+
+.profile-onboarding-option input {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  accent-color: var(--accent);
+}
+
+.profile-photo-card {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.profile-photo-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.profile-photo-copy strong,
+.profile-photo-copy small {
+  overflow-wrap: anywhere;
+}
+
+.profile-photo-copy small {
+  color: var(--muted);
+}
+
+.profile-photo-actions {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.profile-photo-control {
+  min-width: 0;
+}
+
+.profile-photo-control .button {
+  width: 100%;
+  min-height: 48px;
+  white-space: normal;
+}
+
+.profile-photo-control [role="alert"]:empty,
+.profile-photo-control [role="status"]:empty {
+  display: none;
+}
+
+.profile-photo-control [role="alert"]:not(:empty) {
+  margin-top: 6px;
+  color: var(--alert);
+}
+
+.student-academy-details {
+  margin: 12px 0;
+}
+
+.student-age-form {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.photo-crop-preview {
+  width: min(260px, 75vw);
+  aspect-ratio: 1;
+  margin: 18px auto;
+  overflow: hidden;
+  border: 2px solid var(--accent-text);
+  border-radius: 50%;
+  background: var(--surface-raised);
+}
+
+.photo-crop-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: center;
+}
+
+.photo-editor-controls {
+  display: grid;
+  gap: 12px;
+}
+
+.photo-editor-controls input[type="range"] {
+  min-height: 30px;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.photo-editor-actions {
+  display: grid;
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.photo-editor-actions .button {
+  width: 100%;
+  min-height: 48px;
 }
 
 .tutorial-actions {
@@ -1778,9 +2141,10 @@ form[data-accept-demo-invite] .register-action-error {
 
 .user-panel-avatar {
   display: grid;
-  width: 50px;
-  height: 50px;
-  flex: 0 0 50px;
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  overflow: hidden;
   place-items: center;
   padding: 11px;
   border: 1px solid var(--accent-text);
@@ -1806,16 +2170,45 @@ form[data-accept-demo-invite] .register-action-error {
   line-height: 1.5;
 }
 
-.version-trigger {
+.user-panel-version,
+.login-version {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.version-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 48px;
   min-height: 48px;
-  padding: 6px;
-  border: 0;
-  background: transparent;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-raised);
   color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.version-trigger {
   cursor: pointer;
-  font: inherit;
-  text-decoration: underline;
+}
+
+.version-trigger:hover {
+  border-color: var(--accent-text);
+  background: var(--surface-soft);
+}
+
+.version-trigger:active {
+  transform: translateY(1px);
+}
+
+#real-session-email {
+  overflow-wrap: anywhere;
 }
 
 .user-panel-diagnostics summary {
@@ -1870,6 +2263,10 @@ form[data-accept-demo-invite] .register-action-error {
   display: grid;
   gap: 4px;
   margin-top: 24px;
+}
+
+.user-panel-avatar img {
+  border-radius: 50%;
 }
 
 .user-panel-links[hidden] {
@@ -1953,14 +2350,24 @@ form[data-accept-demo-invite] .register-action-error {
   background: var(--surface-raised);
 }
 
-.user-panel-risk h3 {
-  margin: 0;
+.user-panel-risk summary {
   color: var(--text);
   font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.user-panel-risk h3 span {
+.user-panel-risk summary span {
   color: var(--alert);
+}
+
+.user-panel-risk summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .user-panel-risk p {
@@ -1968,6 +2375,20 @@ form[data-accept-demo-invite] .register-action-error {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.5;
+}
+
+.user-panel-risk .risk-confirmation {
+  margin: 12px 0;
+}
+
+.user-panel-risk .login-action-error:not(:empty) {
+  color: var(--alert);
+}
+
+.login-version {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .privacy-page {
@@ -1979,12 +2400,20 @@ form[data-accept-demo-invite] .register-action-error {
 
 .privacy-page-header {
   display: flex;
+  flex-wrap: wrap;
   min-height: 68px;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   margin-bottom: clamp(24px, 6vw, 64px);
   border-bottom: 1px solid var(--line);
+}
+
+.privacy-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .privacy-page-card {
@@ -2001,6 +2430,42 @@ form[data-accept-demo-invite] .register-action-error {
 
 .privacy-page-card .panel-copy {
   margin-top: 15px;
+}
+
+.privacy-draft-content {
+  overflow-wrap: anywhere;
+}
+
+.privacy-draft-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.privacy-draft-section h2,
+.privacy-draft-section h3 {
+  margin: 0 0 10px;
+  font-size: clamp(17px, 3vw, 21px);
+}
+
+.privacy-draft-section p,
+.privacy-draft-section li {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.privacy-draft-section p {
+  margin: 0 0 12px;
+}
+
+.privacy-draft-section ul {
+  margin: 10px 0 16px;
+  padding-left: 22px;
+}
+
+.privacy-draft-section li + li {
+  margin-top: 7px;
 }
 
 .dialog-heading {
@@ -2025,6 +2490,40 @@ form[data-accept-demo-invite] .register-action-error {
 .code-display {
   font-size: 24px;
   letter-spacing: .18em;
+}
+
+.teacher-code-value {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.teacher-code-value .code-display {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: clamp(22px, 6vw, 28px);
+  letter-spacing: .12em;
+}
+
+.teacher-code-value .button,
+.teacher-code-controls .button {
+  min-height: 44px;
+}
+
+.teacher-code-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.teacher-code-action-error {
+  max-width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  overflow: visible;
 }
 
 .receipt-compare {
@@ -2419,6 +2918,10 @@ body[data-theme="light"] .button--primary {
 }
 
 @media (max-width: 860px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
+  body {
+    overscroll-behavior-y: none;
+  }
+
   .app-frame {
     display: block;
     min-height: calc(100dvh - 34px - env(safe-area-inset-top));
@@ -2598,8 +3101,9 @@ body[data-theme="light"] .button--primary {
   }
 
   .profile-orb {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
   }
 
   .profile-button-copy,
@@ -2711,15 +3215,23 @@ body[data-theme="light"] .button--primary {
 
   .auth-mobile-mark {
     display: block;
-    width: 68px;
-    height: 68px;
-    margin: 0 auto 16px;
+    width: 112px;
+    height: 112px;
+    margin: -14px auto 4px;
     object-fit: contain;
   }
 
   .form-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
+  }
+
+  .real-instructor-invite-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .real-unregistered-age-form .form-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .field--wide {
@@ -2755,6 +3267,14 @@ body[data-theme="light"] .button--primary {
 
   .list-row {
     align-items: flex-start;
+  }
+
+  .real-admin-professor-row {
+    flex-direction: column;
+  }
+
+  .real-admin-professor-row .academy-save-action {
+    justify-items: start;
   }
 
   .student-entry {

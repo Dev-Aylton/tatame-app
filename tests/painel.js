@@ -80,13 +80,19 @@ const checks = [
         areas.has("Interface responsiva") &&
         areas.has("Privacidade e LGPD") &&
         areas.has("Instrutor") &&
+        areas.has("Fotos e avatar") &&
         areas.has("Segurança e publicação") &&
-        casesF1.length === 52 &&
+        casesF1.length === 57 &&
         casesF2.length === 3 &&
         casesF3.length === 1 &&
+        cases.some((testCase) => testCase.id === "F1-AUTH-04") &&
         cases.some((testCase) => testCase.id === "F1-ACC-06") &&
         cases.some((testCase) => testCase.id === "F1-PRIV-01") &&
         cases.some((testCase) => testCase.id === "F1-PRIV-02") &&
+        cases.some((testCase) => testCase.id === "F1-PRIV-03") &&
+        cases.some((testCase) => testCase.id === "F1-PRIV-04") &&
+        cases.some((testCase) => testCase.id === "F1-ACAD-01") &&
+        cases.some((testCase) => testCase.id === "F1-AVATAR-01") &&
         cases.some((testCase) => testCase.id === "F1-PAG-08") &&
         cases.filter((testCase) => testCase.area === "Instrutor" && testCase.revisao).length === 5 &&
         cases.some((testCase) => testCase.id === "F2-INST-01" && testCase.fase === "F2") &&
