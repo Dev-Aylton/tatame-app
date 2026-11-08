@@ -53,5 +53,5 @@ Projeto: PWA de gestão de academia de jiu-jitsu (nome Tatame). Interface e comm
 
 1. **`js/config.js`:** nunca ler, exibir ou commitar; manter no `.gitignore` e fora do índice Git.
 2. **Comandos:** é proibido executar comandos vazios ou em loop.
-3. **Execução:** não abrir o navegador nem fazer perguntas interativas, salvo se o prompt pedir; não testar com conta real.
+3. **Execução:** não fazer perguntas interativas ao usuário, salvo se o prompt pedir; sem teste com conta real; o navegador pode ser aberto para conferir a demonstração.
 4. **Dúvidas:** se houver dúvida sobre o escopo, parar e reportar em vez de decidir.

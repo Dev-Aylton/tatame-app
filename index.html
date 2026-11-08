@@ -9,6 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Tatame">
   <title>Tatame | Protótipo F1</title>
   <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/logos/apple-touch-icon.png">
   <link rel="apple-touch-icon" sizes="512x512" href="assets/logos/tatame-icone-escudo-512.png">
   <link rel="stylesheet" href="css/app.css">
   <script src="js/vendor/supabase-2.49.8.js" defer></script>
@@ -145,12 +146,12 @@
     <p class="user-panel-note">O perfil e as permissões são definidos pelo banco na versão funcional.</p>
     <details class="user-panel-risk">
       <summary><span aria-hidden="true">⚠</span> Área de risco</summary>
-      <p>Opções relacionadas à exclusão da conta, dos dados fictícios e do arquivo de foto temporário.</p>
-      <p>A exclusão de conta ainda está em construção e não apaga nenhum dado nesta simulação.</p>
+      <p>Esta ação exclui somente os dados pessoais fictícios desta conta neste navegador, anonimiza os registros compartilhados e encerra a sessão demonstrativa.</p>
+      <p>A exclusão real ainda está em construção; nenhum dado de uma conta real será apagado.</p>
       <div class="user-panel-action">
-        <p><span aria-hidden="true">⚠</span> Excluir minha conta: futuramente solicitará a exclusão da conta e da foto. Por enquanto, nenhum dado ou arquivo será apagado.</p>
+        <p><span aria-hidden="true">⚠</span> Excluir minha conta: remove o perfil, os contatos fictícios e a foto demonstrativa. Pagamentos, vínculos e graduações compartilhados permanecem com o nome “Conta excluída”.</p>
         <div class="field risk-confirmation">
-          <label for="delete-account-confirmation">Digite EXCLUIR para liberar o botão</label>
+          <label for="delete-account-confirmation">Digite EXCLUIR para liberar a exclusão demonstrativa</label>
           <input id="delete-account-confirmation" type="text" autocomplete="off" aria-describedby="delete-account-notice">
         </div>
         <button class="button button--danger button--action" type="button" data-delete-account disabled aria-describedby="delete-account-notice delete-account-error"><span data-action-label>Excluir minha conta</span></button>

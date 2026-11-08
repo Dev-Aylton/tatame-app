@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "5.2";
+const APP_VERSION = "5.4";
 const CONSENT_TERM_VERSION = "rascunho-1";
 const diagnosticEvents = [];
 let versionClicks = 0;
@@ -129,6 +129,7 @@ const demoProfiles = {
   student: { role: "student", label: "Aluno registrado", name: "ALUNO FICTÍCIO 01", start: "student-home", teacherAccount: null, academyId: null, grade: "Faixa azul · 2 graus", gradeHistory: ["Graduação fictícia preservada"] },
   "student-unregistered": { role: "student-unregistered", label: "Aluno sem registro", name: "ALUNO FICTÍCIO 04", start: "link-teacher", grade: "Faixa branca", gradeHistory: ["Histórico fictício preservado"] }
 };
+const deletedDemoAccounts = new Set();
 const demoAcademy = { id: "academia-ficticia-01", name: "Academia Fictícia", phone: "", email: "", photo: "initials" };
 const defaultProfessorSchedule = [
   ["Segunda e quarta", "19h às 20h30"],
@@ -156,15 +157,14 @@ const demoInviteRecipients = [
   { id: "student-02", type: "student", name: demoRoster[2].name },
   { id: "student-03", type: "student", name: demoRoster[3].name }
 ];
-const simulatedRoleHistory = [
-  "ALUNO FICTÍCIO 03: aluno registrado → instrutor · histórico mantido.",
-  "INSTRUTOR FICTÍCIO 03: instrutor → professor · histórico mantido."
-];
+const simulatedRoleHistory = [];
 const authorizedInstructorNames = new Set();
 const delegatedLessons = {};
 const linkRequests = [];
 const cashPayments = [];
 const receiptPayments = [];
+const demoConversations = [];
+let selectedTeacherChatPartner = null;
 
 function loadDemoPayments() {
   try {
@@ -254,14 +254,16 @@ demoInvites.filter((invite) => invite.used && invite.academyId === demoAcademy.i
   student.account = account;
   student.teacherAccount = invite.professorAccount;
 });
-const DEMO_DATA_VERSION = 2;
+const DEMO_DATA_VERSION = 3;
 const demoDataKeys = {
   profiles: "tatame-demo-profiles",
   roster: "tatame-demo-roster",
   links: "tatame-demo-links",
   grades: "tatame-demo-grades",
   invites: "tatame-demo-invites",
-  academy: "tatame-demo-academy"
+  academy: "tatame-demo-academy",
+  deletedAccounts: "tatame-demo-deleted-accounts",
+  conversations: "tatame-demo-conversations"
 };
 
 function readDemoData(key, validate) {
@@ -269,7 +271,9 @@ function readDemoData(key, validate) {
     const stored = localStorage.getItem(key);
     if (stored === null) return null;
     const record = JSON.parse(stored);
-    if (!record || (record.version !== DEMO_DATA_VERSION && !(record.version === 1 && key !== demoDataKeys.academy)) || !validate(record.data)) {
+    const supportedPreviousVersion = record && (record.version === 2 ||
+      (record.version === 1 && key !== demoDataKeys.academy));
+    if (!record || (record.version !== DEMO_DATA_VERSION && !supportedPreviousVersion) || !validate(record.data)) {
       throw new TypeError("Formato ou versão dos dados fictícios inválidos.");
     }
     return record.data;
@@ -293,6 +297,8 @@ function saveDemoProfiles() { writeDemoData(demoDataKeys.profiles, demoProfiles)
 function saveDemoAcademy(academy) { writeDemoData(demoDataKeys.academy, academy); }
 function saveDemoRoster() { writeDemoData(demoDataKeys.roster, demoRoster); }
 function saveLinkRequests() { writeDemoData(demoDataKeys.links, linkRequests); }
+function saveDeletedDemoAccounts() { writeDemoData(demoDataKeys.deletedAccounts, Array.from(deletedDemoAccounts)); }
+function saveDemoConversations() { writeDemoData(demoDataKeys.conversations, demoConversations); }
 function saveDemoGradeHistory() {
   writeDemoData(demoDataKeys.grades, Array.from(demoGradeHistory, ([student, entries]) => ({
     index: demoRoster.indexOf(student), name: student.name, account: student.account, entries
@@ -307,7 +313,6 @@ const storedAcademy = readDemoData(demoDataKeys.academy, (value) =>
 if (storedAcademy) Object.assign(demoAcademy, storedAcademy);
 const storedProfiles = readDemoData(demoDataKeys.profiles, (value) =>
   value && typeof value === "object" && !Array.isArray(value) &&
-  ["adm", "professor", "instructor", "student", "student-unregistered"].every((key) => Object.hasOwn(value, key)) &&
   Object.entries(value).every(([key, profile]) => /^[a-z0-9-]+$/.test(key) && profile &&
     typeof profile.name === "string" && typeof profile.label === "string" &&
     Object.hasOwn(roleScreens, profile.role) && typeof profile.start === "string" &&
@@ -316,12 +321,35 @@ const storedProfiles = readDemoData(demoDataKeys.profiles, (value) =>
     (profile.grade === undefined || typeof profile.grade === "string"))
 );
 if (storedProfiles) Object.assign(demoProfiles, storedProfiles);
+const storedDeletedDemoAccounts = readDemoData(demoDataKeys.deletedAccounts, (value) =>
+  Array.isArray(value) && value.every((account) => typeof account === "string" && /^[a-z0-9-]+$/.test(account))
+);
+if (storedDeletedDemoAccounts) storedDeletedDemoAccounts.forEach((account) => deletedDemoAccounts.add(account));
+deletedDemoAccounts.forEach((account) => delete demoProfiles[account]);
+for (const payment of [...cashPayments, ...receiptPayments]) {
+  if (deletedDemoAccounts.has(payment.account)) {
+    payment.studentName = "Conta excluída";
+    payment.account = null;
+  }
+}
 
 const storedRoster = readDemoData(demoDataKeys.roster, (value) =>
   Array.isArray(value) && value.every((student) => student && typeof student.name === "string" &&
-    typeof student.grade === "string" && isStringOrNull(student.account) && isStringOrNull(student.teacherAccount))
+    typeof student.grade === "string" && isStringOrNull(student.account) && isStringOrNull(student.teacherAccount) &&
+    (student.deletedRole === undefined || ["student", "instructor"].includes(student.deletedRole)))
 );
 if (storedRoster) demoRoster.splice(0, demoRoster.length, ...storedRoster);
+deletedDemoAccounts.forEach((account) => {
+  const student = demoRoster.find((item) => item.account === account);
+  if (!student) return;
+  student.deletedRole = account === "instructor" ? "instructor" : "student";
+  student.name = "Conta excluída";
+  student.account = null;
+});
+simulatedRoleHistory.push(
+  `${demoRoster[3].name}: aluno registrado → instrutor · histórico mantido.`,
+  "INSTRUTOR FICTÍCIO 03: instrutor → professor · histórico mantido."
+);
 
 const storedLinks = readDemoData(demoDataKeys.links, (value) =>
   Array.isArray(value) && value.every((request) => request && typeof request.id === "string" &&
@@ -329,6 +357,21 @@ const storedLinks = readDemoData(demoDataKeys.links, (value) =>
     typeof request.professorAccount === "string" && ["pending", "approved", "rejected", "cancelled"].includes(request.status))
 );
 if (storedLinks) linkRequests.push(...storedLinks);
+deletedDemoAccounts.forEach((account) => {
+  const associatedRecipientId = account.startsWith("pre-registered-")
+    ? account.slice("pre-registered-".length)
+    : account;
+  linkRequests.forEach((request) => {
+    if (request.account === account) request.studentName = "Conta excluída";
+  });
+  demoInvites.forEach((invite) => {
+    if (invite.recipientId === associatedRecipientId) invite.recipientName = "Conta excluída";
+    if (invite.recipientId === associatedRecipientId || invite.professorAccount === account) {
+      invite.used = true;
+      invite.token = "";
+    }
+  });
+});
 
 const storedGrades = readDemoData(demoDataKeys.grades, (value) =>
   Array.isArray(value) && value.every((item) => item && Number.isInteger(item.index) && item.index >= 0 &&
@@ -338,6 +381,19 @@ const storedGrades = readDemoData(demoDataKeys.grades, (value) =>
       typeof entry.date === "string" && typeof entry.professor === "string"))
 );
 if (storedGrades) storedGrades.forEach((item) => demoGradeHistory.set(demoRoster[item.index], item.entries));
+const storedConversations = readDemoData(demoDataKeys.conversations, (value) =>
+  Array.isArray(value) && value.every((conversation) => conversation &&
+    typeof conversation.id === "string" && Array.isArray(conversation.participants) &&
+    conversation.participants.length === 2 && conversation.participants.every((account) => typeof account === "string") &&
+    Array.isArray(conversation.messages) && conversation.messages.every((message) => message &&
+      conversation.participants.includes(message.senderAccount) && typeof message.text === "string" &&
+      typeof message.sentAt === "string"))
+);
+if (storedConversations) {
+  demoConversations.push(...storedConversations.filter((conversation) =>
+    !conversation.participants.some((account) => deletedDemoAccounts.has(account))
+  ));
+}
 
 function updateDemoData(update, saves) {
   const previous = {
@@ -378,6 +434,174 @@ function updateDemoData(update, saves) {
     throw error;
   }
 }
+
+function updateDemoConversations(update) {
+  const previous = structuredClone(demoConversations);
+  update();
+  try {
+    saveDemoConversations();
+  } catch (error) {
+    demoConversations.splice(0, demoConversations.length, ...previous);
+    throw error;
+  }
+}
+
+function deleteDemoAccountData(account) {
+  const profile = demoProfiles[account];
+  if (!profile || activeDemoAccount !== account || deletedDemoAccounts.has(account)) {
+    return { errorMessage: "Esta conta demonstrativa não está disponível. Atualize a tela e tente novamente." };
+  }
+
+  const associatedRecipientId = account.startsWith("pre-registered-")
+    ? account.slice("pre-registered-".length)
+    : account;
+  const storageKeys = [...Object.values(demoDataKeys), "tatame-demo-payments"];
+  const previousStorage = new Map();
+  try {
+    storageKeys.forEach((key) => previousStorage.set(key, localStorage.getItem(key)));
+  } catch (error) {
+    console.error("Não foi possível verificar o armazenamento antes da exclusão fictícia:", error);
+    return { errorMessage: "Não foi possível acessar o armazenamento local. Nenhum dado foi alterado; verifique as configurações e tente novamente." };
+  }
+
+  const previous = {
+    profiles: structuredClone(demoProfiles),
+    roster: structuredClone(demoRoster),
+    links: structuredClone(linkRequests),
+    invites: structuredClone(demoInvites),
+    grades: Array.from(demoGradeHistory, ([student, entries]) =>
+      [demoRoster.indexOf(student), structuredClone(entries)]),
+    conversations: structuredClone(demoConversations),
+    deletedAccounts: Array.from(deletedDemoAccounts),
+    cashPayments: cashPayments.map((payment) => ({ ...payment })),
+    receiptPayments: receiptPayments.map((payment) => ({ ...payment })),
+    recipients: structuredClone(demoInviteRecipients),
+    authorized: Array.from(authorizedInstructorNames),
+    delegatedLessons: structuredClone(delegatedLessons),
+    publishedGrades: Array.from(publishedAcademyGrades),
+    teacherLinkCodes: Array.from(teacherLinkCodes),
+    roleHistory: [...simulatedRoleHistory],
+    selectedIndex: demoRoster.indexOf(selectedGradeStudent),
+    selectedTeacherChatPartner
+  };
+  const deletedName = profile.name;
+
+  try {
+    const rosterRecord = demoRoster.find((student) => student.account === account);
+    if (rosterRecord) {
+      rosterRecord.name = "Conta excluída";
+      rosterRecord.deletedRole = profile.role === "instructor" ? "instructor" : "student";
+      rosterRecord.account = null;
+    }
+
+    for (const request of linkRequests) {
+      if (request.account === account || request.studentName === deletedName) {
+        request.studentName = "Conta excluída";
+      }
+    }
+
+    for (const invite of demoInvites) {
+      const deletedRecipient = invite.recipientId === associatedRecipientId || invite.recipientName === deletedName;
+      if (deletedRecipient) invite.recipientName = "Conta excluída";
+      if (deletedRecipient || invite.professorAccount === account) {
+        invite.used = true;
+        invite.token = "";
+      }
+    }
+
+    for (const payment of [...cashPayments, ...receiptPayments]) {
+      if (payment.account === account || payment.studentName === deletedName) {
+        payment.studentName = "Conta excluída";
+        payment.account = null;
+      }
+    }
+
+    for (const entries of demoGradeHistory.values()) {
+      entries.forEach((entry) => {
+        if (entry.professor === deletedName) entry.professor = "Conta excluída";
+      });
+    }
+    for (let index = 0; index < simulatedRoleHistory.length; index += 1) {
+      simulatedRoleHistory[index] = simulatedRoleHistory[index].replaceAll(deletedName, "Conta excluída");
+    }
+
+    for (let index = demoConversations.length - 1; index >= 0; index -= 1) {
+      if (demoConversations[index].participants.includes(account)) demoConversations.splice(index, 1);
+    }
+
+    demoInviteRecipients.splice(0, demoInviteRecipients.length, ...demoInviteRecipients.filter((recipient) =>
+      recipient.id !== associatedRecipientId && recipient.name !== deletedName
+    ));
+    authorizedInstructorNames.delete(deletedName);
+    publishedAcademyGrades.delete(account);
+    teacherLinkCodes.delete(account);
+    if (selectedTeacherChatPartner === account) selectedTeacherChatPartner = null;
+    for (const [instructorName, lesson] of Object.entries(delegatedLessons)) {
+      if (instructorName === deletedName || lesson.teacherAccount === account) delete delegatedLessons[instructorName];
+    }
+
+    deletedDemoAccounts.add(account);
+    delete demoProfiles[account];
+
+    saveDemoProfiles();
+    saveDeletedDemoAccounts();
+    saveDemoRoster();
+    saveLinkRequests();
+    saveDemoInvites();
+    saveDemoGradeHistory();
+    saveDemoConversations();
+    saveDemoPayments();
+
+    const photoUrl = photoProfiles.get(account);
+    if (photoUrl) URL.revokeObjectURL(photoUrl);
+    photoProfiles.delete(account);
+    revokeReplacedPhotoUrls();
+    return {};
+  } catch (error) {
+    for (const key of Object.keys(demoProfiles)) delete demoProfiles[key];
+    Object.assign(demoProfiles, previous.profiles);
+    demoRoster.splice(0, demoRoster.length, ...previous.roster);
+    linkRequests.splice(0, linkRequests.length, ...previous.links);
+    demoInvites.splice(0, demoInvites.length, ...previous.invites);
+    demoGradeHistory.clear();
+    previous.grades.forEach(([index, entries]) => demoGradeHistory.set(demoRoster[index], entries));
+    demoConversations.splice(0, demoConversations.length, ...previous.conversations);
+    deletedDemoAccounts.clear();
+    previous.deletedAccounts.forEach((item) => deletedDemoAccounts.add(item));
+    cashPayments.splice(0, cashPayments.length, ...previous.cashPayments);
+    receiptPayments.splice(0, receiptPayments.length, ...previous.receiptPayments);
+    demoInviteRecipients.splice(0, demoInviteRecipients.length, ...previous.recipients);
+    authorizedInstructorNames.clear();
+    previous.authorized.forEach((name) => authorizedInstructorNames.add(name));
+    Object.keys(delegatedLessons).forEach((key) => delete delegatedLessons[key]);
+    Object.assign(delegatedLessons, previous.delegatedLessons);
+    publishedAcademyGrades.clear();
+    previous.publishedGrades.forEach((item) => publishedAcademyGrades.add(item));
+    teacherLinkCodes.clear();
+    previous.teacherLinkCodes.forEach(([key, value]) => teacherLinkCodes.set(key, value));
+    simulatedRoleHistory.splice(0, simulatedRoleHistory.length, ...previous.roleHistory);
+    selectedGradeStudent = previous.selectedIndex < 0 ? null : demoRoster[previous.selectedIndex];
+    selectedTeacherChatPartner = previous.selectedTeacherChatPartner;
+
+    const restoreFailures = [];
+    for (const [key, value] of previousStorage) {
+      try {
+        if (value === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+      } catch (restoreError) {
+        restoreFailures.push(key);
+        console.error(`Não foi possível restaurar ${key} após a exclusão fictícia:`, restoreError);
+      }
+    }
+    console.error("Não foi possível concluir a exclusão fictícia:", error);
+    return {
+      errorMessage: restoreFailures.length
+        ? "Não foi possível concluir nem restaurar todos os dados locais. Atualize a página e confira os dados antes de tentar novamente."
+        : "Não foi possível concluir. Os dados anteriores foram restaurados; verifique o armazenamento e tente novamente."
+    };
+  }
+}
+
 const teacherLinkCodes = new Map([["professor", "K7M4PX"]]);
 const linkCodeAttempts = new Map();
 let currentTeacherLinkPreview = null;
@@ -403,7 +627,7 @@ const tutorialStepsByRole = {
     ["payment-review", "Pagamentos a confirmar", "Confira avisos ou lance dinheiro recebido: busque o aluno da turma, informe tipo e referência e confirme os dados. É possível desfazer por 10 segundos; depois, use Estornar. O histórico é preservado nesta simulação."],
     ["overdue", "Atrasados", "Revise cobranças atrasadas antes de enviar um lembrete."],
     ["quick-actions", "Ações rápidas", "Use os atalhos e limite lotes de mensalidades a 24 cobranças."],
-    ["teacher-chat", "Conversas", "Converse somente com seus alunos e Instrutores autorizados."],
+    ["teacher-chat", "Conversas", "Converse somente com seus alunos e Instrutores vinculados. As mensagens fictícias ficam salvas neste navegador e são removidas ao excluir a conta demonstrativa."],
     ["academy", "Academia", "Se estiver vinculado, altere nome, telefone e e-mail fictícios e simule a troca da foto sem arquivo. Consulte equipe e horários; publique ou retorne sua grade para rascunho."],
     ["user-settings", "Preferências", "Confira tema, atualização e acesso à privacidade."],
     ["user-settings", "Sua foto", "Escolha uma foto, ajuste zoom e enquadramento e salve a prévia local. Consentimento para a foto do Google pode ser recusado; menores usam somente avatar. Nada é enviado ou guardado após esta sessão."],
@@ -415,7 +639,7 @@ const tutorialStepsByRole = {
     ["student-payments", "Meus pagamentos", "Consulte somente suas cobranças e seus próprios pagamentos. Nunca verá pagamentos de outros alunos."],
     ["student-grades", "Minhas graduações", "Acompanhe sua própria faixa e seu histórico de graduações."],
     ["instructor-class", "Aula delegada", "Veja nome e graduação atual da turma e a aula que o Professor decidiu compartilhar, ou “Treino livre”. Registre “Segui” ou “Não segui”; pagamentos de outros alunos e notas privadas não aparecem."],
-    ["instructor-chat", "Conversa com o Professor", "Converse somente com o Professor. Não há conversas com alunos ou terceiros."],
+    ["instructor-chat", "Conversa com o Professor", "Converse somente com o Professor vinculado. As mensagens fictícias ficam salvas neste navegador e são removidas ao excluir a conta demonstrativa."],
     ["academy", "Academia", "Consulte o quadro e os horários publicados da academia."],
     ["user-settings", "Preferências", "Confira tema e opções demonstrativas da conta."],
     ["user-settings", "Sua foto", "A cópia simulada da foto do Google só aparece após consentimento. Menores usam somente avatar; a foto escolhida fica apenas nesta sessão do navegador."],
@@ -426,7 +650,7 @@ const tutorialStepsByRole = {
     ["student-link", "Meu vínculo", "Na conta Google real, o Aluno ativo acompanha o estado do pedido de vínculo. Na demonstração, Professor, academia e pedidos continuam simulados."],
     ["student-payments", "Meus pagamentos", "Consulte suas cobranças, envie comprovante ou informe um pagamento em dinheiro, que fica pendente até a confirmação do Professor."],
     ["student-grades", "Minhas graduações", "Acompanhe sua faixa e seu histórico de graduações."],
-    ["student-chat", "Conversa com o Professor", "Envie mensagens somente ao seu Professor."],
+    ["student-chat", "Conversa com o Professor", "Envie mensagens somente ao seu Professor. As mensagens fictícias ficam salvas neste navegador e são removidas ao excluir a conta demonstrativa."],
     ["link-teacher", "Vincular a um Professor", "Na conta Google real do Aluno ativo, digite o código de seis caracteres para enviar o pedido e acompanhe se está pendente, aprovado ou recusado. Na demonstração, confira a prévia fictícia antes de pedir vínculo."],
     ["academy", "Academia", "Veja professores, Instrutores e horários publicados da sua academia."],
     ["user-settings", "Preferências", "Confira tema e opções demonstrativas da conta."],
@@ -447,7 +671,7 @@ Object.entries(tutorialStepsByRole).forEach(([role, steps]) => {
   steps.push([
     role === "student-unregistered" ? "link-teacher" : "user-settings",
     "Área de risco",
-    "No painel da conta, abra Área de risco e digite EXCLUIR para liberar o botão. A exclusão ainda está em construção; nenhum dado é apagado."
+    "No painel da conta, abra Área de risco e digite EXCLUIR para apagar os dados pessoais fictícios desta conta, anonimizar registros compartilhados e encerrar a sessão. A exclusão real ainda está em construção."
   ]);
 });
 const tutorialIllustrations = [
@@ -1027,7 +1251,7 @@ function studentAcademyDetails(account, student = null) {
   return `
     <div class="student-academy-details">
       ${listRow("Academia", teacher ? escapeHtml(demoAcademy.name) : "Sem academia vinculada")}
-      ${listRow("Professor", teacher ? escapeHtml(teacher.name) : "Sem Professor vinculado")}
+      ${listRow("Professor", teacher ? escapeHtml(teacher.name) : deletedDemoAccounts.has(teacherAccount) ? "Conta excluída" : "Sem Professor vinculado")}
     </div>
   `;
 }
@@ -1235,6 +1459,69 @@ function formatDemoDate(value) {
   return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : value;
 }
 
+function demoAccountDisplayName(account) {
+  if (deletedDemoAccounts.has(account)) return "Conta excluída";
+  const profile = demoProfiles[account];
+  return profile ? profile.name : "Conta indisponível";
+}
+
+function demoTeacherAccountFor(account, profile) {
+  if (profile.role === "instructor") return profile.teacherAccount;
+  const rosterStudent = demoRoster.find((student) => student.account === account);
+  return rosterStudent && rosterStudent.teacherAccount || profile.teacherAccount;
+}
+
+function demoChatPartners(account) {
+  const profile = demoProfiles[account];
+  if (!profile) return [];
+  if (profile.role === "professor") {
+    return Object.entries(demoProfiles)
+      .filter(([candidate, candidateProfile]) =>
+        candidate !== account && ["student", "instructor"].includes(candidateProfile.role) &&
+        demoTeacherAccountFor(candidate, candidateProfile) === account
+      )
+      .map(([candidate]) => candidate);
+  }
+  if (!["student", "instructor"].includes(profile.role)) return [];
+  const teacherAccount = demoTeacherAccountFor(account, profile);
+  return teacherAccount && demoProfiles[teacherAccount] && demoProfiles[teacherAccount].role === "professor"
+    ? [teacherAccount]
+    : [];
+}
+
+function demoConversationFor(firstAccount, secondAccount) {
+  const participants = [firstAccount, secondAccount].sort();
+  const id = participants.join("::");
+  return demoConversations.find((conversation) => conversation.id === id);
+}
+
+function renderDemoConversation(firstAccount, secondAccount) {
+  const conversation = demoConversationFor(firstAccount, secondAccount);
+  if (!conversation || !conversation.messages.length) {
+    return '<div class="empty-state"><div><strong>Nenhuma mensagem ainda</strong><p>As mensagens enviadas ficam salvas somente neste navegador.</p></div></div>';
+  }
+  return `<div class="chat-thread" role="log" aria-live="polite" aria-label="Mensagens da conversa">
+    ${conversation.messages.map((message) => {
+      const ownMessage = message.senderAccount === activeDemoAccount;
+      return `<div class="chat-bubble chat-bubble--${ownMessage ? "out" : "in"}"><strong>${escapeHtml(ownMessage ? "Você" : demoAccountDisplayName(message.senderAccount))}</strong><p>${escapeHtml(message.text)}</p></div>`;
+    }).join("")}
+  </div>`;
+}
+
+function renderDemoConversationForm(partnerAccount) {
+  const partnerName = demoAccountDisplayName(partnerAccount);
+  return `
+    <form data-demo-form data-conversation-form data-chat-partner="${escapeHtml(partnerAccount)}" class="chat-form">
+      <input class="search-input" type="text" required data-chat-message placeholder="Escreva uma mensagem" aria-label="Mensagem para ${escapeHtml(partnerName)}">
+      <div class="student-action-control">
+        <button class="button button--primary button--action" type="submit" data-conversation-send aria-describedby="demo-chat-error demo-chat-status"><span data-action-label>Enviar</span></button>
+        <div class="login-action-error student-action-error" id="demo-chat-error" role="alert" aria-atomic="true"></div>
+      </div>
+      <div class="visually-hidden" id="demo-chat-status" role="status" aria-live="polite" aria-atomic="true"></div>
+    </form>
+  `;
+}
+
 function renderPendingLinkRequests() {
   const pending = linkRequests.filter((request) =>
     request.professorAccount === activeDemoAccount && request.status === "pending"
@@ -1256,7 +1543,7 @@ function renderDemoInviteRecipients(type) {
   return demoInviteRecipients
     .filter((recipient) => {
       if (recipient.type !== type) return false;
-      if (type === "instructor") return demoProfiles.instructor.role === "instructor";
+      if (type === "instructor") return demoProfiles[recipient.id] && demoProfiles[recipient.id].role === "instructor";
       const rosterStudent = demoRoster.find((student) => student.name === recipient.name);
       return rosterStudent && !rosterStudent.account;
     })
@@ -1702,7 +1989,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
 
     <section class="privacy-draft-section">
       <${headingTag}>Exclusão de conta</${headingTag}>
-      <p>Quando a exclusão real for implementada, os dados pessoais da conta serão apagados. Dados compartilhados que precisem permanecer para outros usuários serão apresentados como “Conta excluída”. A exclusão real ainda está em construção: o botão atual do protótipo não apaga nenhum dado.</p>
+      <p>Na demonstração, a exclusão remove os dados pessoais fictícios desta conta, anonimiza registros compartilhados e encerra a sessão. A exclusão real ainda está em construção e não é executada pelo protótipo.</p>
     </section>
 
     <section class="privacy-draft-section">
@@ -1969,16 +2256,22 @@ const screens = {
 
   "student-link"() {
     const profile = demoProfiles[activeDemoAccount];
-    const teacher = profile && profile.teacherAccount ? demoProfiles[profile.teacherAccount] : null;
+    const teacherAccount = profile ? demoTeacherAccountFor(activeDemoAccount, profile) : null;
+    const teacher = teacherAccount ? demoProfiles[teacherAccount] : null;
+    const teacherDeleted = deletedDemoAccounts.has(teacherAccount);
     const request = currentLinkRequest();
     return `
       ${heading("VISÃO DO ALUNO", "Meu vínculo", "Professor e academia aos quais sua conta está vinculada.")}
       <div class="content-grid">
         ${panel("Vínculo atual", `
-          ${teacher ? personRow(escapeHtml(teacher.name), `Professor · ${escapeHtml(demoAcademy.name)}`, "avatar-masculino.jpg", '<span class="badge badge--green">ATIVO</span>', profile.teacherAccount, "professor") : emptyState("Sem Professor vinculado", "Use um código de seis caracteres para solicitar vínculo.")}
+          ${teacher
+            ? personRow(escapeHtml(teacher.name), `Professor · ${escapeHtml(demoAcademy.name)}`, "avatar-masculino.jpg", '<span class="badge badge--green">ATIVO</span>', teacherAccount, "professor")
+            : teacherDeleted
+              ? '<div class="notice notice--pending">Professor: Conta excluída. O vínculo histórico foi preservado.</div>'
+              : emptyState("Sem Professor vinculado", "Use um código de seis caracteres para solicitar vínculo.")}
           <div class="belt-display" style="margin-top:14px"><span class="belt-swatch"></span><span class="belt-copy"><strong>Sua faixa e graduações acompanham a conta</strong><small>O histórico de pagamentos fica com o Professor anterior</small></span></div>
           <div class="form-actions">
-            ${button(teacher ? "Trocar de professor" : "Vincular a um professor", "link-teacher", "button button--quiet", "⌁")}
+            ${teacher || teacherDeleted ? button("Trocar de professor", "link-teacher", "button button--quiet", "⌁") : button("Vincular a um professor", "link-teacher", "button button--quiet", "⌁")}
           </div>
           ${request ? `<div class="notice notice--pending" style="margin-top:12px">Pedido de vínculo aguardando aprovação.</div><button class="button button--quiet" type="button" data-cancel-link>Cancelar pedido</button>` : ""}
         `, "panel-card--highlight")}
@@ -2055,21 +2348,13 @@ const screens = {
   },
 
   "student-chat"() {
+    const partner = demoChatPartners(activeDemoAccount)[0];
     return `
       ${heading("VISÃO DO ALUNO", "Conversa com o professor", "Conversa individual entre você e o professor. Não há conversa com outros alunos ou instrutores.")}
       ${panel("Mensagens", `
-        <div class="chat-thread">
-          <div class="chat-bubble chat-bubble--in"><strong>Professor</strong><p>Mensagem fictícia recebida.</p></div>
-          <div class="chat-bubble chat-bubble--out"><strong>Você</strong><p>Mensagem fictícia enviada.</p></div>
-        </div>
-        <form data-demo-form data-student-chat class="chat-form">
-          <input class="search-input" type="text" placeholder="Escreva ao professor (demonstração)" aria-label="Mensagem ao professor">
-          <div class="student-action-control">
-            <button class="button button--primary button--action" type="submit" data-student-action aria-describedby="student-chat-error"><span data-action-label>Enviar</span></button>
-            <div class="login-action-error student-action-error" id="student-chat-error" role="alert" aria-atomic="true"></div>
-          </div>
-          <div class="visually-hidden" id="student-chat-status" role="status" aria-live="polite" aria-atomic="true"></div>
-        </form>
+        ${partner
+          ? `${renderDemoConversation(activeDemoAccount, partner)}${renderDemoConversationForm(partner)}`
+          : emptyState("Conversa indisponível", "Não há um Professor vinculado para esta conversa demonstrativa.")}
       `)}
     `;
   },
@@ -2139,9 +2424,9 @@ const screens = {
           <button class="filter-chip" type="button" aria-pressed="false" data-demo-action>Trancados</button>
           <button class="filter-chip" type="button" aria-pressed="false" data-demo-action>Sem acesso</button>
         </div>
-        ${studentEntry("ALUNO FICTÍCIO 01", "ATIVO", "avatar-masculino.jpg", "badge--green")}
-        ${studentEntry("ALUNO FICTÍCIO 02", "SEM LOGIN", "avatar-feminino.jpg", "badge--blue")}
-        ${studentEntry("ALUNO FICTÍCIO 03", "TRANCADO", "avatar-masculino.jpg", "badge--amber")}
+        ${studentEntry(demoRoster[0].name, "ATIVO", "avatar-masculino.jpg", "badge--green")}
+        ${studentEntry(demoRoster[2].name, "SEM LOGIN", "avatar-feminino.jpg", "badge--blue")}
+        ${studentEntry(demoRoster[3].name, "TRANCADO", "avatar-masculino.jpg", "badge--amber")}
         ${demoRoster.map((student, index) => student.demoCreated && student.teacherAccount === activeDemoAccount
           ? studentEntry(student.name, "SEM LOGIN", "avatar-masculino.jpg", "badge--blue", index) : "").join("")}
       `)}
@@ -2408,12 +2693,12 @@ const screens = {
           <section class="panel-card" id="pix-suggestions" hidden>
             <div class="panel-heading"><h3>Sugestões de correspondência</h3></div>
             <div class="pix-match-row" data-pix-match>
-              <div><strong>ALUNO FICTÍCIO 01</strong><small>Valor lido: R$ 150,00 · Data lida: 01/11/2026</small><small>Cobrança sugerida: mensalidade · R$ 150,00</small></div>
+              <div><strong>${escapeHtml(demoRoster[0].name)}</strong><small>Valor lido: R$ 150,00 · Data lida: 01/11/2026</small><small>Cobrança sugerida: mensalidade · R$ 150,00</small></div>
               ${teacherPaymentButton("Confirmar", "pix-confirmar", "button button--small button--primary", "data-confirm-pix")}
               <p class="visually-hidden" role="status" aria-live="polite"></p>
             </div>
             <div class="pix-match-row" data-pix-match>
-              <div><strong>ALUNO FICTÍCIO 02</strong><small>Valor lido: R$ 120,00 · Data lida: 02/11/2026</small><small>Cobrança sugerida: mensalidade · R$ 150,00</small></div>
+              <div><strong>${escapeHtml(demoRoster[2].name)}</strong><small>Valor lido: R$ 120,00 · Data lida: 02/11/2026</small><small>Cobrança sugerida: mensalidade · R$ 150,00</small></div>
               ${teacherPaymentButton("Revisar sugestão", "pix-revisar", "button button--small button--quiet", "data-review-pix")}
               <p class="visually-hidden" role="status" aria-live="polite"></p>
             </div>
@@ -2477,9 +2762,9 @@ const screens = {
     return `
       ${heading("VISÃO DO PROFESSOR", "Atrasados e cobrança", "Revise os registros e use uma mensagem manual; automações e envio real não fazem parte do protótipo.")}
       ${panel("Cobranças atrasadas", `
-        ${listRow("ALUNO FICTÍCIO 01", "Vencimento: — · Carência conforme configuração", "R$ —", '<span class="badge badge--red">ATRASADO</span>')}
+        ${listRow(escapeHtml(demoRoster[0].name), "Vencimento: — · Carência conforme configuração", "R$ —", '<span class="badge badge--red">ATRASADO</span>')}
         <div class="row-actions">${actionButton("Prévia de mensagem")}${actionButton("Abrir WhatsApp", "button button--small button--quiet")}</div>
-        ${listRow("ALUNO FICTÍCIO 02", "Vencimento: — · Carência conforme configuração", "R$ —", '<span class="badge badge--red">ATRASADO</span>')}
+        ${listRow(escapeHtml(demoRoster[2].name), "Vencimento: — · Carência conforme configuração", "R$ —", '<span class="badge badge--red">ATRASADO</span>')}
         <div class="row-actions">${actionButton("Prévia de mensagem")}${actionButton("Abrir WhatsApp", "button button--small button--quiet")}</div>
       `)}
       <div class="card-grid card-grid--three" style="margin-top:15px">
@@ -2506,22 +2791,21 @@ const screens = {
   },
 
   "teacher-chat"() {
+    const partners = demoChatPartners(activeDemoAccount);
+    if (!partners.includes(selectedTeacherChatPartner)) selectedTeacherChatPartner = partners[0] || null;
+    const partner = selectedTeacherChatPartner;
     return `
       ${heading("VISÃO DO PROFESSOR", "Conversas", "Conversas individuais com seus alunos e instrutores. Não há conversa entre outros usuários.")}
       <div class="content-grid">
         ${panel("Conversas", `
-          ${personRow("ALUNO FICTÍCIO 01", "Aluno · última mensagem: —", "avatar-masculino.jpg", "", "student", "student")}
-          ${personRow("INSTRUTOR FICTÍCIO 01", "Instrutor · última mensagem: —", "avatar-feminino.jpg", "", "instructor", "student")}
+          ${partners.length
+            ? `<div class="field"><label for="teacher-chat-partner">Pessoa</label><select id="teacher-chat-partner">${partners.map((account) => `<option value="${escapeHtml(account)}" ${account === partner ? "selected" : ""}>${escapeHtml(demoAccountDisplayName(account))}</option>`).join("")}</select></div>`
+            : emptyState("Nenhuma conversa disponível", "Alunos e Instrutores vinculados aparecerão aqui.")}
         `)}
         ${panel("Mensagens", `
-          <div class="chat-thread">
-            <div class="chat-bubble chat-bubble--in"><strong>Aluno</strong><p>Mensagem fictícia recebida.</p></div>
-            <div class="chat-bubble chat-bubble--out"><strong>Você</strong><p>Mensagem fictícia enviada.</p></div>
-          </div>
-          <form data-demo-form class="chat-form">
-            <input class="search-input" type="text" placeholder="Responder (demonstração)" aria-label="Responder">
-            <button class="button button--primary" type="submit" data-loading-text="Enviando…">Enviar</button>
-          </form>
+          ${partner
+            ? `${renderDemoConversation(activeDemoAccount, partner)}${renderDemoConversationForm(partner)}`
+            : emptyState("Conversa indisponível", "Selecione uma pessoa vinculada à sua conta.")}
         `)}
       </div>
     `;
@@ -2551,11 +2835,14 @@ const screens = {
 
   "teacher-invites"() {
     if (isRealAdmSession()) return renderRealAdminInvitesScreen();
+    const professor = demoProfiles.professor;
     return `
       ${heading("VISÃO DO ADMINISTRADOR", "Professores convidados", "Apenas o Adm gerencia a lista de professores autorizados.")}
       <div class="content-grid">
         ${panel("Lista de convites", `
-          ${personRow("PROFESSOR FICTÍCIO 01", "Estado demonstrativo · sem e-mail ou dado real", "avatar-masculino.jpg", '<span class="badge badge--green">ATIVO</span>', "professor", "professor")}
+          ${professor
+            ? personRow(escapeHtml(professor.name), "Estado demonstrativo · sem e-mail ou dado real", "avatar-masculino.jpg", '<span class="badge badge--green">ATIVO</span>', "professor", "professor")
+            : personRow("Conta excluída", "Dados pessoais da conta demonstrativa removidos", "avatar-masculino.jpg", '<span class="badge badge--red">EXCLUÍDA</span>', "professor", "professor")}
           ${personRow("PROFESSOR FICTÍCIO 02", "Convite demonstrativo", "avatar-masculino.jpg", '<span class="badge badge--amber">CONVIDADO</span>', "professor-convidado", "professor")}
           ${emptyState("Sem outros registros", "Esta lista não contém pessoas reais.")}
         `)}
@@ -2612,17 +2899,13 @@ const screens = {
   },
 
   "instructor-chat"() {
+    const partner = demoChatPartners(activeDemoAccount)[0];
     return `
       ${heading("VISÃO DO INSTRUTOR", "Conversa com o professor", "Conversa individual entre você e o professor principal. Não há conversa com alunos ou outros usuários.")}
       ${panel("Mensagens", `
-        <div class="chat-thread">
-          <div class="chat-bubble chat-bubble--in"><strong>Professor</strong><p>Mensagem fictícia recebida.</p></div>
-          <div class="chat-bubble chat-bubble--out"><strong>Você</strong><p>Mensagem fictícia enviada.</p></div>
-        </div>
-        <form data-demo-form class="chat-form">
-          <input class="search-input" type="text" placeholder="Escreva ao professor (demonstração)" aria-label="Mensagem ao professor">
-          <button class="button button--primary" type="submit" data-loading-text="Enviando…">Enviar</button>
-        </form>
+        ${partner
+          ? `${renderDemoConversation(activeDemoAccount, partner)}${renderDemoConversationForm(partner)}`
+          : emptyState("Conversa indisponível", "Não há um Professor vinculado para esta conversa demonstrativa.")}
       `)}
     `;
   },
@@ -3661,6 +3944,7 @@ function handleRealStudentLinkSubmit(form) {
     loadingMessage: "Enviando pedido de vínculo.",
     successMessage: "Pedido enviado. Aguarde a decisão do Professor.",
     errorMessage: "Não foi possível enviar o pedido. Confira a mensagem e tente novamente.",
+    successDelay: 0,
     afterSuccess: loadRealStudentLinkStatus
   }, async () => {
     const userId = realUser && realUser.id;
@@ -3713,6 +3997,7 @@ function handleRealUnregisteredCreateSubmit(form) {
     loadingMessage: "Cadastrando aluno sem conta.",
     successMessage: "Aluno sem conta cadastrado.",
     errorMessage: "Não foi possível cadastrar o aluno. Confira os dados e tente novamente.",
+    successDelay: 0,
     afterSuccess: loadRealProfessorStudentRecords
   }, async () => {
     if (!authClient || !realUser || !isRealActiveProfessorAccount()) {
@@ -3767,6 +4052,7 @@ function handleRealUnregisteredAgeSubmit(form) {
     loadingMessage: "Atualizando a idade declarada.",
     successMessage: "Idade declarada atualizada.",
     errorMessage: "Não foi possível atualizar a idade. Tente novamente.",
+    successDelay: 0,
     afterSuccess: loadRealProfessorStudentRecords
   }, async () => {
     if (!authClient || !realUser || !isRealActiveProfessorAccount()) {
@@ -4441,6 +4727,7 @@ function handleRealAdminAcademySubmit(form) {
     loadingMessage: realCreatedAcademyId ? "Lendo a academia criada no banco." : "Criando academia no banco.",
     successMessage: "Academia criada e lida do banco.",
     errorMessage: "Não foi possível concluir a operação. Tente novamente.",
+    successDelay: 0,
     afterSuccess: () => { loadRealAdminAcademiesForEdit(); }
   }, async () => {
     const guardError = realAdminGuardError();
@@ -4508,6 +4795,7 @@ function handleRealAdminAcademyEditSubmit(form) {
     loadingMessage: "Atualizando os dados da academia no banco.",
     successMessage: "Academia atualizada no banco.",
     errorMessage: "Não foi possível atualizar a academia. Tente novamente.",
+    successDelay: 0,
     afterSuccess: () => { loadRealAdminAcademiesForEdit(); }
   }, async () => {
     const guardError = realAdminGuardError();
@@ -4587,6 +4875,7 @@ function handleRealAdminSwitchSubmit(form) {
     loadingMessage: "Trocando o Professor e transferindo os vínculos previstos no banco.",
     successMessage: "Troca de Professor concluída.",
     errorMessage: "Não foi possível trocar o Professor. Tente novamente.",
+    successDelay: 0,
     afterSuccess: () => { loadRealAdminManagementForAcademy(academyId); }
   }, async () => {
     const guardError = realAdminGuardError();
@@ -4629,6 +4918,7 @@ function handleRealAdminProfessorAction(button) {
     loadingMessage: deactivate ? "Desativando Professor no banco." : "Reativando Professor no banco.",
     successMessage: deactivate ? "Professor desativado." : "Professor reativado.",
     errorMessage: "Não foi possível alterar o estado do Professor. Tente novamente.",
+    successDelay: 0,
     afterSuccess: () => { loadRealAdminManagementForAcademy(screenContent.querySelector("#real-admin-academy").value); }
   }, async () => {
     const guardError = realAdminGuardError();
@@ -4660,6 +4950,7 @@ function handleRealAdminInviteSubmit(form) {
     loadingMessage: "Salvando convite no banco.",
     successMessage: "Convite de professor criado no banco.",
     errorMessage: "Não foi possível criar o convite. Tente novamente.",
+    successDelay: 0,
     afterSuccess: () => { loadRealAdminInvites(); }
   }, async () => {
     const guardError = realAdminGuardError();
@@ -4701,6 +4992,7 @@ function handleRealAdminInviteDelete(button) {
     loadingMessage: "Excluindo convite pendente do banco.",
     successMessage: "Convite pendente excluído do banco.",
     errorMessage: "Não foi possível excluir o convite. Tente novamente.",
+    successDelay: 0,
     afterSuccess: () => { loadRealAdminInvites(); }
   }, async () => {
     const guardError = realAdminGuardError();
@@ -4765,8 +5057,8 @@ function parseReceiptMock(file) {
 function parsePixStatementMock(file) {
   if (!file) return [];
   return [
-    { name: "ALUNO FICTÍCIO 01", amount: "R$ 150,00", date: "01/11/2026", match: "Mensalidade · R$ 150,00" },
-    { name: "ALUNO FICTÍCIO 02", amount: "R$ 120,00", date: "02/11/2026", match: "Mensalidade · R$ 150,00" }
+    { name: demoRoster[0].name, amount: "R$ 150,00", date: "01/11/2026", match: "Mensalidade · R$ 150,00" },
+    { name: demoRoster[2].name, amount: "R$ 120,00", date: "02/11/2026", match: "Mensalidade · R$ 150,00" }
   ];
 }
 
@@ -5710,18 +6002,17 @@ document.addEventListener("click", (event) => {
       feedback: document.querySelector("#delete-account-error"),
       announcement: document.querySelector("#delete-account-notice"),
       buttons: [deleteAccount, confirmation],
-      loadingText: "Verificando...",
-      loadingMessage: "Verificando a ação demonstrativa.",
-      errorMessage: "Não foi possível verificar. Tente novamente."
+      loadingText: "Excluindo...",
+      loadingMessage: "Removendo os dados fictícios e encerrando a sessão demonstrativa.",
+      successMessage: "Dados fictícios removidos; os registros compartilhados foram anonimizados.",
+      errorMessage: "Não foi possível excluir os dados demonstrativos. Verifique o armazenamento e tente novamente.",
+      afterSuccess: endDemoRole
     }, async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 900));
       if (new URLSearchParams(window.location.search).get("erro-simulado") === "painel-excluir") {
         throw new Error("Falha simulada de exclusão.");
       }
-      return {
-        pendingLabel: "Em construção",
-        pendingMessage: "A exclusão ainda está em construção. Nada foi apagado."
-      };
+      return deleteDemoAccountData(account);
     }).then(() => {
       if (!userPanel.open || activeDemoAccount !== account) resetDeleteAccountConfirmation();
     });
@@ -6010,6 +6301,7 @@ document.addEventListener("click", (event) => {
       successMessage: approve ? "Pedido aprovado." : "Pedido recusado.",
       successLabel: approve ? "Aprovado" : "Recusado",
       errorMessage: "Não foi possível decidir o pedido. Atualize a tela e tente novamente.",
+      successDelay: 0,
       afterSuccess: loadRealTeacherLinkRequests
     }, async () => {
       const requestId = realLinkDecision.dataset.requestId;
@@ -6116,6 +6408,7 @@ document.addEventListener("click", (event) => {
       successMessage: "Convite gerado. O link está pronto para copiar.",
       successLabel: "Convite gerado",
       errorMessage: "Não foi possível gerar o convite. Verifique a conexão e tente novamente.",
+      successDelay: 0,
       afterSuccess: loadRealInstructorInvites
     }, async () => {
       if (!authClient || !realUser || !isRealActiveProfessor()) {
@@ -6189,6 +6482,7 @@ document.addEventListener("click", (event) => {
       successMessage: "Convite revogado.",
       successLabel: "Revogado",
       errorMessage: "Não foi possível revogar o convite. Atualize a lista e tente novamente.",
+      successDelay: 0,
       afterSuccess: loadRealInstructorInvites
     }, async () => {
       if (!authClient || !realUser || !isRealActiveProfessor()) {
@@ -6698,6 +6992,13 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target instanceof HTMLSelectElement && target.id === "teacher-chat-partner") {
+    if (demoChatPartners(activeDemoAccount).includes(target.value)) {
+      selectedTeacherChatPartner = target.value;
+      renderScreen("teacher-chat");
+    }
+    return;
+  }
   if (target instanceof HTMLSelectElement && target.id === "student-access") {
     const form = target.form;
     const ageField = form.querySelector("#student-age-field");
@@ -6946,7 +7247,7 @@ document.addEventListener("submit", (event) => {
   if (tokenFromUrl) token = tokenFromUrl;
   const invite = demoInvites.find((item) => item.token === token && item.type === "instructor");
   if (!invite || invite.used || invite.expiresAt <= Date.now() || invite.academyId !== demoAcademy.id ||
-      demoProfiles.instructor.role !== "instructor") {
+      !demoProfiles.instructor || demoProfiles.instructor.role !== "instructor") {
     result.textContent = "Não foi possível validar este convite. Confira o link e tente novamente.";
     return;
   }
@@ -7027,7 +7328,7 @@ document.addEventListener("submit", (event) => {
         : "Preencha e-mail, convite e senha." };
     }
     if (!isAvailable || (invite.type === "student" && !rosterStudent) ||
-        (invite.type === "instructor" && demoProfiles.instructor.role !== "instructor")) {
+        (invite.type === "instructor" && (!demoProfiles.instructor || demoProfiles.instructor.role !== "instructor"))) {
       return { errorMessage: "Não foi possível validar este convite. Confira o link e tente novamente." };
     }
     updateDemoData(() => {
@@ -7233,26 +7534,52 @@ document.addEventListener("submit", (event) => {
     else showToast("Não foi possível iniciar a ação. Tente novamente.", "error");
     return;
   }
-  if (form.matches("[data-student-chat]")) {
-    const chatButton = form.querySelector("[data-student-action]");
-    if (!(chatButton instanceof HTMLButtonElement)) {
-      showToast("Não foi possível iniciar o envio. Tente novamente.", "error");
+  if (form.matches("[data-conversation-form]")) {
+    const chatButton = form.querySelector("[data-conversation-send]");
+    const messageField = form.querySelector("[data-chat-message]");
+    const partnerAccount = form.dataset.chatPartner;
+    if (!(chatButton instanceof HTMLButtonElement) || !(messageField instanceof HTMLInputElement)) {
+      showToast("Não foi possível iniciar o envio da mensagem. Atualize a tela e tente novamente.", "error");
       return;
     }
     runButtonAction(chatButton, {
-      feedback: form.querySelector("#student-chat-error"),
-      announcement: form.querySelector("#student-chat-status"),
-      buttons: [chatButton],
+      feedback: form.querySelector("#demo-chat-error"),
+      announcement: form.querySelector("#demo-chat-status"),
+      buttons: [chatButton, messageField],
       loadingText: "Enviando...",
-      loadingMessage: "Enviando mensagem de demonstração.",
-      successMessage: "Protótipo visual: nenhum dado foi gravado ou enviado.",
-      errorMessage: "Não foi possível enviar a mensagem. Tente novamente."
+      loadingMessage: "Salvando a mensagem fictícia neste navegador.",
+      successMessage: "Mensagem salva nesta demonstração.",
+      successLabel: "Mensagem enviada",
+      errorMessage: "Não foi possível salvar a mensagem. Verifique o armazenamento e tente novamente.",
+      afterSuccess: () => {
+        renderScreen(currentScreen);
+        showToast("Mensagem salva nesta demonstração.");
+      }
     }, async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 1200));
-      if (new URLSearchParams(window.location.search).get("erro-simulado") === "aluno-mensagem") {
+      const simulatedError = new URLSearchParams(window.location.search).get("erro-simulado");
+      if (simulatedError === "conversa-salvar" || (activeRole === "student" && simulatedError === "aluno-mensagem")) {
         throw new Error("Falha simulada de envio da mensagem.");
       }
-      if (chatButton.isConnected) showToast("Protótipo visual: nenhum dado foi gravado ou enviado.");
+      const partners = demoChatPartners(activeDemoAccount);
+      const text = messageField.value.trim();
+      if (!partners.includes(partnerAccount) || !text) {
+        return { errorMessage: "Confira a pessoa vinculada e escreva uma mensagem." };
+      }
+      const participants = [activeDemoAccount, partnerAccount].sort();
+      const id = participants.join("::");
+      updateDemoConversations(() => {
+        let conversation = demoConversationFor(activeDemoAccount, partnerAccount);
+        if (!conversation) {
+          conversation = { id, participants, messages: [] };
+          demoConversations.push(conversation);
+        }
+        conversation.messages.push({
+          senderAccount: activeDemoAccount,
+          text,
+          sentAt: new Date().toISOString()
+        });
+      });
+      messageField.value = "";
     });
     return;
   }
