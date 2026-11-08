@@ -67,7 +67,7 @@ Para simular falha no cadastro inicial de aluno, use `?erro-simulado=professor-c
 
 Na tela Academia, o Adm cadastra ou altera nome, telefone e e-mail fictícios; Professores vinculados podem alterar os mesmos campos. Podem existir vários Professores vinculados à academia, cada um com uma turma. O botão de foto alterna apenas uma representação com iniciais ou ícone, sem selecionar ou armazenar arquivos. Os campos e a foto são escolhas provisórias; autoria de alterações e tratamento de conflitos ainda dependem de decisão. Os dados ficam no navegador, com formato versionado; dados anteriores continuam legíveis. Para testar falhas sem alterar dados, use `?erro-simulado=academia-salvar` ou `?erro-simulado=academia-foto`.
 
-O login e o painel da conta mostram a versão definida em `APP_VERSION` (atualmente `0.1.15`); atualize essa constante sempre antes de cada push. Sete cliques na versão do painel revelam diagnósticos temporários com categorias e horários de erros, sem mensagens, nomes, arquivos ou dados da conta. Para simular falhas nas ações do painel, use `?erro-simulado=painel-atualizar`, `?erro-simulado=painel-sincronizar` ou `?erro-simulado=painel-excluir`. A verificação de atualização não baixa arquivos, e a sincronização não envia dados. Uma atualização real requer um mecanismo de distribuição e controle de versão, por exemplo um service worker e uma estratégia de cache.
+O login e o painel da conta mostram a versão definida em `APP_VERSION` (atualmente `5.2`); atualize essa constante sempre antes de cada push. A partir de `5.2`, as próximas versões seguem `5.3`, `5.4` e assim por diante. Sete cliques na versão do painel revelam diagnósticos temporários com categorias e horários de erros, sem mensagens, nomes, arquivos ou dados da conta. Para simular falhas nas ações do painel, use `?erro-simulado=painel-atualizar`, `?erro-simulado=painel-sincronizar` ou `?erro-simulado=painel-excluir`. A verificação de atualização não baixa arquivos, e a sincronização não envia dados. Uma atualização real requer um mecanismo de distribuição e controle de versão, por exemplo um service worker e uma estratégia de cache.
 
 ## Gestão real do Adm
 
@@ -112,19 +112,20 @@ Não marcar uma verificação como aprovada sem executá-la e conferir o resulta
 ## Plano do projeto
 
 Resumo das fases; o acompanhamento detalhado fica na página visual do [plano do projeto](tests/plano.html). Estados: `[ ]` a fazer, `[x]` feito, `[v]` validado.
+Contagem atual: **91 itens — 51 validados, 2 feitos e 38 pendentes.**
 
 ### Fundação e Fase 1 — uso diário
 
 - [v] Criar a página visual `tests/plano.html` para acompanhar fases, tarefas e estados junto ao README. **Validada visualmente pelo usuário.**
 - [v] Criar a documentação inicial e o painel visual `tests/teste.html` de acompanhamento dos testes. **Painel validado visualmente pelo usuário.**
-- [x] Reservar `index.html` na raiz para a aplicação e nomear a página de testes `teste.html`. **Feito nesta tarefa; aguardando validação do usuário.**
+- [v] Reservar `index.html` na raiz para a aplicação e nomear a página de testes `teste.html`. **Validado pelo usuário.**
 - [v] Validar visualmente os painéis de testes e plano. **Usuário aprovou ambos; verificações estruturais do catálogo passaram 5/5. Os casos funcionais continuam pendentes de implementação.**
 - [v] Criar o banco de dados Supabase. **Confirmado pelo usuário.** [REAL]
-- [x] Criar a primeira suíte de casos de aceite test-first para a F1, com perfis, pré-condições, passos e resultados esperados usando somente fixtures fictícias. **Feito nesta tarefa; aguardando revisão e validação do usuário.**
-- [x] Acrescentar casos de aceite para validar todas as telas/resoluções, sobreposições, textos/campos fora do lugar e modais. **Feito nesta tarefa; aguardando validação do usuário.**
+- [v] Criar a primeira suíte de casos de aceite test-first para a F1, com perfis, pré-condições, passos e resultados esperados usando somente fixtures fictícias. **Validado pelo usuário.**
+- [v] Acrescentar casos de aceite para validar todas as telas/resoluções, sobreposições, textos/campos fora do lugar e modais. **Validado pelo usuário.**
 - [v] Criar e aprovar o ícone Escudo como única marca e a página local de identidade visual. **Validado pelo usuário.** [SIMULADO]
 - [v] Exibir somente o ícone Escudo aprovado no cabeçalho do painel de testes. **Implementado e validado visualmente pelo usuário.**
-- [x] Aplicar somente o ícone Escudo à identidade da aplicação no cabeçalho web/mobile e na tela de acesso. **Feito nesta tarefa; aguardando validação visual do usuário.** [SIMULADO]
+- [v] Aplicar somente o ícone Escudo à identidade da aplicação no cabeçalho web/mobile e na tela de acesso. **Validado pelo usuário.** [SIMULADO]
 - [v] Criar dois avatares SVG genéricos (masculino e feminino), com silhuetas definidas e rostos menos arredondados. **Aprovados pelo usuário.** [SIMULADO]
 - [v] Ajustar o ícone Escudo: insígnia redonda, “T” redesenhado e faixa preta com ponteira vermelha e três graus brancos. **Correção solicitada aplicada; ícone aprovado pelo usuário.** [SIMULADO]
 - [ ] Preparar o ícone de instalação do iPhone nos formatos e dimensões exigidos pelo PWA e conferir sua leitura na tela inicial. [PENDENTE]
@@ -133,9 +134,20 @@ Resumo das fases; o acompanhamento detalhado fica na página visual do [plano do
 - [v] Validar os dois avatares placeholder. **Aprovados pelo usuário.**
 - [v] Exigir testes visuais e funcionais de todas as telas em diferentes tamanhos de viewport a cada lote, incluindo larguras de referência, limites dos breakpoints, retrato/paisagem, altura curta, zoom/texto aumentado, sobreposições, recortes e modais. **Critério obrigatório definido pelo usuário; os testes de cada lote devem registrar e passar por essas verificações.**
 - [v] Exigir conformidade com a LGPD e confirmar com o usuário informações e decisões sobre dados pessoais, finalidades, hipóteses legais, consentimento, retenção, compartilhamento, direitos dos titulares e declarações da política antes de implementá-las.
-- [x] Acrescentar casos de aceite para o link de privacidade, modal no app, página HTML independente, sincronização do conteúdo e revisão de declarações antes da publicação. **Feito nesta tarefa; aguardando revisão/validação do usuário.**
+- [v] Acrescentar casos de aceite para o link de privacidade, modal no app, página HTML independente, sincronização do conteúdo e revisão de declarações antes da publicação. **Validado pelo usuário.**
 - [ ] Confirmar com o usuário os dados pessoais tratados, suas finalidades, hipóteses legais, consentimento, retenção, compartilhamento, atendimento a direitos e conteúdo da política antes de redigi-la. [PENDENTE]
 - [ ] Criar a página HTML da política e implementar no app o link que abre o modal; manter ambos sincronizados e testar acesso, conteúdo, fechamento, teclado e responsividade. [PENDENTE]
+- [v] Ampliar o rascunho de privacidade em `privacidade.html` com seções sobre dados presentes no protótipo, compartilhamento, menores, fotos, exclusão, retenção, direitos e contato. Feito; sem conferência visual e sem revisão jurídica. [SIMULADO]
+- [v] Sincronizar o rascunho entre `privacidade.html`, o modal e a tela de privacidade do app; texto posteriormente atualizado para refletir o registro real. Feito; sem conferência visual. [SIMULADO]
+- [ ] Conferir visualmente a página, o modal e a tela de privacidade em 360, 390, 430 e 768 px, nos temas claro e escuro, sem sobreposições, cortes ou desalinhamentos. [PENDENTE]
+- [ ] Revisar juridicamente e aprovar a política; confirmar finalidades, hipóteses legais, retenção, compartilhamento, direitos e contato antes da publicação. [PENDENTE]
+- [v] Aplicar guard de consentimento por papel às contas reais: Adm sem tela; Professor só consentimento; Instrutor e Aluno idade declarada e consentimento; papel ausente/desconhecido segue o fluxo completo. Guard front-end por papel; gravação do aceite descrita no item seguinte; sem teste com conta real. Validado pelo usuário. [REAL]
+- [v] Ligar consentimento a `registrar_consentimento` para Professor no aceite e para Instrutor após consumir o convite. Atualizar os avisos, a página de privacidade e os tutoriais dos papéis afetados. Feito; sem teste com conta real. [REAL]
+- [v] Aluno novo: primeiro acesso real coleta nome e idade declarada; o aceite cria o perfil e registra o consentimento por `criar_perfil_aluno`. Feito; sem teste com conta real e sem conferência visual. [REAL]
+- [v] `gerar_codigo`: retorno nulo tratado sem remover o código anterior; a mensagem de erro aparece na tela. Feito; sem teste com conta real. [REAL]
+- [v] Atualizar `supabase/schema.sql` para cobrir as migrations 01 a 12, anexando literalmente `_09`, `_10`, `_11` e `_12` com comentários de origem. Feito; sem executar SQL.
+- [v] Migration `_12` aplicada e conferida por leitura, sem teste de comportamento. Validado pelo usuário; sem teste de comportamento. [REAL]
+- [v] Remover o atraso artificial de 2.500 ms do modal de onboarding no fluxo real, preservando o atraso da demonstração. Feito; sem teste com conta real. [REAL]
 - [v] Desenvolver o app em branch separada de `main`; merge na `main` exige autorização do Aylton e testes validados por ele, enquanto commit ou push da branch `feat/telas-iniciais` exige pedido do Aylton, sem exigir testes válidos. Pedido de commit ou push da branch feat/telas-iniciais não é bloqueado por estado de lote, teste ou validação.
 - [v] Consultar o usuário quando houver muitos arquivos pendentes sem commit/push, antes de publicar ou iniciar operações de commit, exceto para commit ou push da branch `feat/telas-iniciais` quando o Aylton pedir. **Regra aplicada nesta tarefa: 23 arquivos pendentes foram apresentados ao usuário; ele autorizou prosseguir sem commit/push.**
 - [v] Remover do projeto os arquivos, propostas e recursos explicitamente descartados pelo usuário; não arquivar nem manter uma lista de descartes. **Regra definida pelo usuário; confirmar antes de excluir itens cujo descarte não esteja explícito.**
@@ -144,7 +156,7 @@ Resumo das fases; o acompanhamento detalhado fica na página visual do [plano do
 - [v] Pedir autorização ao usuário quando houver dúvida ou mais de uma interpretação razoável, antes de escolher uma regra de produto ou segurança. **Critério de trabalho definido pelo usuário.**
 - [v] Adicionar o perfil de Instrutor: é um aluno com função de apoio, autorizado por aula; vê os alunos da turma apenas por nome e graduação atual, segue o conteúdo decidido pelo Professor e registra se seguiu a orientação. **Requisitos confirmados pelo usuário.** [SIMULADO]
 - [v] Confirmar que o Adm será somente o usuário proprietário do projeto; a autorização e as permissões serão aplicadas no banco. **Confirmado pelo usuário.** [SIMULADO]
-- [x] Acrescentar casos propostos para o perfil, acesso restrito, confirmação de aula, convite por link e sugestões de temas para o professor. **Feito nesta tarefa; aguardando revisão do usuário.**
+- [v] Acrescentar casos propostos para o perfil, acesso restrito, confirmação de aula, convite por link e sugestões de temas para o professor. **Validado pelo usuário.**
 - [ ] Revisar e validar os casos de aceite da F1, incluindo as permissões do instrutor; ajustar o escopo e os critérios antes de desenhar banco ou implementar telas.
 - [v] Confirmar o destinatário do convite: o professor principal envia o link ao instrutor, que cria a própria conta. **Confirmado pelo usuário.**
 - [ ] Definir no banco as regras de autorização, validade e reutilização do convite de instrutor antes de implementar o cadastro; a atribuição do perfil não será confiada ao navegador. [PENDENTE]
@@ -153,21 +165,21 @@ Resumo das fases; o acompanhamento detalhado fica na página visual do [plano do
 - [ ] Construir um protótipo navegável de todas as telas da F1 do roadmap e dos requisitos confirmados do instrutor (acesso/convites, aluno, professor, Adm, pagamentos, graduações, atalhos e privacidade), mantendo a identidade visual: web otimizada para notebook com sidebar à esquerda e painel do usuário oculto à direita; mobile priorizado para iPhone 13 ou superior com navegação inferior e áreas seguras. Usar fixtures fictícias nesta etapa intermediária; as telas simuladas serão ligadas ao Supabase nos Lotes 1 a 3. Manter termo e política como conteúdo pendente; validar visualmente com o usuário antes da integração dos fluxos reais. No lançamento fictício em dinheiro, foram adicionados busca, confirmação, desfazer e estorno; faltam priorização por cobrança vinculada, testes responsivos e validação do usuário. [SIMULADO]
 - [ ] Configurar e validar login Google real, recuperação de sessão, consulta de perfil e saída, mantendo a demonstração separada. Integração inicial criada; faltam configuração manual, testes reais, conferência responsiva e validação do usuário. [PENDENTE]
 - [v] Ativar uma única vez por sessão o perfil de Professor convidado após o retorno do Google; reler papel e nome do banco e explicar a recusa sem revelar qual condição falhou. Validado pelo Aylton. [REAL]
-- [x] Rascunhar `supabase/migrations/20261109_10_definir_nome_professor.sql` para o Professor ativo definir o próprio nome; migration aplicada no banco após conferência do desenvolvedor.
-- [x] Ligar ao app o campo para definir o nome do Professor real ativo pela RPC `definir_nome_professor`; validar a entrada, traduzir os retornos e reler o nome do banco após salvar. Feito; aguardando teste manual e validação do usuário. [REAL]
-- [x] Acrescentar ao protótipo a graduação manual de faixa superior pelo Professor, com data, confirmação e histórico; falta conferir os testes responsivos e validar o fluxo com o usuário. [SIMULADO]
+- [v] Rascunhar `supabase/migrations/20261109_10_definir_nome_professor.sql` para o Professor ativo definir o próprio nome; migration aplicada no banco após conferência do desenvolvedor.
+- [v] Ligar ao app o campo para definir o nome do Professor real ativo pela RPC `definir_nome_professor`; validar a entrada, traduzir os retornos e reler o nome do banco após salvar. Validado pelo usuário; ainda falta teste manual. [REAL]
+- [v] Acrescentar ao protótipo a graduação manual de faixa superior pelo Professor, com data, confirmação e histórico; fluxo validado pelo usuário; ainda faltam os testes responsivos. [SIMULADO]
 - [ ] Ampliar a simulação de graduação para faixas e graus adultos e cadastro inicial, e o painel com versão, diagnósticos, atualização e sincronização simuladas. Implementação parcial; faltam testes funcionais e responsivos completos e validação do usuário. [SIMULADO]
 - [ ] Persistir o estado fictício no navegador. **Pagamentos, contas, alunos, vínculos e graduações implementados; faltam conversas, testes de falhas de armazenamento e validação. Arquivos de comprovantes não são armazenados.** [SIMULADO]
 - [ ] Cadastrar e editar academia fictícia por Adm e Professor vinculado, com telefone, e-mail e foto simulada. **Implementação inicial com persistência local; faltam testes completos, validação do usuário e decisões sobre autoria e conflitos.** [SIMULADO]
 - [v] Criar academia no banco pela conta real de Adm, inserindo nome e URL de foto de fundo opcional e lendo o registro criado; Validado pelo Aylton. [REAL]
-- [x] Convidar Professor pela conta real de Adm, normalizando e-mail, escolhendo academia, listando convites reais e permitindo excluir somente os pendentes; aguardando testes manuais e validação do usuário. [REAL]
-- [x] Ligar ao banco as telas reais do Adm para editar academias, vincular o Adm a Professor, consultar Professores e Instrutores, trocar Professor e desativar/reativar; aguardando teste manual e validação do usuário. [REAL]
-- [x] Conectar ao banco os vínculos reais de Aluno e Professor: Aluno ativo envia código e consulta o último pedido; Professor ativo lista, aprova/recusa pedidos, gera e copia o código e administra alunos sem conta com idade declarada. Manter a demonstração simulada. Feito; aguardam testes reais, conferência responsiva e validação do usuário. [REAL]
-- [x] Vincular o Aluno real pelo código de seis caracteres usando `solicitar_vinculo`; falta teste manual com conta real, conferência responsiva e validação do usuário. [REAL]
-- [x] Permitir ao Professor real listar e decidir pedidos de vínculo; faltam testes manuais de aprovação/recusa, conferência responsiva e validação do usuário. [REAL]
-- [x] Gerenciar alunos sem registro pela conta real do Professor, incluindo idade declarada; faltam testes manuais, conferência responsiva e validação do usuário. [REAL]
-- [x] Gerar, listar, revogar e aceitar convites reais de Instrutor, preservando a demonstração simulada; faltam testes com contas reais, conferência responsiva e validação do usuário. [REAL]
-- [x] Simular declaração de idade, consentimento e fotos de perfil, com enquadramento local e permissões por papel. **Implementado em memória, sem rede ou armazenamento persistente; inclui classificação pelo Professor de alunos sem registro e restrição de fotos para menores. A cópia Google usa avatar local demonstrativo; o limite de arquivo de 5 MB é provisório. Caso F1-AVATAR-01 pendente de execução e validação do usuário.** [SIMULADO]
+- [v] Convidar Professor pela conta real de Adm, normalizando e-mail, escolhendo academia, listando convites reais e permitindo excluir somente os pendentes; validado pelo usuário; ainda aguardam testes manuais. [REAL]
+- [v] Ligar ao banco as telas reais do Adm para editar academias, vincular o Adm a Professor, consultar Professores e Instrutores, trocar Professor e desativar/reativar; validado pelo usuário; ainda aguarda teste manual. [REAL]
+- [v] Conectar ao banco os vínculos reais de Aluno e Professor: Aluno ativo envia código e consulta o último pedido; Professor ativo lista, aprova/recusa pedidos, gera e copia o código e administra alunos sem conta com idade declarada. Manter a demonstração simulada. Validado pelo usuário; ainda aguardam testes reais e conferência responsiva. [REAL]
+- [v] Vincular o Aluno real pelo código de seis caracteres usando `solicitar_vinculo`; validado pelo usuário; ainda faltam teste manual com conta real e conferência responsiva. [REAL]
+- [v] Permitir ao Professor real listar e decidir pedidos de vínculo; validado pelo usuário; ainda faltam testes manuais de aprovação/recusa e conferência responsiva. [REAL]
+- [v] Gerenciar alunos sem registro pela conta real do Professor, incluindo idade declarada; validado pelo usuário; ainda faltam testes manuais e conferência responsiva. [REAL]
+- [v] Gerar, listar, revogar e aceitar convites reais de Instrutor, preservando a demonstração simulada; validado pelo usuário; ainda faltam testes com contas reais e conferência responsiva. [REAL]
+- [v] Simular declaração de idade, consentimento e fotos de perfil, com enquadramento local e permissões por papel. **Implementado em memória, sem rede ou armazenamento persistente; inclui classificação pelo Professor de alunos sem registro e restrição de fotos para menores. A cópia Google usa avatar local demonstrativo; o limite de arquivo de 5 MB é provisório. Caso F1-AVATAR-01 ainda aguarda execução; item validado pelo usuário.** [SIMULADO]
 - [v] Substituir os avatares de pessoas do protótipo por fotos JPG locais masculino/feminino, quadradas em 512x512 e com recorte circular centralizado; sem novo campo de gênero/estilo. Validado pelo Aylton. [SIMULADO]
 - [ ] Implementar e testar a exclusão fictícia de conta, apagando dados pessoais e preservando pagamentos, vínculos e graduações da outra parte com identificação anonimizada como Conta excluída. **Área de risco com confirmação e botão demonstrativo acrescentada; nenhum dado é apagado. Faltam exclusão, testes funcionais completos e validação.** [PENDENTE]
 - [ ] Investigar e corrigir a rolagem com a roda do mouse em telas largas, sem alterar o layout do celular; ajustado o bloqueio de encadeamento no body para tela larga. Faltam reprodução com roda, confirmação da causa e testes em telas, papéis e modais.
@@ -193,9 +205,11 @@ Resumo das fases; o acompanhamento detalhado fica na página visual do [plano do
 
 - [ ] Implementar e testar métricas de graduação e recibos (RN14, RN17). [SIMULADO]
 - [ ] Implementar e testar exportação, backup e consulta offline (RN33). [PENDENTE]
-- [x] Registrar a regra de segurança: interromper e consultar o usuário se uma publicação Git aparentar conter dado sensível. **Regra confirmada pelo usuário.**
-- [x] Especificar casos de aceite para bloquear publicação Git diante de suspeita de dado sensível. **Feito nesta tarefa; aguardando validação do usuário.**
+- [v] Registrar a regra de segurança: interromper e consultar o usuário se uma publicação Git aparentar conter dado sensível. **Regra confirmada pelo usuário.**
+- [v] Especificar casos de aceite para bloquear publicação Git diante de suspeita de dado sensível. **Validado pelo usuário.**
 - [ ] Executar os testes de publicação segura; suspeita de dado sensível bloqueia a ação até orientação do usuário.
 - [ ] Executar a suíte completa: funcionalidades, permissões/RLS, regressão, PWA/offline, responsividade e revisão manual.
 - [ ] Confirmar funcionamento ponta a ponta e obter validação do usuário para todos os lotes.
 - [ ] Solicitar autorização explícita antes de qualquer commit ou push; não publicar a partir da `main` enquanto houver teste pendente ou falho, sem aplicar esse bloqueio ao push da branch `feat/telas-iniciais`.
+- [x] copilot-instructions.md com regras de config.js, comandos em loop e navegador. Feito; também inclui regras para perguntas e dúvidas de escopo.
+- [x] contato de privacidade preenchido nos 3 textos. Feito; modal e tela do app usam a renderização compartilhada.

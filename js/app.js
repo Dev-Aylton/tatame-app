@@ -1,6 +1,7 @@
 "use strict";
 
-const APP_VERSION = "0.1.15";
+const APP_VERSION = "5.2";
+const CONSENT_TERM_VERSION = "rascunho-1";
 const diagnosticEvents = [];
 let versionClicks = 0;
 
@@ -407,7 +408,7 @@ const tutorialStepsByRole = {
     ["user-settings", "Preferências", "Confira tema, atualização e acesso à privacidade."],
     ["user-settings", "Sua foto", "Escolha uma foto, ajuste zoom e enquadramento e salve a prévia local. Consentimento para a foto do Google pode ser recusado; menores usam somente avatar. Nada é enviado ou guardado após esta sessão."],
     ["user-settings", "Nome do perfil real", "Na conta Google real, um Professor ativo vinculado a uma academia pode definir o próprio nome na tela Conta Google. A demonstração continua simulada e separada."],
-    ["privacy", "Privacidade", "Leia os avisos de privacidade e o estado do conteúdo pendente."]
+    ["privacy", "Privacidade", "Leia os avisos de privacidade. O aceite do Professor é registrado com a versão e a data; o conteúdo segue em rascunho e depende de revisão."]
   ],
   instructor: [
     ["student-home", "Início pessoal", "Consulte seu perfil e seus próprios avisos, separados das informações dos alunos da turma. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
@@ -418,7 +419,7 @@ const tutorialStepsByRole = {
     ["academy", "Academia", "Consulte o quadro e os horários publicados da academia."],
     ["user-settings", "Preferências", "Confira tema e opções demonstrativas da conta."],
     ["user-settings", "Sua foto", "A cópia simulada da foto do Google só aparece após consentimento. Menores usam somente avatar; a foto escolhida fica apenas nesta sessão do navegador."],
-    ["privacy", "Privacidade", "Consulte os avisos de privacidade."]
+    ["privacy", "Privacidade", "Consulte os avisos de privacidade. Se entrar por convite, o aceite é registrado após o convite ser consumido; o conteúdo segue em rascunho e depende de revisão."]
   ],
   student: [
     ["student-home", "Início", "Consulte seu perfil, o status da mensalidade e atalhos pessoais. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
@@ -430,7 +431,7 @@ const tutorialStepsByRole = {
     ["academy", "Academia", "Veja professores, Instrutores e horários publicados da sua academia."],
     ["user-settings", "Preferências", "Confira tema e opções demonstrativas da conta."],
     ["user-settings", "Sua foto", "A cópia simulada da foto do Google só aparece após consentimento. Menores usam somente avatar; a foto escolhida fica apenas nesta sessão do navegador."],
-    ["privacy", "Privacidade", "Consulte os avisos de privacidade."]
+    ["privacy", "Privacidade", "Na conta Google real, o primeiro acesso sem perfil pede nome, idade declarada e aceite para criar o perfil de Aluno e registrar a versão do termo e a data e hora. A demonstração continua simulada."]
   ],
   "student-unregistered": [
     ["link-teacher", "Vincular a um Professor", "Informe o código de seis caracteres, confira somente o nome do Professor e da academia e envie o pedido. O vínculo depende da aprovação. Abra a conta para rever o tutorial ou sair."],
@@ -464,6 +465,10 @@ let realUser = null;
 let realProfile = null;
 let realProfileState = "checking";
 let realProfileNotice = "";
+let realOnboardingHandledSessionUserId = null;
+let realOnboardingStage = null;
+let realOnboardingAge = null;
+let realOnboardingName = "";
 let realProfessorActivated = false;
 let professorActivationSessionUserId = null;
 let professorActivationPromise = null;
@@ -477,6 +482,7 @@ let realInstructorInvitesNotice = "";
 let realInstructorInvitesSequence = 0;
 let realInstructorInviteToken = new URLSearchParams(window.location.search).get("convite_instrutor") || "";
 let realInstructorInviteUrl = "";
+let realInstructorConsentPending = false;
 let realStudentLinkState = "idle";
 let realStudentLinkRequest = null;
 let realStudentLinkNotice = "";
@@ -672,6 +678,8 @@ function updateProfileAvatars(account, role) {
 
 function renderProfileOnboarding(stage) {
   const content = document.querySelector("#profile-onboarding-content");
+  document.querySelector("#profile-onboarding .eyebrow").textContent = "PERFIL DE DEMONSTRAÇÃO";
+  document.querySelector("#profile-onboarding-title").textContent = "Foto e idade";
   const commonAction = (label, action) => `
     <div class="student-action-control">
       <button class="button button--primary button--action" type="button" ${action}><span data-action-label>${label}</span></button>
@@ -721,6 +729,161 @@ function beginProfileOnboarding(account) {
     updatePhotoProfile(account, { photo: null, googleConsent: false, onboardingComplete: true });
     maybeOpenFirstTutorial(account);
   } else renderProfileOnboarding("age");
+}
+
+function isRealStudentProfileCreationFlow() {
+  return Boolean(realUser) && !activeRole && realProfileState === "missing" &&
+    !realInstructorInviteToken && currentScreen !== "instructor-invite";
+}
+
+function renderRealProfileOnboarding(stage) {
+  const content = document.querySelector("#profile-onboarding-content");
+  const isStudentProfileFlow = isRealStudentProfileCreationFlow();
+  document.querySelector("#profile-onboarding .eyebrow").textContent = "PRIMEIRO ACESSO";
+  document.querySelector("#profile-onboarding-title").textContent =
+    stage === "age"
+      ? (isStudentProfileFlow ? "Nome e idade declarada" : "Idade declarada")
+      : "Consentimento e privacidade";
+  realOnboardingStage = stage;
+  if (stage === "age") {
+    const ageCopy = isStudentProfileFlow
+      ? "Informe seu nome e declare se tem 18 anos ou mais. Nome e idade ficam nesta sessão até você aceitar o termo."
+      : "Para continuar neste protótipo, declare se tem 18 anos ou mais. A resposta vale somente nesta sessão e não é enviada ao banco.";
+    content.innerHTML = `
+      <p id="profile-onboarding-copy" class="profile-onboarding-copy">${ageCopy}</p>
+      ${isStudentProfileFlow ? `
+        <div class="field">
+          <label for="real-profile-onboarding-name">Nome</label>
+          <input id="real-profile-onboarding-name" name="nome" type="text" autocomplete="off" required value="${escapeHtml(realOnboardingName)}">
+        </div>
+      ` : ""}
+      <fieldset class="profile-onboarding-options">
+        <legend class="field-label">Declaração de idade</legend>
+        <label class="profile-onboarding-option"><input type="radio" name="profile-age" value="adult"><span>Tenho 18 anos ou mais</span></label>
+        <label class="profile-onboarding-option"><input type="radio" name="profile-age" value="minor"><span>Sou menor de 18 anos</span></label>
+      </fieldset>
+      <div class="student-action-control">
+        <button class="button button--primary button--action" type="button" data-real-onboarding-action="age"><span data-action-label>Continuar</span></button>
+        <p class="login-action-error" id="profile-onboarding-error" role="alert"></p>
+        <p class="field-help" id="profile-onboarding-status" role="status" aria-live="polite"></p>
+      </div>
+    `;
+  } else {
+    const role = realProfileState === "found" && realProfile ? realProfile.papel : null;
+    const consentCopy = role === "professor"
+      ? "Este aviso é provisório e sujeito a revisão jurídica. Ao continuar, seu consentimento será registrado no banco, associado à versão deste termo e à data e hora do aceite. Finalidades, bases legais e retenção ainda precisam ser confirmadas. Consulte a página de privacidade antes de continuar."
+      : isStudentProfileFlow
+        ? "Este aviso é provisório e sujeito a revisão jurídica. Ao aceitar, será criado seu perfil de Aluno e registrado o consentimento com o identificador do perfil, a versão deste termo e a data e hora do aceite. Finalidades, bases legais e retenção ainda precisam ser confirmadas. Consulte a página de privacidade antes de continuar."
+        : role === "aluno"
+          ? "Este aviso é provisório e sujeito a revisão jurídica. Para este perfil já existente, esta tela não registra uma nova resposta. Finalidades, bases legais e retenção ainda precisam ser confirmadas. Consulte a página de privacidade antes de continuar."
+        : "Este aviso é provisório e sujeito a revisão jurídica. Se você aceitar um convite de Instrutor, o registro ocorrerá após o convite ser consumido. Finalidades, bases legais e retenção ainda precisam ser confirmadas. Consulte a página de privacidade antes de continuar.";
+    content.innerHTML = `
+      <p id="profile-onboarding-copy" class="profile-onboarding-copy">${consentCopy}</p>
+      <div class="profile-onboarding-actions">
+        <button class="button button--primary button--action" type="button" data-real-onboarding-action="continue"><span data-action-label>Aceitar e continuar</span></button>
+        <p class="login-action-error" id="profile-onboarding-error" role="alert"></p>
+        <p class="field-help" id="profile-onboarding-status" role="status" aria-live="polite"></p>
+      </div>
+    `;
+  }
+  profileOnboardingDialog.showModal();
+  const firstControl = content.querySelector('input, button');
+  if (firstControl) firstControl.focus();
+}
+
+function maybeOpenRealProfileOnboarding() {
+  if (activeRole || !realUser) return;
+  const role = realProfileState === "found" && realProfile ? realProfile.papel : null;
+  if (role === "adm") {
+    if (realOnboardingStage && profileOnboardingDialog.open) profileOnboardingDialog.close();
+    realOnboardingHandledSessionUserId = realUser.id;
+    realOnboardingStage = null;
+    realOnboardingAge = null;
+    realOnboardingName = "";
+    return;
+  }
+  if (realOnboardingHandledSessionUserId === realUser.id) {
+    if (role === "professor" && realOnboardingStage === "age") {
+      realOnboardingAge = null;
+      renderRealProfileOnboarding("consent");
+    }
+    return;
+  }
+  realOnboardingHandledSessionUserId = realUser.id;
+  realOnboardingAge = null;
+  realOnboardingName = "";
+  renderRealProfileOnboarding(role === "professor" ? "consent" : "age");
+}
+
+async function registerRealConsent() {
+  if (!authClient || !realUser) {
+    recordDiagnostic("Erro ao registrar consentimento");
+    return "erro";
+  }
+  try {
+    const { data, error } = await authClient.rpc("registrar_consentimento", {
+      p_versao: CONSENT_TERM_VERSION
+    });
+    if (error) {
+      recordDiagnostic("Erro ao registrar consentimento");
+      return "erro";
+    }
+    if (data === "ok" || data === "nao_autenticado") return data;
+    recordDiagnostic("Resposta inesperada ao registrar consentimento");
+    return "erro";
+  } catch {
+    recordDiagnostic("Erro ao registrar consentimento");
+    return "erro";
+  }
+}
+
+async function createRealStudentProfileAndConsent(name, age) {
+  if (!authClient || !realUser) return "erro";
+  const userId = realUser.id;
+  try {
+    const { data, error } = await authClient.rpc("criar_perfil_aluno", {
+      p_nome: name,
+      p_idade_declarada: age,
+      p_versao: CONSENT_TERM_VERSION
+    });
+    if (error) {
+      recordDiagnostic("Erro ao criar perfil de Aluno");
+      return "erro";
+    }
+    if (data !== "ok" && data !== "perfil_ja_existe") {
+      if (["nao_autenticado", "email_nao_confirmado", "email_convidado_professor", "nome_invalido"].includes(data)) {
+        return data;
+      }
+      recordDiagnostic("Resposta inesperada ao criar perfil de Aluno");
+      return "erro";
+    }
+    if (!realUser || realUser.id !== userId || activeRole) return "erro";
+
+    const { data: profile, error: profileError } = await authClient.from("perfis")
+      .select("id,papel,nome,academia_id,ativo,idade_declarada")
+      .eq("id", userId)
+      .maybeSingle();
+    if (profileError || !profile) {
+      recordDiagnostic("Erro ao consultar perfil de Aluno");
+      return "erro";
+    }
+    realProfile = profile;
+    realProfileState = "found";
+    realProfileNotice = "";
+    renderNavigation();
+    return data;
+  } catch {
+    recordDiagnostic("Erro ao criar perfil de Aluno");
+    return "erro";
+  }
+}
+
+function finishRealProfileOnboarding() {
+  if (profileOnboardingDialog.open) profileOnboardingDialog.close();
+  realOnboardingHandledSessionUserId = realUser ? realUser.id : null;
+  realOnboardingStage = null;
+  realOnboardingAge = null;
+  realOnboardingName = "";
 }
 
 function finishProfileOnboarding() {
@@ -1502,12 +1665,12 @@ function maybeOpenFirstTutorial(account) {
   openTutorial(account);
 }
 
-const privacyPlaceholder = "Política e termo em rascunho, sujeitos a revisão jurídica. Este protótipo não registra consentimento.";
+const privacyPlaceholder = "Política e termo em rascunho, sujeitos a revisão jurídica. O consentimento de Instrutor será registrado após o convite ser aceito.";
 
 function renderPrivacyDraftContent(headingTag = "h2") {
   return `
-    <p class="notice notice--pending">Rascunho sujeito a revisão jurídica; não declara conformidade legal.</p>
-    <p class="panel-copy">O texto é provisório. O termo de consentimento não está implementado e este protótipo não registra aceite. Finalidades e bases legais ainda precisam ser confirmadas antes da publicação.</p>
+    <p class="notice notice--pending">Conteúdo provisório e sujeito a revisão jurídica; não declara conformidade legal.</p>
+    <p class="panel-copy">O termo de consentimento segue em rascunho. Nos fluxos reais, o aceite do Professor é registrado; para Instrutor, o registro ocorre após o convite ser consumido; para Aluno novo, o aceite cria o perfil e registra o identificador do perfil, a versão do termo e a data e hora. Finalidades, bases legais e prazo de retenção precisam ser confirmados antes da publicação.</p>
 
     <section class="privacy-draft-section">
       <${headingTag}>Dados presentes no protótipo</${headingTag}>
@@ -1554,7 +1717,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
 
     <section class="privacy-draft-section privacy-draft-contact">
       <${headingTag}>Contato</${headingTag}>
-      <p>[CONTATO A DEFINIR]</p>
+      <p>desenvolvedor.aylton@gmail.com</p>
     </section>
   `;
 }
@@ -1568,7 +1731,7 @@ const screens = {
           <div>
             <img src="assets/logos/tatame-icone-escudo.svg" alt="">
             <h2>Treino, gestão e evolução no mesmo lugar.</h2>
-            <p>Uma experiência clara para a rotina da academia, com acesso definido pelo convite e pelo perfil registrado no banco.</p>
+            <p>Entre para acompanhar suas aulas, graduações e pagamentos.</p>
           </div>
           <span class="auth-visual-foot">Acesso protegido · permissões vêm do banco</span>
         </section>
@@ -2544,7 +2707,7 @@ const screens = {
 
   privacy() {
     return `
-      ${heading("PRIVACIDADE", "Rascunho de privacidade", "Texto provisório para revisão; o termo de consentimento não está implementado e nenhum aceite é registrado.")}
+      ${heading("PRIVACIDADE", "Rascunho de privacidade", "O aceite do Professor é registrado; para Instrutor, após a confirmação do convite; para Aluno novo, o aceite cria o perfil e registra a versão do termo e a data e hora.")}
       <div class="content-grid">
         ${panel("Conteúdo a revisar", `
           <div class="privacy-draft-content">${renderPrivacyDraftContent("h3")}</div>
@@ -2792,7 +2955,17 @@ function renderRealInstructorInviteScreen() {
   const isAdultStudent = realProfileState === "found" && realProfile &&
     realProfile.papel === "aluno" && realProfile.idade_declarada === "adulto";
   let accountState = "";
-  if (realProfileState === "checking") {
+  if (realInstructorConsentPending) {
+    accountState = `
+      <div class="real-instructor-invite-action">
+        <button class="button button--primary button--action" type="button" data-retry-real-instructor-consent aria-describedby="real-instructor-consent-retry-error real-instructor-consent-retry-status">
+          <span data-action-label>Tentar registrar consentimento</span>
+        </button>
+        <p class="login-action-error" id="real-instructor-consent-retry-error" role="alert" aria-atomic="true">Seu acesso foi criado, mas não foi possível registrar o consentimento. Tente novamente.</p>
+        <div class="field-help" id="real-instructor-consent-retry-status" role="status" aria-live="polite" aria-atomic="true"></div>
+      </div>
+    `;
+  } else if (realProfileState === "checking") {
     accountState = '<p class="field-help" role="status" aria-live="polite">Consultando a conta...</p>';
   } else if (realProfileState === "error") {
     accountState = `<p class="login-action-error" role="alert">${escapeHtml(realProfileNotice || "Não foi possível consultar sua conta. Tente novamente mais tarde.")}</p>`;
@@ -3380,7 +3553,7 @@ async function refreshRealProfileAfterInstructorInvite() {
     }
   }
   renderNavigation();
-  renderScreen("real-account");
+  renderScreen(realInstructorConsentPending ? "instructor-invite" : "real-account");
 }
 
 function handleRealInstructorInviteSubmit(form) {
@@ -3397,6 +3570,7 @@ function handleRealInstructorInviteSubmit(form) {
     successMessage: "Convite aceito. Sua conta foi atualizada como Instrutor.",
     successLabel: "Convite aceito",
     errorMessage: "Não foi possível aceitar o convite. Confira os dados e tente novamente.",
+    successDelay: 0,
     afterSuccess: refreshRealProfileAfterInstructorInvite
   }, async () => {
     if (!authClient || !realUser) return { errorMessage: "Entre com Google para aceitar este convite." };
@@ -3465,6 +3639,8 @@ function handleRealInstructorInviteSubmit(form) {
       if (linkInput) linkInput.value = "";
       if (nameInput) nameInput.value = "";
       if (ageCheck) ageCheck.checked = false;
+      realInstructorConsentPending = true;
+      if (await registerRealConsent() === "ok") realInstructorConsentPending = false;
       return {};
     } catch {
       return { errorMessage: navigator.onLine === false
@@ -4622,7 +4798,7 @@ function runLoadingAction(button, complete) {
 
 const actionResetTimers = new WeakMap();
 
-async function runButtonAction(button, { feedback, announcement, buttons, loadingText, loadingMessage, successMessage, successLabel, errorMessage, afterSuccess, disableAfterSuccess = false }, action) {
+async function runButtonAction(button, { feedback, announcement, buttons, loadingText, loadingMessage, successMessage, successLabel, errorMessage, afterSuccess, disableAfterSuccess = false, successDelay = 2500 }, action) {
   if (button.disabled) return;
   const label = button.querySelector("[data-action-label]");
   if (!label || !feedback || !announcement) {
@@ -4684,7 +4860,7 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
       label.textContent = successLabel || "✓ Concluído";
       announcement.textContent = successMessage;
       if (afterSuccess) {
-        await new Promise((resolve) => window.setTimeout(resolve, 2500));
+        if (successDelay > 0) await new Promise((resolve) => window.setTimeout(resolve, successDelay));
         if (button.isConnected) afterSuccess();
         else showToast(successMessage);
       } else {
@@ -4861,6 +5037,10 @@ async function updateRealSession(session) {
   realInstructorInvitesNotice = "";
   syncRealSessionPanel();
   if (!realUser) {
+    if (realOnboardingStage && profileOnboardingDialog.open) profileOnboardingDialog.close();
+    realOnboardingHandledSessionUserId = null;
+    realOnboardingStage = null;
+    realOnboardingAge = null;
     realProfile = null;
     realProfileNotice = "";
     realProfessorActivated = false;
@@ -4870,6 +5050,7 @@ async function updateRealSession(session) {
     realCreatedAcademyId = null;
     realCreatedAcademy = null;
     realInstructorInviteUrl = "";
+    realInstructorConsentPending = false;
     if (!activeRole && previousUser) {
       document.querySelector("#profile-button").hidden = true;
       renderNavigation();
@@ -4878,12 +5059,17 @@ async function updateRealSession(session) {
     return;
   }
   if (previousUser && previousUser.id !== realUser.id) {
+    if (realOnboardingStage && profileOnboardingDialog.open) profileOnboardingDialog.close();
+    realOnboardingHandledSessionUserId = null;
+    realOnboardingStage = null;
+    realOnboardingAge = null;
     realProfileNotice = "";
     realProfessorActivated = false;
     professorActivationSessionUserId = null;
     professorActivationPromise = null;
     realInstructorInviteToken = "";
     realInstructorInviteUrl = "";
+    realInstructorConsentPending = false;
   }
   realProfileState = "checking";
   realProfile = null;
@@ -4936,6 +5122,7 @@ async function updateRealSession(session) {
   else if (!activeRole && currentScreen === "real-account") renderScreen("real-account");
   else if (!activeRole && currentScreen === "instructor-invite") renderScreen("instructor-invite");
   else if (!activeRole && !canViewScreen(currentScreen)) renderScreen("real-account");
+  if (!activeRole) maybeOpenRealProfileOnboarding();
 }
 
 function removeInstructorInviteTokenFromUrl() {
@@ -5110,6 +5297,143 @@ document.addEventListener("click", (event) => {
   const realInviteDeleteButton = target.closest("[data-real-invite-delete]");
   if (realInviteDeleteButton && isRealAdmSession()) {
     handleRealAdminInviteDelete(realInviteDeleteButton);
+    return;
+  }
+
+  const retryRealInstructorConsent = target.closest("[data-retry-real-instructor-consent]");
+  if (retryRealInstructorConsent instanceof HTMLButtonElement) {
+    const action = retryRealInstructorConsent.closest(".real-instructor-invite-action");
+    if (!action) {
+      recordDiagnostic("Erro ao iniciar uma ação");
+      showToast("Não foi possível iniciar a ação. Tente novamente.", "error");
+      return;
+    }
+    const retryMessage = "Seu acesso foi criado, mas não foi possível registrar o consentimento. Tente novamente.";
+    runButtonAction(retryRealInstructorConsent, {
+      feedback: action.querySelector("#real-instructor-consent-retry-error"),
+      announcement: action.querySelector("#real-instructor-consent-retry-status"),
+      buttons: [retryRealInstructorConsent],
+      loadingText: "Registrando...",
+      loadingMessage: "Tentando registrar o consentimento.",
+      successMessage: "Consentimento registrado.",
+      successLabel: "Consentimento registrado",
+      errorMessage: retryMessage,
+      successDelay: 0,
+      afterSuccess: () => {
+        realInstructorConsentPending = false;
+        renderScreen("real-account");
+      }
+    }, async () => {
+      if (!realInstructorConsentPending) return { errorMessage: retryMessage };
+      if (await registerRealConsent() !== "ok") return { errorMessage: retryMessage };
+    });
+    return;
+  }
+
+  const realOnboardingAction = target.closest("[data-real-onboarding-action]");
+  if (realOnboardingAction instanceof HTMLButtonElement) {
+    const action = realOnboardingAction.dataset.realOnboardingAction;
+    const buttonGroup = Array.from(profileOnboardingDialog.querySelectorAll("button, input"));
+    if (action === "age") {
+      const selectedAge = profileOnboardingDialog.querySelector('[name="profile-age"]:checked');
+      const age = selectedAge ? selectedAge.value : "";
+      const isStudentProfileFlow = isRealStudentProfileCreationFlow();
+      const nameInput = isStudentProfileFlow
+        ? profileOnboardingDialog.querySelector("#real-profile-onboarding-name")
+        : null;
+      const name = nameInput instanceof HTMLInputElement ? nameInput.value.trim() : "";
+      runButtonAction(realOnboardingAction, {
+        feedback: document.querySelector("#profile-onboarding-error"),
+        announcement: document.querySelector("#profile-onboarding-status"),
+        buttons: buttonGroup,
+        loadingText: isStudentProfileFlow ? "Validando..." : "Continuando...",
+        loadingMessage: isStudentProfileFlow ? "Validando nome e idade." : "Mantendo a declaração somente nesta sessão.",
+        successMessage: isStudentProfileFlow ? "Revise o termo para criar seu perfil." : "Declaração temporária concluída; nada foi gravado.",
+        successLabel: isStudentProfileFlow ? "Dados informados" : undefined,
+        errorMessage: "Não foi possível continuar. Tente novamente.",
+        successDelay: 0,
+        afterSuccess: () => renderRealProfileOnboarding("consent")
+      }, async () => {
+        if (!realUser || activeRole || realOnboardingStage !== "age") {
+          return { errorMessage: "A sessão mudou. Entre novamente para continuar." };
+        }
+        if (isStudentProfileFlow && (!name || Array.from(name).length > 80)) {
+          return { errorMessage: "Informe um nome com até 80 caracteres." };
+        }
+        if (!["adult", "minor"].includes(age)) return { errorMessage: "Escolha uma opção de idade para continuar." };
+        realOnboardingName = isStudentProfileFlow ? name : "";
+        realOnboardingAge = age;
+      });
+    } else if (action === "continue") {
+      const role = realProfileState === "found" && realProfile ? realProfile.papel : null;
+      const isStudentProfileFlow = isRealStudentProfileCreationFlow();
+      runButtonAction(realOnboardingAction, {
+        feedback: document.querySelector("#profile-onboarding-error"),
+        announcement: document.querySelector("#profile-onboarding-status"),
+        buttons: buttonGroup,
+        loadingText: role === "professor" ? "Registrando..." : isStudentProfileFlow ? "Criando perfil..." : "Continuando...",
+        loadingMessage: role === "professor"
+          ? "Registrando seu consentimento."
+          : isStudentProfileFlow ? "Criando o perfil e registrando seu consentimento." : "Concluindo o aviso somente nesta sessão.",
+        successMessage: role === "professor"
+          ? "Consentimento registrado."
+          : isStudentProfileFlow ? "Perfil confirmado; continuando." : "Aviso concluído; nenhuma resposta foi salva.",
+        successLabel: role === "professor"
+          ? "Consentimento registrado"
+          : isStudentProfileFlow ? "Perfil confirmado" : "Aviso concluído",
+        errorMessage: "Não foi possível continuar. Tente novamente.",
+        successDelay: 0,
+        afterSuccess: isStudentProfileFlow
+          ? () => {
+            finishRealProfileOnboarding();
+            renderScreen(currentScreen || "real-account");
+          }
+          : finishRealProfileOnboarding
+      }, async () => {
+        if (!realUser || activeRole || realOnboardingStage !== "consent") {
+          return { errorMessage: "A sessão mudou. Entre novamente para continuar." };
+        }
+        if (isStudentProfileFlow) {
+          if (!isRealStudentProfileCreationFlow()) {
+            return { errorMessage: "A sessão mudou. Entre novamente para continuar." };
+          }
+          if (!realOnboardingName || Array.from(realOnboardingName).length > 80) {
+            return { errorMessage: "Informe um nome com até 80 caracteres." };
+          }
+          if (!["adult", "minor"].includes(realOnboardingAge)) {
+            return { errorMessage: "A declaração de idade é necessária antes de continuar." };
+          }
+          const age = realOnboardingAge === "adult" ? "adulto" : "menor";
+          const result = await createRealStudentProfileAndConsent(realOnboardingName, age);
+          if (result === "ok" || result === "perfil_ja_existe") return {};
+          if (result === "nao_autenticado") {
+            return { errorMessage: "Sua sessão expirou. Entre novamente." };
+          }
+          if (result === "email_nao_confirmado") {
+            return { errorMessage: "Confirme o e-mail da conta Google antes de continuar." };
+          }
+          if (result === "email_convidado_professor") {
+            return { errorMessage: "Este e-mail foi convidado como Professor. Use o acesso de Professor." };
+          }
+          if (result === "nome_invalido") {
+            return { errorMessage: "Informe um nome com até 80 caracteres." };
+          }
+          return { errorMessage: "Não foi possível criar seu perfil. Tente novamente." };
+        }
+        if (role !== "professor" && !realOnboardingAge) {
+          return { errorMessage: "A declaração de idade é necessária antes de continuar." };
+        }
+        if (role === "professor") {
+          const result = await registerRealConsent();
+          if (result === "nao_autenticado") {
+            return { errorMessage: "Sua sessão expirou. Entre novamente." };
+          }
+          if (result !== "ok") {
+            return { errorMessage: "Não foi possível registrar seu consentimento. Tente novamente." };
+          }
+        }
+      });
+    }
     return;
   }
 
