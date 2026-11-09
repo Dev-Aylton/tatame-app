@@ -152,10 +152,14 @@ Não marcar uma verificação como aprovada sem executá-la e conferir o resulta
 
 ## Plano do projeto
 
-Resumo das fases; o acompanhamento detalhado fica na página visual do [plano do projeto](tests/plano.html). Estados: `[ ]` a fazer, `[x]` feito, `[v]` validado.
+Resumo dos marcos; o acompanhamento detalhado fica na página visual do [plano do projeto](tests/plano.html). Estados: `[ ]` a fazer, `[x]` feito, `[v]` validado.
 Contagem atual: **127 itens — 85 validados, 0 feitos e 42 pendentes.**
+O plano não cresce a cada tarefa: tarefas viram prompts; só mudam estado com a validação do Aylton.
 
-### Fundação e Fase 1 — uso diário
+
+### MARCO 1 — App completo
+Todas as telas e funcionalidades do app funcionando de verdade.
+**85 / 104 validados**
 
 - [v] Criar a página visual `tests/plano.html` para acompanhar fases, tarefas e estados junto ao README. **Validada visualmente pelo usuário.**
 - [v] Criar a documentação inicial e o painel visual `tests/teste.html` de acompanhamento dos testes. **Painel validado visualmente pelo usuário.**
@@ -224,15 +228,9 @@ Contagem atual: **127 itens — 85 validados, 0 feitos e 42 pendentes.**
 - [v] Reserva de altura das mensagens de entrada. Feito; validado pelo usuário.
 - [v] Revisão dos textos “Disponível agora” e “Em construção” da tela Conta real. Feito; validado pelo usuário.
 - [v] Seções “Como testar no iPhone” e “Em construção” no README. Feito; validado pelo usuário.
-
 - [v] Seção “O que ainda está em construção” na página de privacidade. Feito; validado pelo usuário.
-
-### Testes reais (só no final, com o app publicado)
-
-- [ ] Preparar o ícone de instalação do iPhone nos formatos e dimensões exigidos pelo PWA e conferir sua leitura na tela inicial. **Ícones 180/192 e maskable gerados e declarados; falta conferir no iPhone e validar pelo usuário.** [PENDENTE]
 - [v] Ícones 192, 180 e maskable gerados e declarados; sem conferência no iPhone.
 - [v] Botões de ação reais: padrão acessível aplicado aos controles solicitados; sem teste com conta real. [REAL]
-- [ ] Conferir visualmente a página, o modal e a tela de privacidade em 360, 390, 430 e 768 px, nos temas claro e escuro, sem sobreposições, cortes ou desalinhamentos. [PENDENTE]
 - [v] Aplicar guard de consentimento por papel às contas reais: Adm sem tela; Professor só consentimento; Instrutor e Aluno idade declarada e consentimento; papel ausente/desconhecido segue o fluxo completo. Guard front-end por papel; gravação do aceite descrita no item seguinte; sem teste com conta real. Validado pelo usuário. [REAL]
 - [v] Ligar consentimento a `registrar_consentimento` para Professor no aceite e para Instrutor após consumir o convite. Atualizar os avisos, a página de privacidade e os tutoriais dos papéis afetados. Feito; sem teste com conta real. [REAL]
 - [v] Aluno novo: primeiro acesso real coleta nome e idade declarada; o aceite cria o perfil e registra o consentimento por `criar_perfil_aluno`. Feito; sem teste com conta real e sem conferência visual. [REAL]
@@ -240,8 +238,6 @@ Contagem atual: **127 itens — 85 validados, 0 feitos e 42 pendentes.**
 - [v] Migration `_12` aplicada e conferida por leitura, sem teste de comportamento. Validado pelo usuário; sem teste de comportamento. [REAL]
 - [v] Remover o atraso artificial de 2.500 ms do modal de onboarding no fluxo real, preservando o atraso da demonstração. Feito; sem teste com conta real. [REAL]
 - [v] Convite de Instrutor: uso único, validade de 3 dias, somente adulto; Aluno vinculado a outro Professor pode aceitar e manter papel de Aluno; conta já Instrutor de outro Professor é recusada. Regra implementada na migration 16; validado pelo usuário. [REAL]
-- [ ] A partir dos casos validados, mapear fluxos de acesso e permissões; definir somente as tabelas e políticas RLS necessárias e respectivos testes positivos/negativos. [PENDENTE]
-- [ ] Configurar e validar login Google real, recuperação de sessão, consulta de perfil e saída, mantendo a demonstração separada. Integração inicial criada; faltam configuração manual, testes reais, conferência responsiva e validação do usuário. [PENDENTE]
 - [v] Ligar ao app o campo para definir o nome do Professor real ativo pela RPC `definir_nome_professor`; validar a entrada, traduzir os retornos e reler o nome do banco após salvar. Validado pelo usuário; ainda falta teste manual. [REAL]
 - [v] Convidar Professor pela conta real de Adm, normalizando e-mail, escolhendo academia, listando convites reais e permitindo excluir somente os pendentes; validado pelo usuário; ainda aguardam testes manuais. [REAL]
 - [v] Ligar ao banco as telas reais do Adm para editar academias, vincular o Adm a Professor, consultar Professores e Instrutores, trocar Professor e desativar/reativar; validado pelo usuário; ainda aguarda teste manual. [REAL]
@@ -250,13 +246,36 @@ Contagem atual: **127 itens — 85 validados, 0 feitos e 42 pendentes.**
 - [v] Permitir ao Professor real listar e decidir pedidos de vínculo; validado pelo usuário; ainda faltam testes manuais de aprovação/recusa e conferência responsiva. [REAL]
 - [v] Gerenciar alunos sem registro pela conta real do Professor, incluindo idade declarada; validado pelo usuário; ainda faltam testes manuais e conferência responsiva. [REAL]
 - [v] Gerar, listar, revogar e aceitar convites reais de Instrutor, preservando a demonstração simulada; validado pelo usuário; ainda faltam testes com contas reais e conferência responsiva. [REAL]
-- [ ] Investigar e corrigir a rolagem com a roda do mouse em telas largas, sem alterar o layout do celular; ajustado o bloqueio de encadeamento no body para tela larga. Faltam reprodução com roda, confirmação da causa e testes em telas, papéis e modais.
-- [ ] Executar testes do Lote 1, corrigir falhas e apresentar o resultado para validação do usuário antes de iniciar o próximo lote.
 - [v] Cadastro real de Aluno e Instrutor por e-mail e senha. Feito; validado pelo usuário. [REAL]
 - [v] Confirmação de e-mail para cadastro real por e-mail e senha. Feito; validado pelo usuário. [REAL]
 - [v] Recuperação de senha real por link enviado ao e-mail. Feito; validado pelo usuário. [REAL]
 - [v] Definir nova senha real após abrir o link de recuperação. Feito; validado pelo usuário. [REAL]
 - [v] Convite real de Instrutor com acesso por e-mail e senha. Feito; validado pelo usuário. [REAL]
+- [ ] Implementar e testar importação de extrato Pix e conciliação com confirmação manual (RN07). [SIMULADO]
+- [ ] Implementar e testar mural, grade semanal, avisos e perguntas frequentes (RN22–RN24).
+- [ ] Implementar e testar feedbacks, metas e conversa individual (RN19–RN21). [SIMULADO]
+- [ ] Notas privadas reais (tabela, RLS só Professor, política de privacidade) — Fase 2.
+- [ ] Implementar e testar alunos avulsos/diárias e alunos trancados (RN11, RN18). [SIMULADO]
+- [ ] Implementar e testar configurações, tutorial, ajuda e modo simples (RN26, RN34–RN35). [SIMULADO]
+- [ ] Implementar e testar painel administrativo, suporte auditado, diagnóstico e avisos globais (RN27–RN32). [SIMULADO]
+- [ ] Implementar e testar plano semanal, biblioteca/cobertura de temas, sugestões para o Professor e delegação de aula ao Instrutor (RN36–RN42 e requisito adicional). O Professor decide o conteúdo; pode compartilhar o plano ou deixar o treino livre. [SIMULADO]
+- [ ] Implementar e testar métricas de graduação e recibos (RN14, RN17). [SIMULADO]
+- [ ] Implementar e testar exportação, backup e consulta offline (RN33). [PENDENTE]
+- [v] Registrar a regra de segurança: interromper e consultar o usuário se uma publicação Git aparentar conter dado sensível. **Regra confirmada pelo usuário.**
+- [v] Especificar casos de aceite para bloquear publicação Git diante de suspeita de dado sensível. **Validado pelo usuário.**
+- [v] copilot-instructions.md com regras de config.js, comandos em loop e navegador. Feito; também inclui regras para perguntas e dúvidas de escopo.
+- [v] contato de privacidade preenchido nos 3 textos. Feito; modal e tela do app usam a renderização compartilhada.
+
+### MARCO 2 — Publicar e testar
+Publicar o app e executar os testes finais.
+**0 / 21 validados**
+
+- [ ] Preparar o ícone de instalação do iPhone nos formatos e dimensões exigidos pelo PWA e conferir sua leitura na tela inicial. **Ícones 180/192 e maskable gerados e declarados; falta conferir no iPhone e validar pelo usuário.** [PENDENTE]
+- [ ] Conferir visualmente a página, o modal e a tela de privacidade em 360, 390, 430 e 768 px, nos temas claro e escuro, sem sobreposições, cortes ou desalinhamentos. [PENDENTE]
+- [ ] A partir dos casos validados, mapear fluxos de acesso e permissões; definir somente as tabelas e políticas RLS necessárias e respectivos testes positivos/negativos. [PENDENTE]
+- [ ] Configurar e validar login Google real, recuperação de sessão, consulta de perfil e saída, mantendo a demonstração separada. Integração inicial criada; faltam configuração manual, testes reais, conferência responsiva e validação do usuário. [PENDENTE]
+- [ ] Investigar e corrigir a rolagem com a roda do mouse em telas largas, sem alterar o layout do celular; ajustado o bloqueio de encadeamento no body para tela larga. Faltam reprodução com roda, confirmação da causa e testes em telas, papéis e modais.
+- [ ] Executar testes do Lote 1, corrigir falhas e apresentar o resultado para validação do usuário antes de iniciar o próximo lote.
 - [ ] Conferir no painel Supabase o provedor Email, Confirm email e Redirect URLs, inclusive com ?convite_instrutor. [REAL]
 - [ ] Testar cadastro e recuperação de senha com conta real. [REAL]
 - [ ] F1 real — Acesso: Adm e Professor somente por Google; Aluno e Instrutor por e-mail e senha ou Google; cadastro, confirmação e recuperação por link de e-mail; sair encerra a sessão. [REAL]
@@ -269,28 +288,17 @@ Contagem atual: **127 itens — 85 validados, 0 feitos e 42 pendentes.**
 - [ ] F1 real — Permissões negativas: Aluno não vê cobrança de outro; Instrutor não vê valores nem histórico; Adm não vê foto. [REAL]
 - [ ] Conferir no iPhone a barra inferior do Adm (4 itens) e a frase do Disponível agora. [REAL]
 - [ ] Fechar a F1: completar as telas, versão/atualização e regressão; validar a fase com o usuário. [SIMULADO]
-
-### Fase 2 — operação completa
-
-- [ ] Implementar e testar importação de extrato Pix e conciliação com confirmação manual (RN07). [SIMULADO]
-- [ ] Implementar e testar mural, grade semanal, avisos e perguntas frequentes (RN22–RN24).
-- [ ] Implementar e testar feedbacks, metas e conversa individual (RN19–RN21). [SIMULADO]
-- [ ] Notas privadas reais (tabela, RLS só Professor, política de privacidade) — Fase 2.
-- [ ] Implementar e testar aniversários, alunos avulsos/diárias e alunos trancados (RN05, RN11, RN18). [SIMULADO]
-- [ ] Implementar e testar configurações, tutorial, ajuda e modo simples (RN26, RN34–RN35). [SIMULADO]
-- [ ] Implementar e testar painel administrativo, suporte auditado, diagnóstico e avisos globais (RN27–RN32). [SIMULADO]
-- [ ] Implementar e testar plano semanal, biblioteca/cobertura de temas, sugestões para o Professor e delegação de aula ao Instrutor (RN36–RN42 e requisito adicional). O Professor decide o conteúdo; pode compartilhar o plano ou deixar o treino livre. [SIMULADO]
 - [ ] Executar e aprovar os testes de regressão da F1 e F2; validar a fase com o usuário.
-
-### Fase 3 — refinamentos e conclusão
-
-- [ ] Implementar e testar métricas de graduação e recibos (RN14, RN17). [SIMULADO]
-- [ ] Implementar e testar exportação, backup e consulta offline (RN33). [PENDENTE]
-- [v] Registrar a regra de segurança: interromper e consultar o usuário se uma publicação Git aparentar conter dado sensível. **Regra confirmada pelo usuário.**
-- [v] Especificar casos de aceite para bloquear publicação Git diante de suspeita de dado sensível. **Validado pelo usuário.**
 - [ ] Executar os testes de publicação segura; suspeita de dado sensível bloqueia a ação até orientação do usuário.
 - [ ] Executar a suíte completa: funcionalidades, permissões/RLS, regressão, PWA/offline, responsividade e revisão manual.
+
+### MARCO 3 — Entrega ao professor
+Entregar ao Professor após a validação ponta a ponta.
+**0 / 2 validados**
+
 - [ ] Confirmar funcionamento ponta a ponta e obter validação do usuário para todos os lotes.
 - [ ] Solicitar autorização explícita antes de qualquer commit ou push; não publicar a partir da `main` enquanto houver teste pendente ou falho, sem aplicar esse bloqueio ao push da branch `feat/telas-iniciais`.
-- [v] copilot-instructions.md com regras de config.js, comandos em loop e navegador. Feito; também inclui regras para perguntas e dúvidas de escopo.
-- [v] contato de privacidade preenchido nos 3 textos. Feito; modal e tela do app usam a renderização compartilhada.
+
+### Atualizações futuras (fora do plano e da barra)
+Ideias que não são urgentes ficam aqui, sem entrar na contagem. Ideias urgentes viram prompt direto, sem item novo.
+- Nenhuma por enquanto

@@ -2,8 +2,8 @@
 
 window.PLANO_TATAME = [
   {
-    title: "Fundação e Fase 1 — uso diário",
-    description: "Base do produto, acesso, permissões e primeiros fluxos de uso diário.",
+    title: "MARCO 1 — App completo",
+    description: "Todas as telas e funcionalidades do app funcionando de verdade.",
     tasks: [
       ["validado", "Criar a página visual tests/plano.html para acompanhar fases, tarefas e estados junto ao README. Validada visualmente pelo usuário."],
       ["validado", "Criar a documentação inicial e o painel visual tests/teste.html de acompanhamento dos testes. Painel validado visualmente pelo usuário."],
@@ -73,11 +73,8 @@ window.PLANO_TATAME = [
       ["validado", "Revisão dos textos “Disponível agora” e “Em construção” da tela Conta real. Feito; validado pelo usuário."],
       ["validado", "Seções “Como testar no iPhone” e “Em construção” no README. Feito; validado pelo usuário."],
       ["validado", "Seção “O que ainda está em construção” na página de privacidade. Feito; validado pelo usuário."],
-      ["bloco", "Testes reais (só no final, com o app publicado)", 39],
-      ["pendente", "Preparar o ícone de instalação do iPhone nos formatos e dimensões exigidos pelo PWA e conferir sua leitura na tela inicial. Ícones 180/192 e maskable gerados e declarados; falta conferir no iPhone e validar pelo usuário. [PENDENTE]"],
       ["validado", "Ícones 192, 180 e maskable gerados e declarados; sem conferência no iPhone."],
       ["validado", "Botões de ação reais: padrão acessível aplicado aos controles solicitados; sem teste com conta real. [REAL]"],
-      ["pendente", "Conferir visualmente a página, o modal e a tela de privacidade em 360, 390, 430 e 768 px, nos temas claro e escuro, sem sobreposições, cortes ou desalinhamentos. [PENDENTE]"],
       ["validado", "Aplicar guard de consentimento por papel às contas reais: Adm sem tela; Professor só consentimento; Instrutor e Aluno idade declarada e consentimento; papel ausente/desconhecido segue o fluxo completo. Guard front-end por papel; gravação do aceite descrita no item seguinte; sem teste com conta real. Validado pelo usuário. [REAL]"],
       ["validado", "Ligar consentimento a registrar_consentimento para Professor no aceite e para Instrutor após consumir o convite. Atualizar os avisos, a página de privacidade e os tutoriais dos papéis afetados. Feito; sem teste com conta real. [REAL]"],
       ["validado", "Aluno novo: primeiro acesso real coleta nome e idade declarada; o aceite cria o perfil e registra o consentimento por criar_perfil_aluno. Feito; sem teste com conta real e sem conferência visual. [REAL]"],
@@ -85,8 +82,6 @@ window.PLANO_TATAME = [
       ["validado", "Migration _12 aplicada e conferida por leitura, sem teste de comportamento. Validado pelo usuário; sem teste de comportamento. [REAL]"],
       ["validado", "Remover o atraso artificial de 2.500 ms do modal de onboarding no fluxo real, preservando o atraso da demonstração. Feito; sem teste com conta real. [REAL]"],
       ["validado", "Convite de Instrutor: uso único, validade de 3 dias, somente adulto; Aluno vinculado a outro Professor pode aceitar e manter papel de Aluno; conta já Instrutor de outro Professor é recusada. Regra implementada na migration 16; validado pelo usuário. [REAL]"],
-      ["pendente", "A partir dos casos validados, mapear fluxos de acesso e permissões; definir somente as tabelas e políticas RLS necessárias e respectivos testes positivos/negativos. [PENDENTE]"],
-      ["pendente", "Configurar e validar login Google real, recuperação de sessão, consulta de perfil e saída, mantendo a demonstração separada. Integração inicial criada; faltam configuração manual, testes reais, conferência responsiva e validação do usuário. [PENDENTE]"],
       ["validado", "Ligar ao app o campo para definir o nome do Professor real ativo pela RPC definir_nome_professor; validar a entrada, traduzir os retornos e reler o nome do banco após salvar. Validado pelo usuário; ainda falta teste manual. [REAL]"],
       ["validado", "Convidar Professor pela conta real de Adm, normalizando e-mail, escolhendo academia, listando convites reais e permitindo excluir somente os pendentes; validado pelo usuário; ainda aguardam testes manuais. [REAL]"],
       ["validado", "Ligar ao banco as telas reais do Adm para editar academias, vincular o Adm a Professor, consultar Professores e Instrutores, trocar Professor e desativar/reativar; validado pelo usuário; ainda aguarda teste manual. [REAL]"],
@@ -95,13 +90,37 @@ window.PLANO_TATAME = [
       ["validado", "Permitir ao Professor real listar e decidir pedidos de vínculo; validado pelo usuário; ainda faltam testes manuais de aprovação/recusa e conferência responsiva. [REAL]"],
       ["validado", "Gerenciar alunos sem registro pela conta real do Professor, incluindo idade declarada; validado pelo usuário; ainda faltam testes manuais e conferência responsiva. [REAL]"],
       ["validado", "Gerar, listar, revogar e aceitar convites reais de Instrutor, preservando a demonstração simulada; validado pelo usuário; ainda faltam testes com contas reais e conferência responsiva. [REAL]"],
-      ["pendente", "Investigar e corrigir a rolagem com a roda do mouse em telas largas, sem alterar o layout do celular; ajustado o bloqueio de encadeamento no body para tela larga. Faltam reprodução com roda, confirmação da causa e testes em telas, papéis e modais."],
-      ["pendente", "Executar testes do Lote 1, corrigir falhas e apresentar o resultado para validação do usuário antes de iniciar o próximo lote."],
       ["validado", "Cadastro real de Aluno e Instrutor por e-mail e senha. Feito; validado pelo usuário. [REAL]"],
       ["validado", "Confirmação de e-mail para cadastro real por e-mail e senha. Feito; validado pelo usuário. [REAL]"],
       ["validado", "Recuperação de senha real por link enviado ao e-mail. Feito; validado pelo usuário. [REAL]"],
       ["validado", "Definir nova senha real após abrir o link de recuperação. Feito; validado pelo usuário. [REAL]"],
       ["validado", "Convite real de Instrutor com acesso por e-mail e senha. Feito; validado pelo usuário. [REAL]"],
+      ["pendente", "Implementar e testar importação de extrato Pix e conciliação com confirmação manual (RN07). [SIMULADO]"],
+      ["pendente", "Implementar e testar mural, grade semanal, avisos e perguntas frequentes (RN22–RN24)."],
+      ["pendente", "Implementar e testar feedbacks, metas e conversa individual (RN19–RN21). [SIMULADO]"],
+      ["pendente", "Notas privadas reais (tabela, RLS só Professor, política de privacidade) — Fase 2."],
+      ["pendente", "Implementar e testar alunos avulsos/diárias e alunos trancados (RN11, RN18). [SIMULADO]"],
+      ["pendente", "Implementar e testar configurações, tutorial, ajuda e modo simples (RN26, RN34–RN35). [SIMULADO]"],
+      ["pendente", "Implementar e testar painel administrativo, suporte auditado, diagnóstico e avisos globais (RN27–RN32). [SIMULADO]"],
+      ["pendente", "Implementar e testar plano semanal, biblioteca/cobertura de temas, sugestões para o Professor e delegação de aula ao Instrutor (RN36–RN42 e requisito adicional). O Professor decide o conteúdo; pode compartilhar o plano ou deixar o treino livre. [SIMULADO]"],
+      ["pendente", "Implementar e testar métricas de graduação e recibos (RN14, RN17). [SIMULADO]"],
+      ["pendente", "Implementar e testar exportação, backup e consulta offline (RN33). [PENDENTE]"],
+      ["validado", "Registrar a regra de segurança: interromper e consultar o usuário se uma publicação Git aparentar conter dado sensível. Regra confirmada pelo usuário."],
+      ["validado", "Especificar casos de aceite para bloquear publicação Git diante de suspeita de dado sensível. Validado pelo usuário."],
+      ["validado", "copilot-instructions.md com regras de config.js, comandos em loop e navegador. Feito; também inclui regras para perguntas e dúvidas de escopo."],
+      ["validado", "contato de privacidade preenchido nos 3 textos. Feito; modal e tela do app usam a renderização compartilhada."]
+    ]
+  },
+  {
+    title: "MARCO 2 — Publicar e testar",
+    description: "Publicar o app e executar os testes finais.",
+    tasks: [
+      ["pendente", "Preparar o ícone de instalação do iPhone nos formatos e dimensões exigidos pelo PWA e conferir sua leitura na tela inicial. Ícones 180/192 e maskable gerados e declarados; falta conferir no iPhone e validar pelo usuário. [PENDENTE]"],
+      ["pendente", "Conferir visualmente a página, o modal e a tela de privacidade em 360, 390, 430 e 768 px, nos temas claro e escuro, sem sobreposições, cortes ou desalinhamentos. [PENDENTE]"],
+      ["pendente", "A partir dos casos validados, mapear fluxos de acesso e permissões; definir somente as tabelas e políticas RLS necessárias e respectivos testes positivos/negativos. [PENDENTE]"],
+      ["pendente", "Configurar e validar login Google real, recuperação de sessão, consulta de perfil e saída, mantendo a demonstração separada. Integração inicial criada; faltam configuração manual, testes reais, conferência responsiva e validação do usuário. [PENDENTE]"],
+      ["pendente", "Investigar e corrigir a rolagem com a roda do mouse em telas largas, sem alterar o layout do celular; ajustado o bloqueio de encadeamento no body para tela larga. Faltam reprodução com roda, confirmação da causa e testes em telas, papéis e modais."],
+      ["pendente", "Executar testes do Lote 1, corrigir falhas e apresentar o resultado para validação do usuário antes de iniciar o próximo lote."],
       ["pendente", "Conferir no painel Supabase o provedor Email, Confirm email e Redirect URLs, inclusive com ?convite_instrutor. [REAL]"],
       ["pendente", "Testar cadastro e recuperação de senha com conta real. [REAL]"],
       ["pendente", "F1 real — Acesso: Adm e Professor somente por Google; Aluno e Instrutor por e-mail e senha ou Google; cadastro, confirmação e recuperação por link de e-mail; sair encerra a sessão. [REAL]"],
@@ -113,54 +132,37 @@ window.PLANO_TATAME = [
       ["pendente", "F1 real — Graduação: Professor atribui; Aluno vê as próprias; histórico nunca é editado. [REAL]"],
       ["pendente", "F1 real — Permissões negativas: Aluno não vê cobrança de outro; Instrutor não vê valores nem histórico; Adm não vê foto. [REAL]"],
       ["pendente", "Conferir no iPhone a barra inferior do Adm (4 itens) e a frase do Disponível agora. [REAL]"],
-      ["pendente", "Fechar a F1: completar as telas, versão/atualização e regressão; validar a fase com o usuário. [SIMULADO]"]
-    ]
-  },
-  {
-    title: "Fase 2 — operação completa",
-    description: "Rotinas administrativas, comunicação e planejamento de aulas.",
-    tasks: [
-      ["pendente", "Implementar e testar importação de extrato Pix e conciliação com confirmação manual (RN07). [SIMULADO]"],
-      ["pendente", "Implementar e testar mural, grade semanal, avisos e perguntas frequentes (RN22–RN24)."],
-      ["pendente", "Implementar e testar feedbacks, metas e conversa individual (RN19–RN21). [SIMULADO]"],
-      ["pendente", "Notas privadas reais (tabela, RLS só Professor, política de privacidade) — Fase 2."],
-      ["pendente", "Implementar e testar aniversários, alunos avulsos/diárias e alunos trancados (RN05, RN11, RN18). [SIMULADO]"],
-      ["pendente", "Implementar e testar configurações, tutorial, ajuda e modo simples (RN26, RN34–RN35). [SIMULADO]"],
-      ["pendente", "Implementar e testar painel administrativo, suporte auditado, diagnóstico e avisos globais (RN27–RN32). [SIMULADO]"],
-      ["pendente", "Implementar e testar plano semanal, biblioteca/cobertura de temas, sugestões para o Professor e delegação de aula ao Instrutor (RN36–RN42 e requisito adicional). O Professor decide o conteúdo; pode compartilhar o plano ou deixar o treino livre. [SIMULADO]"],
-      ["pendente", "Executar e aprovar os testes de regressão da F1 e F2; validar a fase com o usuário."]
-    ]
-  },
-  {
-    title: "Fase 3 — refinamentos e conclusão",
-    description: "Recursos finais, validação completa, segurança e autorização de publicação.",
-    tasks: [
-      ["pendente", "Implementar e testar métricas de graduação e recibos (RN14, RN17). [SIMULADO]"],
-      ["pendente", "Implementar e testar exportação, backup e consulta offline (RN33). [PENDENTE]"],
-      ["validado", "Registrar a regra de segurança: interromper e consultar o usuário se uma publicação Git aparentar conter dado sensível. Regra confirmada pelo usuário."],
-      ["validado", "Especificar casos de aceite para bloquear publicação Git diante de suspeita de dado sensível. Validado pelo usuário."],
+      ["pendente", "Fechar a F1: completar as telas, versão/atualização e regressão; validar a fase com o usuário. [SIMULADO]"],
+      ["pendente", "Executar e aprovar os testes de regressão da F1 e F2; validar a fase com o usuário."],
       ["pendente", "Executar os testes de publicação segura; suspeita de dado sensível bloqueia a ação até orientação do usuário."],
       ["pendente", "Executar a suíte completa: funcionalidades, permissões/RLS, regressão, PWA/offline, responsividade e revisão manual."],
+    ]
+  },
+  {
+    title: "MARCO 3 — Entrega ao professor",
+    description: "Entregar ao Professor após a validação ponta a ponta.",
+    tasks: [
       ["pendente", "Confirmar funcionamento ponta a ponta e obter validação do usuário para todos os lotes."],
       ["pendente", "Solicitar autorização explícita antes de qualquer commit ou push; não publicar a partir da main enquanto houver teste pendente ou falho, sem aplicar esse bloqueio ao push da branch feat/telas-iniciais."],
-      ["validado", "copilot-instructions.md com regras de config.js, comandos em loop e navegador. Feito; também inclui regras para perguntas e dúvidas de escopo."],
-      ["validado", "contato de privacidade preenchido nos 3 textos. Feito; modal e tela do app usam a renderização compartilhada."]
     ]
   }
 ];
+
+window.PLANO_TATAME_FUTURAS = {
+  description: "Ideias que não são urgentes ficam aqui, sem entrar na contagem. Ideias urgentes viram prompt direto, sem item novo.",
+  items: []
+};
 
 const phaseList = document.querySelector("#phase-list");
 const filterButtons = [...document.querySelectorAll(".filter-button")];
 const showValidatedControl = document.querySelector("#show-validated");
 let currentFilter = "todos";
-const tasks = window.PLANO_TATAME.flatMap((phase, phaseIndex) =>
-  phase.tasks.map((task, taskIndex) => ({
-    phaseIndex,
-    taskIndex,
+const tasks = window.PLANO_TATAME.flatMap((milestone) =>
+  milestone.tasks.map((task) => ({
     status: task[0],
     title: task[1]
   }))
-).filter((task) => task.status !== "bloco");
+);
 
 function createTextElement(tagName, className, text) {
   const element = document.createElement(tagName);
@@ -176,61 +178,59 @@ function updateSummary() {
   const pending = tasks.filter((task) => task.status === "pendente").length;
   const validatedPercent = total ? (validated / total) * 100 : 0;
   const donePercent = total ? (done / total) * 100 : 0;
-  const completedPercent = validatedPercent + donePercent;
 
   document.querySelector("#validated-count").textContent = String(validated);
   document.querySelector("#done-count").textContent = String(done);
   document.querySelector("#pending-count").textContent = String(pending);
-  document.querySelector("#progress-percent").textContent = `${Math.round(completedPercent)}%`;
+  document.querySelector("#progress-percent").textContent = `${Math.round(validatedPercent)}%`;
   document.querySelector("#validated-bar").style.width = `${validatedPercent}%`;
   document.querySelector("#done-bar").style.width = `${donePercent}%`;
-  document.querySelector("#progress-track").setAttribute("aria-valuenow", String(Math.round(completedPercent)));
+  document.querySelector("#progress-track").setAttribute("aria-valuenow", String(Math.round(validatedPercent)));
   const validationNote = done
     ? "Itens feitos aguardam sua validação."
     : "Não há itens feitos aguardando validação.";
-  document.querySelector("#progress-note").textContent = `${validated + done} de ${total} itens feitos ou validados; ${validated} validados por você. ${validationNote}`;
+  document.querySelector("#progress-note").textContent = `${validated} de ${total} itens validados por você. ${validationNote}`;
+
+  const milestoneProgress = document.querySelector("#milestone-progress");
+  milestoneProgress.replaceChildren();
+  window.PLANO_TATAME.forEach((milestone, index) => {
+    if (index) milestoneProgress.append(document.createElement("br"));
+    const milestoneValidated = milestone.tasks.filter((task) => task[0] === "validado").length;
+    milestoneProgress.append(document.createTextNode(`Marco ${index + 1}: ${milestoneValidated} de ${milestone.tasks.length} validados`));
+  });
 }
 
-function renderPhases(filter = currentFilter) {
+function renderMilestones(filter = currentFilter) {
   currentFilter = filter;
   phaseList.replaceChildren();
 
-  window.PLANO_TATAME.forEach((phase, phaseIndex) => {
-    const visibleTasks = phase.tasks
-      .map((task, taskIndex) => ({ status: task[0], title: task[1], taskIndex, groupSize: task[2] }))
+  window.PLANO_TATAME.forEach((milestone, milestoneIndex) => {
+    const visibleTasks = milestone.tasks
+      .map((task) => ({ status: task[0], title: task[1] }))
       .filter((task) => {
-        const matchesFilter = (status) => {
-          if (filter === "todos") return showValidatedControl.checked || status !== "validado";
-          if (filter === "validado") return showValidatedControl.checked && status === "validado";
-          return status === filter;
-        };
-        if (task.status === "bloco") {
-          return phase.tasks
-            .slice(task.taskIndex + 1, task.taskIndex + 1 + task.groupSize)
-            .some((groupTask) => matchesFilter(groupTask[0]));
-        }
-        return matchesFilter(task.status);
+        if (filter === "todos") return showValidatedControl.checked || task.status !== "validado";
+        if (filter === "validado") return showValidatedControl.checked && task.status === "validado";
+        return task.status === filter;
       });
 
     if (!visibleTasks.length) return;
 
     const section = document.createElement("details");
     section.className = "phase-card";
-    section.open = phase.tasks.some((task) => task[0] === "feito" || task[0] === "pendente");
+    section.open = milestone.tasks.some((task) => task[0] === "feito" || task[0] === "pendente");
     const heading = document.createElement("summary");
     heading.className = "phase-heading";
     const titleGroup = document.createElement("div");
     titleGroup.append(
-      createTextElement("p", "eyebrow", `FASE ${String(phaseIndex + 1).padStart(2, "0")}`),
-      createTextElement("h3", "phase-title", phase.title),
-      createTextElement("p", "phase-description", phase.description)
+      createTextElement("p", "eyebrow", `MARCO ${String(milestoneIndex + 1).padStart(2, "0")}`),
+      createTextElement("h3", "phase-title", milestone.title),
+      createTextElement("p", "phase-description", milestone.description)
     );
-    const phaseTasks = phase.tasks.filter((task) => task[0] !== "bloco");
-    const phaseCounts = phaseTasks.reduce((counts, task) => {
+    const milestoneCounts = milestone.tasks.reduce((counts, task) => {
       counts[task[0]] += 1;
       return counts;
     }, { pendente: 0, feito: 0, validado: 0 });
-    const countLabel = `${phaseCounts.validado} / ${phaseTasks.length} validados`;
+    const countLabel = `${milestoneCounts.validado} / ${milestone.tasks.length} validados`;
     heading.append(titleGroup, createTextElement("span", "phase-count", countLabel));
     section.append(heading);
 
@@ -238,18 +238,6 @@ function renderPhases(filter = currentFilter) {
     list.className = "task-list";
     visibleTasks.forEach((task) => {
       const item = document.createElement("li");
-      if (task.status === "bloco") {
-        item.className = "task-item task-item--section";
-        const marker = document.createElement("span");
-        marker.className = "task-marker";
-        marker.setAttribute("aria-hidden", "true");
-        const body = document.createElement("div");
-        body.className = "task-body";
-        body.append(createTextElement("h4", "task-title", task.title));
-        item.append(marker, body);
-        list.append(item);
-        return;
-      }
       item.className = `task-item task-item--${task.status}`;
       const marker = document.createElement("span");
       marker.className = "task-marker";
@@ -277,7 +265,7 @@ filterButtons.forEach((button) => {
       candidate.classList.toggle("is-active", active);
       candidate.setAttribute("aria-pressed", String(active));
     });
-    renderPhases(button.dataset.filter);
+    renderMilestones(button.dataset.filter);
   });
 });
 
@@ -290,8 +278,20 @@ showValidatedControl.addEventListener("change", () => {
       button.setAttribute("aria-pressed", String(active));
     });
   }
-  renderPhases();
+  renderMilestones();
 });
 
+function renderFutureUpdates() {
+  document.querySelector("#future-updates-description").textContent = window.PLANO_TATAME_FUTURAS.description;
+  const list = document.querySelector("#future-updates-list");
+  list.replaceChildren();
+  const futureItems = window.PLANO_TATAME_FUTURAS.items;
+  const visibleItems = futureItems.length ? futureItems : ["Nenhuma por enquanto"];
+  visibleItems.forEach((futureItem) => {
+    list.append(createTextElement("li", "", futureItem));
+  });
+}
+
 updateSummary();
-renderPhases();
+renderMilestones();
+renderFutureUpdates();
