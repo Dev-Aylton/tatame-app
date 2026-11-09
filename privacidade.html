@@ -11,67 +11,81 @@
 <body class="tatame-app" data-theme="dark">
   <main class="privacy-page">
     <header class="privacy-page-header">
-      <a class="brand-mark" href="index.html" aria-label="Voltar ao protótipo Tatame">
+      <a class="brand-mark" href="index.html" aria-label="Voltar ao app Tatame">
         <img src="assets/logos/tatame-icone-escudo.svg" alt="">
         <span class="brand-caption">TATAME · PRIVACIDADE</span>
       </a>
       <div class="privacy-page-actions">
         <button class="button button--quiet" id="privacy-theme-toggle" type="button" aria-pressed="false">Tema: escuro</button>
-        <a class="button button--quiet" href="index.html">Voltar ao protótipo</a>
+        <a class="button button--quiet" href="index.html">Voltar ao app</a>
       </div>
     </header>
     <article class="panel-card privacy-page-card">
-      <p class="eyebrow">RASCUNHO PARA REVISÃO</p>
       <h1>Privacidade e consentimento</h1>
       <div class="privacy-draft-content">
-        <p class="notice notice--pending">Conteúdo provisório e sujeito a revisão jurídica; não declara conformidade legal.</p>
-        <p class="panel-copy">O termo de consentimento segue em rascunho. Nos fluxos reais, o aceite do Professor é registrado; para Instrutor, o registro ocorre após o convite ser consumido; para Aluno novo, o aceite cria o perfil e registra o identificador do perfil, a versão do termo e a data e hora. Finalidades, bases legais e prazo de retenção precisam ser confirmados antes da publicação.</p>
+        <p class="notice notice--pending">Versão inicial, feita sem revisão jurídica. Não declara conformidade com a lei. Finalidades, bases legais e prazos de retenção ainda serão definidos.</p>
+        <p class="panel-copy">O aceite do termo (versão "rascunho-1") é gravado com o identificador do perfil, a versão e a data e hora. O Professor aceita na primeira vez. O Instrutor aceita depois de usar o convite. O Aluno novo aceita ao criar o perfil.</p>
 
         <section class="privacy-draft-section">
-          <h2>Dados presentes no protótipo</h2>
-          <p>As telas de demonstração usam dados fictícios, guardados no navegador, e não enviam esses dados ao Supabase. Nos fluxos reais já conectados, o código prevê categorias como:</p>
+          <h2>1. Dados que o app guarda</h2>
+          <p>A conta real guarda os dados abaixo. O modo demonstração usa dados fictícios, guardados só no navegador, e não os envia ao Supabase.</p>
           <ul>
-            <li>e-mail da conta usado na autenticação Google;</li>
-            <li>nome, papel, idade declarada, foto de perfil e vínculo com a academia;</li>
-            <li>nome da academia, vínculos e pedidos entre Aluno e Professor;</li>
+            <li>e-mail da conta (login Google, ou e-mail e senha para Aluno e Instrutor);</li>
+            <li>nome, papel, idade declarada (adulto ou menor de 18 anos) e vínculo com a academia;</li>
+            <li>nome da academia, pedidos de vínculo e vínculos entre Aluno e Professor;</li>
             <li>e-mail de Professor convidado e estado do convite; convites de Instrutor guardam o hash do token, datas e estado;</li>
-            <li>nome e idade declarada de aluno sem conta.</li>
+            <li>nome e idade declarada de aluno sem conta;</li>
+            <li>cobranças mensais: valor-base, vencimento, desconto, isenção (com motivo opcional de até 200 caracteres), estado e datas de envio;</li>
+            <li>pagamentos: tipo (dinheiro ou comprovante), valor, estado e referência.</li>
           </ul>
-          <p>O protótipo não solicita data de nascimento nos fluxos de idade declarada. Contato de academia e outros dados exibidos na demonstração são fictícios.</p>
+          <p>No cadastro por e-mail e senha, o app coleta nome e e-mail. A senha é tratada pelo Supabase Auth e não é guardada pelo app.</p>
+          <p>O comprovante no fluxo real guarda só o tipo e o valor, sem imagem. Não pedimos data de nascimento, telefone nem WhatsApp. Pedimos que não escreva dados sensíveis no motivo da isenção.</p>
         </section>
 
         <section class="privacy-draft-section">
-          <h2>Compartilhamento</h2>
-          <p>As telas e políticas de acesso usam o papel e os vínculos para limitar o que cada conta pode consultar. O detalhamento das finalidades, dos destinatários e das informações necessárias ainda deve ser revisado antes da publicação.</p>
+          <h2>2. Compartilhamento</h2>
+          <p>O acesso depende do papel e dos vínculos:</p>
+          <ul>
+            <li>o Professor vê os Alunos vinculados a ele, suas cobranças e seus pagamentos;</li>
+            <li>o Aluno vê apenas as cobranças que o Professor enviou a ele;</li>
+            <li>o Instrutor vê só o nome dos Alunos do Professor, nunca valores;</li>
+            <li>o Administrador vê fotos de Professores, e não vê foto, nome ou faixa de Alunos.</li>
+          </ul>
+          <p>O app só controla pagamentos. Ele não processa dinheiro. O app não envia notificações push.</p>
         </section>
 
         <section class="privacy-draft-section">
-          <h2>Menores de 18 anos</h2>
-          <p>A idade é declarada como adulto ou menor de 18 anos; não é solicitada data de nascimento. Para menores, o protótipo prevê somente avatar, sem foto de perfil. Convites de Instrutor exigem declaração de adulto.</p>
+          <h2>3. Menores de 18 anos</h2>
+          <p>A idade é só declarada, sem verificação. Menores usam apenas avatar, sem foto de perfil. Convites de Instrutor exigem declaração de adulto. O tratamento de dados de menores e o consentimento de responsáveis ainda não foram resolvidos nesta política.</p>
         </section>
 
         <section class="privacy-draft-section">
-          <h2>Fotos</h2>
-          <p>O perfil pode usar uma foto por URL nos fluxos permitidos; menores de 18 anos ficam apenas com avatar. Origem, armazenamento, visibilidade e prazo de retenção das fotos precisam ser confirmados antes da versão final.</p>
+          <h2>4. Fotos</h2>
+          <p>No momento, o app real não grava foto de perfil. O envio de arquivos só será ligado depois do login real, e menores seguirão só com avatar. A escolha de avatar masculino ou feminino é só de imagem na demonstração e não é gravada.</p>
         </section>
 
         <section class="privacy-draft-section">
-          <h2>Exclusão de conta</h2>
-          <p>Na demonstração, a exclusão remove os dados pessoais fictícios desta conta, anonimiza registros compartilhados e encerra a sessão. A exclusão real ainda está em construção e não é executada pelo protótipo.</p>
+          <h2>5. Exclusão de conta</h2>
+          <p>Na demonstração, a exclusão remove os dados pessoais fictícios, mantém registros compartilhados como "Conta excluída" e encerra a sessão. A exclusão de conta real está em construção e não é executada. Existe um conflito conhecido: registros de consentimento e de cobrança podem impedir a remoção de perfis. Até que seja resolvido, esta política não promete exclusão completa.</p>
         </section>
 
         <section class="privacy-draft-section">
-          <h2>Retenção</h2>
-          <p>Os prazos de retenção ainda não foram definidos. Eles precisam ser especificados por categoria de dado e revisados antes da publicação; este rascunho não estabelece um prazo.</p>
+          <h2>6. Retenção</h2>
+          <p>Os prazos não estão definidos. Hoje, pagamentos e cobranças não são apagados, apenas mudam de estado (por exemplo, cancelada ou estornado). Um Professor substituído na academia é desativado, não apagado.</p>
         </section>
 
         <section class="privacy-draft-section">
-          <h2>Direitos e solicitações</h2>
-          <p>O titular poderá solicitar informações sobre seus dados, correção ou exclusão pelo canal de contato indicado abaixo. Os procedimentos e prazos de atendimento ainda precisam ser definidos; não há autosserviço de direitos implementado neste protótipo.</p>
+          <h2>7. Direitos e solicitações</h2>
+          <p>O titular pode pedir informação, correção ou exclusão pelo contato abaixo. Procedimentos e prazos ainda não foram definidos, e o app não tem autosserviço para isso.</p>
+        </section>
+
+        <section class="privacy-draft-section">
+          <h2>O que ainda está em construção</h2>
+          <p>No modo real, ainda estão em construção a exclusão de conta, o armazenamento de fotos e as notas privadas. Esses recursos ainda não estão disponíveis.</p>
         </section>
 
         <section class="privacy-draft-section privacy-draft-contact">
-          <h2>Contato</h2>
+          <h2>8. Contato</h2>
           <p>desenvolvedor.aylton@gmail.com</p>
         </section>
       </div>

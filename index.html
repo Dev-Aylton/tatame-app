@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Tatame">
-  <title>Tatame | Protótipo F1</title>
+  <title>Tatame | Gestão de academia</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" sizes="180x180" href="assets/logos/apple-touch-icon.png">
   <link rel="apple-touch-icon" sizes="512x512" href="assets/logos/tatame-icone-escudo-512.png">
@@ -17,28 +17,27 @@
   <script src="js/app.js" defer></script>
 </head>
 <body class="tatame-app" data-theme="dark">
-  <div class="prototype-banner">
-    <span><strong>PROTÓTIPO F1</strong><span class="banner-separator">·</span> telas fictícias; login Google real quando configurado</span>
-    <span class="fictional-note">Contas de demonstração fictícias</span>
+  <div class="prototype-banner" role="note" aria-label="Modo demonstração">
+    <span><strong>Modo demonstração</strong><span class="banner-separator">·</span> dados fictícios isolados</span>
   </div>
 
   <div class="app-frame">
-    <aside class="app-sidebar" id="app-sidebar" aria-label="Navegação do protótipo">
+    <aside class="app-sidebar" id="app-sidebar" aria-label="Navegação do Tatame">
       <div class="sidebar-heading">
-        <a class="brand-mark" href="index.html" aria-label="Tatame — início do protótipo">
+        <a class="brand-mark" href="index.html" aria-label="Tatame — início">
           <img src="assets/logos/tatame-icone-escudo.svg" alt="">
-          <span class="brand-caption">F1 · TELAS</span>
+          <span class="brand-caption">TATAME</span>
         </a>
         <button class="icon-button sidebar-close" type="button" data-close-sidebar aria-label="Fechar navegação">×</button>
       </div>
       <div class="sidebar-intro">
-        <span class="eyebrow">VISUALIZAÇÃO</span>
+        <span class="eyebrow">NAVEGAÇÃO</span>
         <p>As telas disponíveis seguem o papel da conta ativa.</p>
       </div>
       <nav class="screen-navigation" id="screen-navigation" aria-label="Telas por perfil"></nav>
       <div class="sidebar-footer">
-        <span class="demo-dot" aria-hidden="true"></span>
-        <span>Dados de demonstração</span>
+        <span class="demo-dot" aria-hidden="true" data-demo-only hidden></span>
+        <span data-demo-only hidden>Dados de demonstração</span>
       </div>
     </aside>
 
@@ -52,7 +51,7 @@
           </button>
           <img class="mobile-header-logo" src="assets/logos/tatame-icone-escudo.svg" alt="">
           <div class="header-titles">
-            <span class="eyebrow">TATAME <span class="eyebrow-divider">/</span> PROTÓTIPO</span>
+            <span class="eyebrow">TATAME</span>
             <h1 id="current-screen-title">Acesso</h1>
           </div>
         </div>
@@ -64,14 +63,15 @@
       </header>
 
       <section class="screen-content" id="screen-content" aria-live="polite" aria-relevant="additions text">
-        <p class="loading-note">Carregando telas do protótipo…</p>
+        <p class="loading-note">Carregando o Tatame…</p>
       </section>
 
       <footer class="app-footer">
-        <span>Protótipo visual · alguns estados demonstrativos ficam no navegador</span>
+        <span>Tatame · Gestão de academia</span>
         <span class="app-footer-links">
+          <a class="demo-entry-link" href="index.html?demo=1" data-demo-entry-link hidden>Ver demonstração</a>
           <button class="text-link" type="button" data-open-terms>Termo de consentimento</button>
-          <a href="tests/plano.html">Plano da F1 <span aria-hidden="true">↗</span></a>
+          <a href="tests/plano.html" data-demo-only hidden>Plano da F1 <span aria-hidden="true">↗</span></a>
         </span>
       </footer>
     </main>
@@ -89,9 +89,9 @@
     </div>
     <div class="user-panel-profile">
       <span class="user-panel-avatar" id="user-panel-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>
-      <span><strong id="user-panel-profile-name">Sem sessão ativa</strong><small id="user-panel-profile-role">Perfil demonstrativo</small><small id="user-panel-profile-academy">Sem academia vinculada</small></span>
+      <span><strong id="user-panel-profile-name">Sem sessão ativa</strong><small id="user-panel-profile-role">Perfil</small><small id="user-panel-profile-academy">Sem academia vinculada</small></span>
     </div>
-    <nav class="user-panel-links" aria-label="Navegação da conta">
+    <nav class="user-panel-links" aria-label="Navegação da conta" data-demo-only hidden>
       <h3 class="user-panel-group-title">Conta e preferências</h3>
       <button class="user-panel-link" type="button" data-screen-target="user-settings">
         <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg></span><span><strong>Preferências</strong><small>Conta e visualização</small></span><span aria-hidden="true">›</span>
@@ -103,13 +103,13 @@
         <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v16M12 4a8 8 0 0 1 0 16"/></svg></span><span><strong>Alternar tema</strong><small>Apenas para visualização</small></span><span aria-hidden="true">›</span>
       </button>
     </nav>
-    <div class="user-panel-links" aria-label="Ajuda" role="group">
+    <div class="user-panel-links" aria-label="Ajuda" role="group" data-demo-only hidden>
       <h3 class="user-panel-group-title">Ajuda</h3>
       <button class="user-panel-link" type="button" data-open-tutorial>
         <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 17h.01"/></svg></span><span><strong>Tutorial</strong><small>Ajuda para esta conta</small></span><span aria-hidden="true">›</span>
       </button>
     </div>
-    <div class="user-panel-links" aria-label="App" role="group">
+    <div class="user-panel-links" aria-label="App" role="group" data-demo-only hidden>
       <h3 class="user-panel-group-title">App</h3>
       <div class="user-panel-version"><span>Versão do app</span><button type="button" class="version-trigger version-badge" id="app-version"></button></div>
       <div class="user-panel-action">
@@ -134,21 +134,21 @@
     <div class="user-panel-links" aria-label="Sessão" role="group">
       <h3 class="user-panel-group-title">Sessão</h3>
       <div class="user-panel-action" id="real-session" hidden>
-        <p>Conta Google: <strong id="real-session-email"></strong></p>
-        <button class="button button--quiet button--action" type="button" data-real-signout aria-describedby="real-signout-error"><span data-action-label>Sair da conta Google</span></button>
+        <p>Conta ativa: <strong id="real-session-email"></strong></p>
+        <button class="button button--quiet button--action" type="button" data-real-signout aria-describedby="real-signout-error"><span data-action-label>Sair da conta</span></button>
         <p class="login-action-error" id="real-signout-error" role="alert"></p>
         <p class="field-help" id="real-signout-status" role="status" aria-live="polite"></p>
       </div>
-      <button class="user-panel-link" type="button" data-logout-role>
-        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H5v16h5M13 8l4 4-4 4M8 12h9"/></svg></span><span><strong>Sair</strong><small>Encerrar esta sessão demonstrativa</small></span><span aria-hidden="true">›</span>
+      <button class="user-panel-link" type="button" data-logout-role data-demo-only hidden>
+        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H5v16h5M13 8l4 4-4 4M8 12h9"/></svg></span><span><strong>Sair</strong><small>Encerrar a sessão de demonstração</small></span><span aria-hidden="true">›</span>
       </button>
     </div>
-    <p class="user-panel-note">O perfil e as permissões são definidos pelo banco na versão funcional.</p>
+    <p class="user-panel-note">O perfil e as permissões são definidos pelo banco.</p>
     <details class="user-panel-risk">
       <summary><span aria-hidden="true">⚠</span> Área de risco</summary>
-      <p>Esta ação exclui somente os dados pessoais fictícios desta conta neste navegador, anonimiza os registros compartilhados e encerra a sessão demonstrativa.</p>
-      <p>A exclusão real ainda está em construção; nenhum dado de uma conta real será apagado.</p>
-      <div class="user-panel-action">
+      <p data-demo-only hidden>Esta ação exclui somente os dados pessoais fictícios desta conta neste navegador, anonimiza os registros compartilhados e encerra a sessão demonstrativa.</p>
+      <p data-real-only hidden>A exclusão de conta real ainda não está disponível.</p>
+      <div class="user-panel-action" data-demo-only hidden>
         <p><span aria-hidden="true">⚠</span> Excluir minha conta: remove o perfil, os contatos fictícios e a foto demonstrativa. Pagamentos, vínculos e graduações compartilhados permanecem com o nome “Conta excluída”.</p>
         <div class="field risk-confirmation">
           <label for="delete-account-confirmation">Digite EXCLUIR para liberar a exclusão demonstrativa</label>
@@ -158,14 +158,14 @@
         <p class="login-action-error" id="delete-account-error" role="alert"></p>
         <p class="field-help" id="delete-account-notice" role="status" aria-live="polite"></p>
       </div>
-      <p>Texto provisório; precisa de revisão por alguém com conhecimento em LGPD.</p>
+      <p data-demo-only hidden>Texto provisório; precisa de revisão por alguém com conhecimento em LGPD.</p>
     </details>
   </dialog>
 
   <dialog class="photo-dialog" id="profile-onboarding" aria-labelledby="profile-onboarding-title" aria-describedby="profile-onboarding-copy">
     <div class="dialog-heading">
       <div>
-        <span class="eyebrow">PERFIL DE DEMONSTRAÇÃO</span>
+        <span class="eyebrow">PERFIL</span>
         <h2 id="profile-onboarding-title">Foto e idade</h2>
       </div>
     </div>
@@ -207,7 +207,7 @@
     <div class="dialog-heading">
       <div>
         <span class="eyebrow">PRIVACIDADE</span>
-        <h2 id="privacy-modal-title">Rascunho de privacidade</h2>
+        <h2 id="privacy-modal-title">Privacidade e consentimento</h2>
       </div>
       <button class="icon-button" type="button" data-close-dialog aria-label="Fechar">×</button>
     </div>
