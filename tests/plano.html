@@ -33,7 +33,7 @@
         </div>
         <strong class="progress-percent" id="progress-percent">—</strong>
       </div>
-      <div class="progress-track" id="progress-track" role="progressbar" aria-label="Itens feitos ou validados" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="progress-track" id="progress-track" role="progressbar" aria-label="Itens validados" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <span class="progress-segment progress-segment--validated" id="validated-bar"></span>
         <span class="progress-segment progress-segment--done" id="done-bar"></span>
       </div>
@@ -43,6 +43,7 @@
         <span><i class="legend-dot legend-dot--pending"></i><strong id="pending-count">0</strong> pendentes</span>
       </div>
       <p class="progress-note" id="progress-note" aria-live="polite"></p>
+      <p class="progress-note" id="milestone-progress" aria-label="Progresso por marco"></p>
     </section>
 
     <section class="plan-content" aria-labelledby="tasks-title">
@@ -64,6 +65,17 @@
       </div>
       <p class="section-description">Os estados refletem o plano mantido no README: [ ] pendente, [x] feito e aguardando sua validação, [v] validado por você. Os itens validados ficam ocultos por padrão. As telas reais de gestão do Adm e o código de vínculo do Professor estão ligados ao banco e aguardam teste manual e validação.</p>
       <div class="phase-list" id="phase-list" aria-live="polite"></div>
+    </section>
+
+    <section class="progress-card" aria-labelledby="future-updates-title">
+      <div class="progress-heading">
+        <div>
+          <p class="eyebrow">FORA DO PLANO E DA BARRA</p>
+          <h2 id="future-updates-title">Atualizações futuras</h2>
+        </div>
+      </div>
+      <p class="progress-note" id="future-updates-description"></p>
+      <ul id="future-updates-list"></ul>
     </section>
 
     <footer class="footer">
