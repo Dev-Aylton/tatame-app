@@ -1,7 +1,10 @@
 "use strict";
 
-const APP_VERSION = "5.7";
+const isDemoMode = new URLSearchParams(window.location.search).get("demo") === "1";
+const APP_VERSION = "5.15";
+document.body.dataset.appMode = isDemoMode ? "demo" : "real";
 const CONSENT_TERM_VERSION = "rascunho-1";
+const realSignupNameSessionKey = "tatame-real-signup-name";
 const diagnosticEvents = [];
 let versionClicks = 0;
 
@@ -40,7 +43,10 @@ const navigationGroups = [
   {
     title: "Treino",
     roles: ["instructor"],
-    items: [["instructor-class", "Treino compartilhado", "▣"]]
+    items: [
+      ["instructor-class", "Treino compartilhado", "▣"],
+      ["instructor-students", "Alunos vinculados", "♧"]
+    ]
   },
   {
     title: "Início e atalhos",
@@ -91,6 +97,11 @@ const navigationGroups = [
     ]
   },
   {
+    title: "Alunos",
+    roles: ["adm"],
+    items: [["admin-students", "Alunos", "♧"]]
+  },
+  {
     title: "Comunicação",
     roles: ["student", "professor", "instructor"],
     items: [
@@ -115,7 +126,10 @@ const screenInfo = Object.fromEntries(
     group.items.map(([id, title]) => [id, { title, group: group.title }])
   )
 );
-screenInfo["real-account"] = { title: "Conta Google", group: "Conta" };
+screenInfo["real-account"] = { title: "Conta", group: "Conta" };
+screenInfo["create-account"] = { title: "Criar conta", group: "Acesso" };
+screenInfo["forgot-password"] = { title: "Esqueci a senha", group: "Acesso" };
+screenInfo["password-recovery"] = { title: "Definir nova senha", group: "Acesso" };
 const roleScreens = {
   adm: ["admin-home", "teacher-invites", "role-management", "academy", "user-settings", "privacy"],
   professor: ["teacher-home", "students", "student-detail", "student-create", "teacher-code", "role-management", "pix-import", "payment-review", "monthly-charges", "overdue", "quick-actions", "teacher-chat", "academy", "user-settings", "privacy"],
@@ -123,26 +137,28 @@ const roleScreens = {
   student: ["student-home", "student-link", "student-payments", "student-grades", "student-chat", "link-teacher", "academy", "user-settings", "privacy"],
   "student-unregistered": ["link-teacher"]
 };
-const demoProfiles = {
+const demoProfiles = isDemoMode ? {
   adm: { role: "adm", label: "Adm", name: "ADM FICTÍCIO", start: "admin-home" },
   professor: { role: "professor", label: "Professor", name: "PROFESSOR FICTÍCIO 01", start: "teacher-home", academyId: null },
   instructor: { role: "instructor", label: "Instrutor", name: "INSTRUTOR FICTÍCIO 01", start: "instructor-class", teacherAccount: "professor", academyId: null, grade: "Faixa azul · 1 grau", gradeHistory: ["Graduação fictícia preservada"] },
   student: { role: "student", label: "Aluno registrado", name: "ALUNO FICTÍCIO 01", start: "student-home", teacherAccount: null, academyId: null, grade: "Faixa azul · 2 graus", gradeHistory: ["Graduação fictícia preservada"] },
   "student-unregistered": { role: "student-unregistered", label: "Aluno sem registro", name: "ALUNO FICTÍCIO 04", start: "link-teacher", grade: "Faixa branca", gradeHistory: ["Histórico fictício preservado"] }
-};
+} : {};
 const deletedDemoAccounts = new Set();
-const demoAcademy = { id: "academia-ficticia-01", name: "Academia Fictícia", phone: "", email: "", photo: "initials" };
+const demoAcademy = isDemoMode
+  ? { id: "academia-ficticia-01", name: "Academia Fictícia", phone: "", email: "", photo: "initials" }
+  : { id: "", name: "", phone: "", email: "", photo: "initials" };
 const defaultProfessorSchedule = [
   ["Segunda e quarta", "19h às 20h30"],
   ["Terça e quinta", "6h30 às 8h"]
 ];
 const publishedAcademyGrades = new Set();
-const demoRoster = [
+const demoRoster = isDemoMode ? [
   { account: "student", name: "ALUNO FICTÍCIO 01", grade: "Faixa azul · 2 graus", teacherAccount: "professor" },
   { account: "instructor", name: "INSTRUTOR FICTÍCIO 01", grade: "Faixa azul · 1 grau", teacherAccount: "professor" },
   { account: null, name: "ALUNO FICTÍCIO 02", grade: "Faixa branca", teacherAccount: "professor" },
   { account: null, name: "ALUNO FICTÍCIO 03", grade: "Faixa roxa · 1 grau", teacherAccount: "professor", status: "locked" }
-];
+] : [];
 const photoProfiles = new Map();
 const replacedPhotoUrls = [];
 let onboardingAccount = null;
@@ -153,11 +169,12 @@ let photoEditorFile = null;
 const demoBelts = ["Branca", "Azul", "Roxa", "Marrom", "Preta", "Coral vermelha e preta", "Coral vermelha e branca", "Vermelha"];
 const demoGradeHistory = new Map();
 let selectedGradeStudent = null;
-const demoInviteRecipients = [
+const demoPrivateNotes = [];
+const demoInviteRecipients = isDemoMode ? [
   { id: "instructor", type: "instructor", name: demoProfiles.instructor.name },
   { id: "student-02", type: "student", name: demoRoster[2].name },
   { id: "student-03", type: "student", name: demoRoster[3].name }
-];
+ ] : [];
 const simulatedRoleHistory = [];
 const authorizedInstructorNames = new Set();
 const delegatedLessons = {};
@@ -174,6 +191,7 @@ const demoConversations = [];
 let selectedTeacherChatPartner = null;
 
 function loadDemoPayments() {
+  if (!isDemoMode) return;
   try {
     const stored = localStorage.getItem("tatame-demo-payments");
     if (!stored) return;
@@ -194,6 +212,8 @@ function loadDemoPayments() {
       typeof charge.professorAccount === "string" && validMonth(charge.month) &&
       typeof charge.dueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(charge.dueDate) &&
       charge.dueDate.startsWith(`${charge.month}-`) &&
+      (charge.sentOn === undefined || (typeof charge.sentOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(charge.sentOn))) &&
+      (charge.resentOn === undefined || (typeof charge.resentOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(charge.resentOn) && typeof charge.sentOn === "string")) &&
       ["aberta", "paga", "isenta", "cancelada"].includes(charge.status) &&
       ["none", "fixed", "percent", "exempt"].includes(charge.discountType) &&
       ["this-month", "months", "until-removed"].includes(charge.duration) &&
@@ -248,6 +268,7 @@ function loadDemoPayments() {
 }
 
 function saveDemoPayments() {
+  if (!isDemoMode) throw new Error("Os pagamentos fictícios só podem ser salvos na demonstração.");
   try {
     const receipts = receiptPayments.map(({ file, fileInput, ...payment }) => payment);
     localStorage.setItem("tatame-demo-payments", JSON.stringify({
@@ -265,6 +286,7 @@ function saveDemoPayments() {
 }
 
 function updateDemoPayments(update) {
+  if (!isDemoMode) throw new Error("Os pagamentos fictícios só podem ser alterados na demonstração.");
   const previousCash = cashPayments.map((payment) => ({ ...payment }));
   const previousReceipts = receiptPayments.map((payment) => ({ ...payment }));
   const previousCharges = monthlyCharges.map((charge) => ({ ...charge }));
@@ -286,6 +308,7 @@ function updateDemoPayments(update) {
 
 loadDemoPayments();
 function loadDemoInvites() {
+  if (!isDemoMode) return [];
   try {
     const stored = localStorage.getItem("tatame-demo-invites");
     const invites = stored ? JSON.parse(stored) : [];
@@ -328,6 +351,7 @@ const demoDataKeys = {
   roster: "tatame-demo-roster",
   links: "tatame-demo-links",
   grades: "tatame-demo-grades",
+  privateNotes: "tatame-demo-private-notes",
   invites: "tatame-demo-invites",
   academy: "tatame-demo-academy",
   deletedAccounts: "tatame-demo-deleted-accounts",
@@ -335,6 +359,7 @@ const demoDataKeys = {
 };
 
 function readDemoData(key, validate) {
+  if (!isDemoMode) return null;
   try {
     const stored = localStorage.getItem(key);
     if (stored === null) return null;
@@ -353,6 +378,7 @@ function readDemoData(key, validate) {
 }
 
 function writeDemoData(key, data) {
+  if (!isDemoMode) throw new Error("Os dados fictícios só podem ser salvos na demonstração.");
   try {
     localStorage.setItem(key, JSON.stringify({ version: DEMO_DATA_VERSION, data }));
   } catch (error) {
@@ -372,6 +398,7 @@ function saveDemoGradeHistory() {
     index: demoRoster.indexOf(student), name: student.name, account: student.account, entries
   })));
 }
+function saveDemoPrivateNotes() { writeDemoData(demoDataKeys.privateNotes, demoPrivateNotes); }
 
 const isStringOrNull = (value) => value === null || typeof value === "string";
 const storedAcademy = readDemoData(demoDataKeys.academy, (value) =>
@@ -420,10 +447,21 @@ deletedDemoAccounts.forEach((account) => {
   student.name = "Conta excluída";
   student.account = null;
 });
-simulatedRoleHistory.push(
-  `${demoRoster[3].name}: aluno registrado → instrutor · histórico mantido.`,
-  "INSTRUTOR FICTÍCIO 03: instrutor → professor · histórico mantido."
+const storedPrivateNotes = readDemoData(demoDataKeys.privateNotes, (value) =>
+  Array.isArray(value) && value.every((note) => note && typeof note.id === "string" &&
+    Number.isInteger(note.studentIndex) && note.studentIndex >= 0 &&
+    typeof note.studentName === "string" && isStringOrNull(note.studentAccount) &&
+    typeof note.professorAccount === "string" && typeof note.text === "string" &&
+    note.text.trim().length > 0 && note.text.length <= 500 &&
+    typeof note.createdAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(note.createdAt))
 );
+if (storedPrivateNotes) demoPrivateNotes.push(...storedPrivateNotes);
+if (isDemoMode) {
+  simulatedRoleHistory.push(
+    `${demoRoster[3].name}: aluno registrado → instrutor · histórico mantido.`,
+    "INSTRUTOR FICTÍCIO 03: instrutor → professor · histórico mantido."
+  );
+}
 
 const storedLinks = readDemoData(demoDataKeys.links, (value) =>
   Array.isArray(value) && value.every((request) => request && typeof request.id === "string" &&
@@ -470,12 +508,14 @@ if (storedConversations) {
 }
 
 function updateDemoData(update, saves) {
+  if (!isDemoMode) throw new Error("Os dados fictícios só podem ser alterados na demonstração.");
   const previous = {
     profiles: structuredClone(demoProfiles),
     roster: structuredClone(demoRoster),
     links: structuredClone(linkRequests),
     invites: structuredClone(demoInvites),
     grades: Array.from(demoGradeHistory, ([student, entries]) => [demoRoster.indexOf(student), structuredClone(entries)]),
+    privateNotes: structuredClone(demoPrivateNotes),
     selectedIndex: demoRoster.indexOf(selectedGradeStudent),
     authorized: Array.from(authorizedInstructorNames)
   };
@@ -492,6 +532,7 @@ function updateDemoData(update, saves) {
     demoInvites.splice(0, demoInvites.length, ...previous.invites);
     demoGradeHistory.clear();
     previous.grades.forEach(([index, entries]) => demoGradeHistory.set(demoRoster[index], entries));
+    demoPrivateNotes.splice(0, demoPrivateNotes.length, ...previous.privateNotes);
     selectedGradeStudent = previous.selectedIndex < 0 ? null : demoRoster[previous.selectedIndex];
     authorizedInstructorNames.clear();
     previous.authorized.forEach((name) => authorizedInstructorNames.add(name));
@@ -510,6 +551,7 @@ function updateDemoData(update, saves) {
 }
 
 function updateDemoConversations(update) {
+  if (!isDemoMode) throw new Error("As conversas fictícias só podem ser alteradas na demonstração.");
   const previous = structuredClone(demoConversations);
   update();
   try {
@@ -521,6 +563,7 @@ function updateDemoConversations(update) {
 }
 
 function deleteDemoAccountData(account) {
+  if (!isDemoMode) return { errorMessage: "A exclusão demonstrativa só está disponível no modo demonstração." };
   const profile = demoProfiles[account];
   if (!profile || activeDemoAccount !== account || deletedDemoAccounts.has(account)) {
     return { errorMessage: "Esta conta demonstrativa não está disponível. Atualize a tela e tente novamente." };
@@ -529,7 +572,7 @@ function deleteDemoAccountData(account) {
   const associatedRecipientId = account.startsWith("pre-registered-")
     ? account.slice("pre-registered-".length)
     : account;
-  const storageKeys = [...Object.values(demoDataKeys), "tatame-demo-payments"];
+  const storageKeys = [...Object.values(demoDataKeys), "tatame-demo-payments", professorConsentStorageKey(account)];
   const previousStorage = new Map();
   try {
     storageKeys.forEach((key) => previousStorage.set(key, localStorage.getItem(key)));
@@ -720,9 +763,9 @@ const tutorialStepsByRole = {
     ["teacher-code", "Código e convites", "Na conta real, o Professor ativo vinculado à academia vê e decide pedidos de vínculo, cadastra alunos sem conta e gera links únicos para Instrutores adultos; também pode revogar convites pendentes. A demonstração continua simulada."],
     ["role-management", "Papéis e aula delegada", "Promova somente seus alunos a Instrutor, autorize-o e decida se compartilha o plano ou deixa o treino livre. O Instrutor é um aluno com função de apoio: vê nome e graduação da turma, nunca pagamentos alheios, notas privadas ou conversas de terceiros; você decide o conteúdo."],
     ["pix-import", "Importar extrato Pix", "Importe um extrato para sugerir correspondências. Nada é pago ou confirmado automaticamente."],
-    ["payment-review", "Pagamentos a confirmar", "Confira avisos ou lance dinheiro recebido: busque o aluno da turma, informe tipo e referência e confirme os dados. É possível desfazer por 10 segundos; depois, use Estornar. O histórico é preservado nesta simulação."],
-    ["monthly-charges", "Cobranças mensais", "Defina valor-base, vencimento, desconto ou isenção por aluno; gere até 24 cobranças por vez e ajuste a carência de 0 a 30 dias. Cancele somente cobranças abertas; se houver aviso pendente ou pagamento confirmado, rejeite ou estorne antes. O protótipo só controla pagamentos, sem gateway."],
-    ["overdue", "Atrasados", "Consulte atrasos calculados pelo vencimento e carência; o estado não é gravado. O link do WhatsApp continua manual, sem destinatário, texto preenchido ou envio automático."],
+    ["payment-review", "Pagamentos a confirmar", "Na conta real, confirme ou rejeite avisos do Aluno, lance dinheiro com tipo e referência e use Desfazer por até 120 segundos ou Estornar depois. Na demonstração, os registros fictícios ficam neste navegador."],
+    ["monthly-charges", "Cobranças mensais", "Defina valor-base, vencimento, desconto ou isenção e gere até 24 cobranças. Envie ou reenvie uma cobrança aberta ao aluno nesta demonstração e copie a mensagem se desejar. Na conta real, você também pode preparar e copiar uma mensagem local para aluno sem conta, sem salvar cobrança ou mensagem. O app não envia mensagens fora dele. Cancele somente cobranças abertas sem pagamentos ativos."],
+    ["overdue", "Atrasados", "Consulte atrasos calculados pelo vencimento e carência; o estado não é gravado."],
     ["quick-actions", "Ações rápidas", "Use os atalhos e limite lotes de mensalidades a 24 cobranças."],
     ["teacher-chat", "Conversas", "Converse somente com seus alunos e Instrutores vinculados. As mensagens fictícias ficam salvas neste navegador e são removidas ao excluir a conta demonstrativa."],
     ["academy", "Academia", "Se estiver vinculado, altere nome, telefone e e-mail fictícios e simule a troca da foto sem arquivo. Consulte equipe e horários; publique ou retorne sua grade para rascunho."],
@@ -733,9 +776,10 @@ const tutorialStepsByRole = {
   ],
   instructor: [
     ["student-home", "Início pessoal", "Consulte seu perfil e seus próprios avisos, separados das informações dos alunos da turma. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
-    ["student-payments", "Meus pagamentos", "Consulte somente o estado das suas cobranças. Valores de pagamentos não são exibidos para Instrutores; dados de outros alunos também permanecem ocultos."],
+    ["student-payments", "Meus pagamentos", "Cobranças e valores não são exibidos para Instrutores."],
     ["student-grades", "Minhas graduações", "Acompanhe sua própria faixa e seu histórico de graduações."],
     ["instructor-class", "Aula delegada", "Veja nome e graduação atual da turma e a aula que o Professor decidiu compartilhar, ou “Treino livre”. Registre “Segui” ou “Não segui”; pagamentos de outros alunos e notas privadas não aparecem."],
+    ["instructor-students", "Alunos vinculados", "Na conta real, a lista mostra somente nomes de alunos vinculados ao seu Professor quando a função de consulta estiver disponível."],
     ["instructor-chat", "Conversa com o Professor", "Converse somente com o Professor vinculado. As mensagens fictícias ficam salvas neste navegador e são removidas ao excluir a conta demonstrativa."],
     ["academy", "Academia", "Consulte o quadro e os horários publicados da academia."],
     ["user-settings", "Preferências", "Confira tema e opções demonstrativas da conta."],
@@ -745,7 +789,7 @@ const tutorialStepsByRole = {
   student: [
     ["student-home", "Início", "Consulte seu perfil, o status da mensalidade e atalhos pessoais. No celular, use a barra inferior ou o menu para navegar; abra a conta para tutorial e saída."],
     ["student-link", "Meu vínculo", "Na conta Google real, o Aluno ativo acompanha o estado do pedido de vínculo. Na demonstração, Professor, academia e pedidos continuam simulados."],
-    ["student-payments", "Meus pagamentos", "Consulte suas cobranças, envie comprovante ou informe um pagamento em dinheiro, que fica pendente até a confirmação do Professor."],
+    ["student-payments", "Meus pagamentos", "Na conta real, consulte cobranças enviadas e avise um pagamento com tipo e valor; nenhum arquivo de comprovante é enviado. Na demonstração, comprovantes e pagamentos são fictícios e aguardam confirmação do Professor."],
     ["student-grades", "Minhas graduações", "Acompanhe sua faixa e seu histórico de graduações."],
     ["student-chat", "Conversa com o Professor", "Envie mensagens somente ao seu Professor. As mensagens fictícias ficam salvas neste navegador e são removidas ao excluir a conta demonstrativa."],
     ["link-teacher", "Vincular a um Professor", "Na conta Google real do Aluno ativo, digite o código de seis caracteres para enviar o pedido e acompanhe se está pendente, aprovado ou recusado. Na demonstração, confira a prévia fictícia antes de pedir vínculo."],
@@ -786,6 +830,10 @@ let realUser = null;
 let realProfile = null;
 let realProfileState = "checking";
 let realProfileNotice = "";
+let realInstructorLink = null;
+let realInstructorLinkState = "idle";
+let realInstructorLinkNotice = "";
+let realInstructorLinkRequestSequence = 0;
 let realOnboardingHandledSessionUserId = null;
 let realOnboardingStage = null;
 let realOnboardingAge = null;
@@ -816,13 +864,60 @@ let realUnregisteredStudents = [];
 let realUnregisteredStudentsState = "idle";
 let realUnregisteredStudentsNotice = "";
 let realUnregisteredStudentsSequence = 0;
+let realBillingRules = [];
+let realBillingCharges = [];
+let realBillingPayments = [];
+let realBillingStudentNames = new Map();
+let realBillingStudentsState = "idle";
+let realBillingStudentsNotice = "";
+let realBillingStudentsRequestSequence = 0;
+let realBillingUnregisteredStudents = [];
+let realBillingUnregisteredStudentsState = "idle";
+let realBillingUnregisteredStudentsNotice = "";
+let realBillingUnregisteredStudentsRequestSequence = 0;
+let realInstructorStudents = [];
+let realInstructorStudentsState = "idle";
+let realInstructorStudentsNotice = "";
+let realInstructorStudentsRequestSequence = 0;
+let realBillingGraceDays = null;
+let realBillingState = "idle";
+let realBillingNotice = "";
+let realBillingRequestSequence = 0;
+let realBillingSelectedMonth = currentDemoMonth();
+let realStudentPayments = [];
+let realStudentCharges = [];
+let realStudentPaymentsState = "idle";
+let realStudentPaymentsNotice = "";
+let realStudentPaymentsRequestSequence = 0;
+let realProfessorPayments = [];
+let realProfessorCharges = [];
+let realProfessorPaymentsState = "idle";
+let realProfessorPaymentsNotice = "";
+let realProfessorPaymentsRequestSequence = 0;
+let realProfessorGraduationStudents = [];
+let realProfessorGraduations = [];
+let realProfessorGraduationsState = "idle";
+let realProfessorGraduationsNotice = "";
+let realProfessorGraduationsRequestSequence = 0;
+let realSelectedGraduationStudentId = "";
+let realStudentGraduations = [];
+let realStudentGraduationsState = "idle";
+let realStudentGraduationsNotice = "";
+let realStudentGraduationsRequestSequence = 0;
+let realPaymentUndoTimer = null;
 let realCreatedAcademyId = null;
 let realCreatedAcademy = null;
 let realAdminAcademies = [];
+let realAdminStudents = [];
+let realAdminStudentsState = "idle";
+let realAdminStudentsNotice = "";
+let realAdminStudentsRequestSequence = 0;
 let authClient = null;
 let authCheckSequence = 0;
 let loginNotice = "";
 let realSignoutInProgress = false;
+let realPasswordRecoveryPending = false;
+let realEmailAuthRequestInProgress = false;
 let currentScreen = "";
 
 const navigation = document.querySelector("#screen-navigation");
@@ -867,7 +962,9 @@ const navigationIconByScreen = {
   "student-create": "personAdd", "teacher-code": "link", "role-management": "shield",
   "pix-import": "upload", "payment-review": "payment", "monthly-charges": "payment", overdue: "clock",
   "quick-actions": "actions", "teacher-chat": "message", "instructor-class": "lesson",
+  "instructor-students": "people",
   "instructor-chat": "message", "admin-home": "home", "teacher-invites": "people",
+  "admin-students": "people",
   academy: "academy", "user-settings": "settings", privacy: "shield"
 };
 const mobileNavigationLabels = {
@@ -875,7 +972,8 @@ const mobileNavigationLabels = {
   "student-home": "Início", "student-link": "Vínculo", "student-payments": "Pagamentos",
   "student-grades": "Graduações", "teacher-home": "Início", students: "Alunos",
   "student-detail": "Ficha", "student-create": "Novo aluno", "teacher-code": "Código", "instructor-class": "Aula",
-  "admin-home": "Início", "teacher-invites": "Convites", "role-management": "Papéis",
+  "instructor-students": "Alunos",
+  "admin-home": "Início", "admin-students": "Alunos", "teacher-invites": "Convites", "role-management": "Papéis",
   academy: "Academia"
 };
 
@@ -886,12 +984,18 @@ function navigationIcon(id) {
 }
 
 function renderNavigation() {
+  const isRealStudentInstructor = isRealActiveStudent() && isRealActiveInstructor();
   const visibleGroups = isRealAdmSession()
     ? navigationGroups.filter((group) => group.roles.includes("adm"))
     : isRealProfessorProfile()
       ? navigationGroups.filter((group) => group.roles.includes("professor"))
+    : isRealStudentInstructor
+      ? navigationGroups.filter((group) =>
+        group.roles.includes("student") || group.roles.includes("student-unregistered") || group.roles.includes("instructor"))
     : isRealActiveStudent()
-      ? navigationGroups.filter((group) => group.roles.includes("student-unregistered"))
+      ? navigationGroups.filter((group) => group.roles.includes("student") || group.roles.includes("student-unregistered"))
+    : isRealActiveInstructor()
+      ? navigationGroups.filter((group) => group.roles.includes("instructor"))
     : activeRole
       ? navigationGroups.filter((group) => group.roles.includes(activeRole))
       : navigationGroups.filter((group) => group.roles.includes("public"));
@@ -900,7 +1004,7 @@ function renderNavigation() {
     items: group.items.filter(([id]) => canViewScreen(id))
   })).filter((group) => group.items.length > 0).map((group) => `
     <section class="nav-group" aria-label="${group.title}">
-      <h2 class="nav-group-title">${group.title}</h2>
+      <h2 class="nav-group-title">${isRealStudentInstructor && group.title === "Treino" ? "Instrutor" : group.title}</h2>
       ${group.items.map(([id, title]) => `
         <button class="nav-item" type="button" data-screen-target="${id}">
           <span class="nav-icon">${navigationIcon(id)}</span>
@@ -915,40 +1019,60 @@ function renderNavigation() {
 function renderMobileNavigation() {
   const mobileNavigation = document.querySelector("#mobile-navigation");
   if (!mobileNavigation) return;
+  const isRealStudentInstructor = isRealActiveStudent() && isRealActiveInstructor();
   const items = isRealAdmSession()
-    ? ["teacher-invites", "role-management", "academy"]
+    ? ["admin-students", "teacher-invites", "role-management", "academy"].filter(canViewScreen)
     : isRealProfessorProfile()
-      ? ["teacher-code"]
+      ? ["teacher-code", "student-detail", "payment-review", "monthly-charges"].filter(canViewScreen)
+      : isRealStudentInstructor
+        ? ["link-teacher", "student-payments", "student-grades", "instructor-students"].filter(canViewScreen)
       : isRealActiveStudent()
-        ? ["link-teacher"]
+        ? ["link-teacher", "student-payments", "student-grades"].filter(canViewScreen)
+      : isRealActiveInstructor()
+        ? ["instructor-students"].filter(canViewScreen)
       : activeRole
         ? (roleScreens[activeRole] || []).filter((id) => canViewScreen(id)).slice(0, 4)
-        : ["login", "register", "link-teacher"];
+        : ["login", "register", "link-teacher", "instructor-invite"].filter(canViewScreen);
   mobileNavigation.style.setProperty("--mobile-nav-items", items.length);
   mobileNavigation.innerHTML = items.map((id) => {
     const info = screenInfo[id] || { title: id, group: "" };
-    const label = mobileNavigationLabels[id] || info.title;
+    const label = id === "instructor-students" && isRealStudentInstructor
+      ? "Instrutor"
+      : mobileNavigationLabels[id] || info.title;
     return `<button type="button" data-screen-target="${id}" aria-label="${info.title}"><span class="mobile-nav-icon">${navigationIcon(id)}</span><span class="mobile-nav-label">${label}</span></button>`;
   }).join("");
   updateToastPosition();
 }
 
 function canViewScreen(id) {
-  if (id === "real-account") return Boolean(realUser) && !activeRole;
-  if (realUser && !activeRole) {
-    return (id === "link-teacher" ? isRealActiveStudent() : publicScreens.includes(id)) ||
-      (isRealAdmSession() && ["academy", "teacher-invites", "role-management"].includes(id)) ||
-      (isRealProfessorProfile() && id === "teacher-code");
-  }
-  if (activeRole === null) return publicScreens.includes(id);
-  if (id === "academy" && activeRole !== "adm" && !demoProfiles[activeDemoAccount].academyId) return false;
-  if (activeRole === "instructor") {
-    const profile = demoProfiles[activeDemoAccount];
-    if (!profile || !authorizedInstructorNames.has(profile.name)) {
-      return ["student-home", "student-payments", "student-grades", "instructor-class", "user-settings", "privacy"].includes(id);
+  if (isDemoMode) {
+    if (id === "real-account" || realUser) return false;
+    if (activeRole === null) return ["login", "register", "link-teacher", "no-access"].includes(id);
+    if (id === "academy" && activeRole !== "adm" && !demoProfiles[activeDemoAccount].academyId) return false;
+    if (activeRole === "instructor") {
+      const profile = demoProfiles[activeDemoAccount];
+      if (!profile || !authorizedInstructorNames.has(profile.name)) {
+        return ["student-home", "student-payments", "student-grades", "instructor-class", "user-settings", "privacy"].includes(id);
+      }
     }
+    return (roleScreens[activeRole] || []).includes(id);
   }
-  return (roleScreens[activeRole] || []).includes(id);
+  if (realPasswordRecoveryPending) return id === "password-recovery";
+  if (activeRole !== null) return false;
+  if (id === "real-account") return Boolean(realUser);
+  if (!realUser) {
+    return id === "login" ||
+      id === "create-account" ||
+      id === "forgot-password" ||
+      (id === "instructor-invite" && Boolean(realInstructorInviteToken));
+  }
+  return (id === "link-teacher" && isRealActiveStudent()) ||
+    ["no-access", "instructor-invite"].includes(id) ||
+    (isRealAdmSession() && ["academy", "teacher-invites", "role-management", "admin-students"].includes(id)) ||
+    (isRealProfessorProfile() && id === "teacher-code") ||
+    (isRealActiveProfessor() && ["monthly-charges", "payment-review", "student-detail"].includes(id)) ||
+    (isRealActiveStudent() && ["student-payments", "student-grades"].includes(id)) ||
+    (isRealActiveInstructor() && id === "instructor-students");
 }
 
 function updatePhotoProfile(key, changes) {
@@ -983,12 +1107,15 @@ function profilePhotoIsVisible(key) {
 function updateProfileAvatars(account, role) {
   const profile = getPhotoProfile(account);
   const photo = profilePhotoIsVisible(account) ? profile.photo : null;
+  const avatarImage = demoAvatarImage(account);
   const defaultIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>';
   ["#profile-button-avatar", "#user-panel-avatar"].forEach((selector) => {
     const element = document.querySelector(selector);
     if (!element) return;
     if (!photo) {
-      element.innerHTML = defaultIcon;
+      element.innerHTML = avatarImage
+        ? `<img src="assets/avatars/${avatarImage}" alt="">`
+        : defaultIcon;
       return;
     }
     element.innerHTML = `<img src="${escapeHtml(photo.url)}" alt="" style="object-position:${photo.x}% ${photo.y}%;transform:scale(${photo.zoom})">`;
@@ -997,10 +1124,17 @@ function updateProfileAvatars(account, role) {
   if (panelRole && account && role) panelRole.textContent = demoProfiles[account].label;
 }
 
+function demoAvatarImage(account) {
+  const profile = demoProfiles[account];
+  return profile && ["avatar-masculino.jpg", "avatar-feminino.jpg"].includes(profile.avatarImage)
+    ? profile.avatarImage
+    : null;
+}
+
 function renderProfileOnboarding(stage) {
   const content = document.querySelector("#profile-onboarding-content");
   document.querySelector("#profile-onboarding .eyebrow").textContent = "PERFIL DE DEMONSTRAÇÃO";
-  document.querySelector("#profile-onboarding-title").textContent = "Foto e idade";
+  document.querySelector("#profile-onboarding-title").textContent = stage === "consent" ? "Consentimento" : "Foto e idade";
   const commonAction = (label, action) => `
     <div class="student-action-control">
       <button class="button button--primary button--action" type="button" ${action}><span data-action-label>${label}</span></button>
@@ -1040,10 +1174,26 @@ function renderProfileOnboarding(stage) {
 }
 
 function beginProfileOnboarding(account) {
+  if (!isDemoMode) return;
   onboardingAccount = account;
   const profile = getPhotoProfile(account);
+  const role = demoProfiles[account].role;
   const isUnregistered = account === "student-unregistered";
-  if (isUnregistered) renderProfileOnboarding("unregistered");
+  if (role === "adm") {
+    onboardingAccount = null;
+  } else if (role === "professor") {
+    try {
+      const consentChoice = localStorage.getItem(professorConsentStorageKey(account));
+      if (consentChoice === "accepted" || consentChoice === "declined") {
+        onboardingAccount = null;
+        return;
+      }
+    } catch (error) {
+      console.error("Não foi possível consultar o consentimento demonstrativo do Professor:", error);
+      showToast("Não foi possível consultar o consentimento salvo neste navegador.", "error");
+    }
+    renderProfileOnboarding("consent");
+  } else if (isUnregistered) renderProfileOnboarding("unregistered");
   else if (profile.onboardingComplete) maybeOpenFirstTutorial(account);
   else if (profile.age === "adult") renderProfileOnboarding("consent");
   else if (profile.age === "minor") {
@@ -1069,7 +1219,7 @@ function renderRealProfileOnboarding(stage) {
   if (stage === "age") {
     const ageCopy = isStudentProfileFlow
       ? "Informe seu nome e declare se tem 18 anos ou mais. Nome e idade ficam nesta sessão até você aceitar o termo."
-      : "Para continuar neste protótipo, declare se tem 18 anos ou mais. A resposta vale somente nesta sessão e não é enviada ao banco.";
+      : "Para continuar, declare se tem 18 anos ou mais. A resposta vale somente nesta sessão e não é enviada ao banco.";
     content.innerHTML = `
       <p id="profile-onboarding-copy" class="profile-onboarding-copy">${ageCopy}</p>
       ${isStudentProfileFlow ? `
@@ -1092,12 +1242,12 @@ function renderRealProfileOnboarding(stage) {
   } else {
     const role = realProfileState === "found" && realProfile ? realProfile.papel : null;
     const consentCopy = role === "professor"
-      ? "Este aviso é provisório e sujeito a revisão jurídica. Ao continuar, seu consentimento será registrado no banco, associado à versão deste termo e à data e hora do aceite. Finalidades, bases legais e retenção ainda precisam ser confirmadas. Consulte a página de privacidade antes de continuar."
+      ? "Rascunho feito sem revisão jurídica; não declara conformidade legal. Ao continuar, seu consentimento será registrado no banco, associado à versão deste termo e à data e hora do aceite. Finalidades, bases legais e retenção ainda precisam ser confirmadas. Consulte a página de privacidade antes de continuar."
       : isStudentProfileFlow
-        ? "Este aviso é provisório e sujeito a revisão jurídica. Ao aceitar, será criado seu perfil de Aluno e registrado o consentimento com o identificador do perfil, a versão deste termo e a data e hora do aceite. Finalidades, bases legais e retenção ainda precisam ser confirmadas. Consulte a página de privacidade antes de continuar."
+        ? "Rascunho feito sem revisão jurídica; não declara conformidade legal. Ao aceitar, será criado seu perfil de Aluno e registrado o consentimento com o identificador do perfil, a versão deste termo e a data e hora do aceite. Finalidades, bases legais e retenção ainda precisam ser confirmadas. Consulte a página de privacidade antes de continuar."
         : role === "aluno"
-          ? "Este aviso é provisório e sujeito a revisão jurídica. Para este perfil já existente, esta tela não registra uma nova resposta. Finalidades, bases legais e retenção ainda precisam ser confirmadas. Consulte a página de privacidade antes de continuar."
-        : "Este aviso é provisório e sujeito a revisão jurídica. Se você aceitar um convite de Instrutor, o registro ocorrerá após o convite ser consumido. Finalidades, bases legais e retenção ainda precisam ser confirmadas. Consulte a página de privacidade antes de continuar.";
+          ? "Rascunho feito sem revisão jurídica; não declara conformidade legal. Para este perfil já existente, esta tela não registra uma nova resposta. Finalidades, bases legais e retenção ainda precisam ser confirmadas. Consulte a página de privacidade antes de continuar."
+        : "Rascunho feito sem revisão jurídica; não declara conformidade legal. Se você aceitar um convite de Instrutor, o registro ocorrerá após o convite ser consumido. Finalidades, bases legais e retenção ainda precisam ser confirmadas. Consulte a página de privacidade antes de continuar.";
     content.innerHTML = `
       <p id="profile-onboarding-copy" class="profile-onboarding-copy">${consentCopy}</p>
       <div class="profile-onboarding-actions">
@@ -1132,7 +1282,7 @@ function maybeOpenRealProfileOnboarding() {
   }
   realOnboardingHandledSessionUserId = realUser.id;
   realOnboardingAge = null;
-  realOnboardingName = "";
+  realOnboardingName = getPendingRealSignupName();
   renderRealProfileOnboarding(role === "professor" ? "consent" : "age");
 }
 
@@ -1191,6 +1341,7 @@ async function createRealStudentProfileAndConsent(name, age) {
     realProfile = profile;
     realProfileState = "found";
     realProfileNotice = "";
+    clearPendingRealSignupName();
     renderNavigation();
     return data;
   } catch {
@@ -1216,14 +1367,17 @@ function finishProfileOnboarding() {
   if (account) updateProfileAvatars(account, activeRole);
   if (openedFromSettings) {
     if (activeDemoAccount === account && currentScreen === "user-settings") renderScreen("user-settings");
-  } else if (account) {
+  } else if (account && demoProfiles[account].role !== "adm" && demoProfiles[account].role !== "professor") {
     if (currentScreen) renderScreen(currentScreen);
     maybeOpenFirstTutorial(account);
+  } else if (account && currentScreen) {
+    renderScreen(currentScreen);
   }
   revokeReplacedPhotoUrls();
 }
 
 function startDemoRole(account) {
+  if (!isDemoMode) return;
   const profile = demoProfiles[account];
   if (!profile) return;
   activeDemoAccount = account;
@@ -1323,7 +1477,8 @@ function avatar(image = "avatar-masculino.jpg", alt = "Avatar genérico de demon
   const photoIsVisible = !(activeRole === "adm" && personKind === "student") &&
     profile.age === "adult" && profile.photo &&
     (profile.photo.kind !== "google" || profile.googleConsent);
-  const source = photoIsVisible ? profile.photo.url : `assets/avatars/${image}`;
+  const avatarImage = demoAvatarImage(photoKey);
+  const source = photoIsVisible ? profile.photo.url : `assets/avatars/${avatarImage || image}`;
   const photoStyle = photoIsVisible
     ? ` style="object-position:${profile.photo.x}% ${profile.photo.y}%;transform:scale(${profile.photo.zoom})"`
     : "";
@@ -1355,16 +1510,28 @@ function studentAcademyDetails(account, student = null) {
 
 function profilePhotoCard(account, role) {
   const photoProfile = getPhotoProfile(account);
+  const defaultAvatar = role === "instructor" ? "avatar-feminino.jpg" : "avatar-masculino.jpg";
+  const selectedAvatar = demoAvatarImage(account) || defaultAvatar;
   const photoDescription = photoProfile.photo
     ? photoProfile.photo.kind === "google" ? "Foto Google simulada, sem imagem externa." : "Foto própria temporária, somente nesta sessão."
     : "Avatar de demonstração.";
   return panel("Foto e idade", `
     <div class="profile-photo-card">
-      ${avatar(role === "instructor" ? "avatar-feminino.jpg" : "avatar-masculino.jpg", "Avatar do perfil", account, "self", "avatar--large")}
+      ${avatar(defaultAvatar, "Avatar do perfil", account, "self", "avatar--large")}
       <div class="profile-photo-copy">
         <strong>${photoProfile.age === "adult" ? "Declaração: 18 anos ou mais" : photoProfile.age === "minor" ? "Declaração: menor de 18 anos" : "Idade ainda não informada"}</strong>
         <small>${photoDescription}</small>
       </div>
+    </div>
+    <div class="field profile-avatar-choice">
+      <label for="profile-avatar-choice">Escolha do avatar</label>
+      <select id="profile-avatar-choice" data-demo-avatar-choice aria-describedby="profile-avatar-choice-help profile-avatar-choice-error profile-avatar-choice-status">
+        <option value="avatar-masculino.jpg" ${selectedAvatar === "avatar-masculino.jpg" ? "selected" : ""}>Masculino</option>
+        <option value="avatar-feminino.jpg" ${selectedAvatar === "avatar-feminino.jpg" ? "selected" : ""}>Feminino</option>
+      </select>
+      <small class="field-help" id="profile-avatar-choice-help">É somente a escolha de uma imagem; menores continuam usando apenas avatar.</small>
+      <p class="login-action-error" id="profile-avatar-choice-error" role="alert"></p>
+      <p class="field-help" id="profile-avatar-choice-status" role="status" aria-live="polite"></p>
     </div>
     ${photoProfile.age === "adult" ? `
       <div class="profile-photo-actions">
@@ -1466,13 +1633,27 @@ function listRow(title, detail, value = "", badge = "") {
 
 function studentEntry(name, detail, image, status, rosterIndex = demoRoster.findIndex((student) => student.name === name && student.teacherAccount === activeDemoAccount)) {
   const student = demoRoster[rosterIndex] || null;
+  const filterStatus = student && student.status === "locked" ? "locked" : student && student.account ? "active" : "no-access";
   return `
-    <div class="student-entry">
+    <div class="student-entry" data-student-entry data-student-name="${escapeHtml(name.toLocaleLowerCase("pt-BR"))}" data-student-status="${filterStatus}">
       ${personRow(escapeHtml(name), "Perfil fictício", image, `<span class="badge ${status}">${detail}</span>`, student, "student")}
       <span class="student-entry-note">Mensalidade e vencimento: —</span>
       <button class="button button--small button--quiet" type="button" data-screen-target="student-detail" data-roster-index="${rosterIndex}"><span>Abrir ficha</span></button>
     </div>
   `;
+}
+
+function filterDemoStudentEntries() {
+  const search = screenContent.querySelector("[data-student-search]");
+  const selectedFilter = screenContent.querySelector('[data-student-filter][aria-pressed="true"]');
+  if (!search || !selectedFilter) return;
+  const query = search.value.trim().toLocaleLowerCase("pt-BR");
+  const status = selectedFilter.dataset.studentFilter;
+  screenContent.querySelectorAll("[data-student-entry]").forEach((entry) => {
+    const matchesName = entry.dataset.studentName.includes(query);
+    const matchesStatus = status === "all" || entry.dataset.studentStatus === status;
+    entry.hidden = !matchesName || !matchesStatus;
+  });
 }
 
 function gradeBeltIndex(grade) {
@@ -1549,6 +1730,57 @@ function escapeHtml(value) {
 
 function currentLinkRequest() {
   return linkRequests.find((request) => request.account === activeDemoAccount && request.status === "pending");
+}
+
+function privateNotesForStudent(student) {
+  const studentIndex = demoRoster.indexOf(student);
+  return demoPrivateNotes
+    .filter((note) => note.professorAccount === activeDemoAccount &&
+      note.studentIndex === studentIndex && note.studentName === student.name &&
+      note.studentAccount === student.account)
+    .sort((first, second) => second.createdAt.localeCompare(first.createdAt) || second.id.localeCompare(first.id));
+}
+
+function renderDemoPrivateNotes(student) {
+  const notes = student ? privateNotesForStudent(student) : [];
+  return `
+    <div class="private-notes">
+      <p class="notice notice--info">Só o Professor responsável vê estas notas. Elas ficam salvas apenas nesta demonstração, neste navegador.</p>
+      ${student ? `
+        <form class="private-note-form" data-demo-private-note-form novalidate>
+          <div class="field">
+            <label for="demo-private-note">Nova nota privada</label>
+            <textarea id="demo-private-note" data-private-note-input maxlength="500" aria-describedby="demo-private-note-counter"></textarea>
+            <small class="field-help private-note-counter" id="demo-private-note-counter" data-private-note-counter aria-live="polite">0/500 caracteres</small>
+          </div>
+          <div class="student-action-control">
+            <button class="button button--primary button--action" type="submit" data-save-demo-private-note aria-describedby="demo-private-note-error demo-private-note-status">
+              <span data-action-label>Salvar nota</span>
+            </button>
+            <p class="login-action-error student-action-error" id="demo-private-note-error" data-private-note-error role="alert"></p>
+            <p class="field-help" id="demo-private-note-status" data-private-note-status role="status" aria-live="polite"></p>
+          </div>
+        </form>
+        ${notes.length
+          ? `<ol class="private-note-list" aria-label="Notas privadas salvas">${notes.map((note) => `
+            <li class="private-note-entry">
+              <div>
+                <time datetime="${escapeHtml(note.createdAt)}">${escapeHtml(formatDemoDate(note.createdAt))}</time>
+                <p class="private-note-text">${escapeHtml(note.text)}</p>
+              </div>
+              <div class="student-action-control private-note-actions">
+                <button class="button button--quiet button--action" type="button" data-delete-private-note="${escapeHtml(note.id)}" aria-describedby="private-note-error-${escapeHtml(note.id)} private-note-status-${escapeHtml(note.id)}">
+                  <span data-action-label>Excluir</span>
+                </button>
+                <p class="login-action-error student-action-error" id="private-note-error-${escapeHtml(note.id)}" data-private-note-error role="alert"></p>
+                <p class="field-help" id="private-note-status-${escapeHtml(note.id)}" data-private-note-status role="status" aria-live="polite"></p>
+              </div>
+            </li>
+          `).join("")}</ol>`
+          : '<div class="empty-state"><div><strong>Nenhuma nota salva</strong><p>As notas adicionadas para este aluno aparecerão aqui.</p></div></div>'}
+      ` : '<div class="empty-state"><div><strong>Nenhum aluno da turma</strong><p>Selecione um aluno vinculado para registrar uma nota.</p></div></div>'}
+    </div>
+  `;
 }
 
 function formatDemoDate(value) {
@@ -1667,6 +1899,7 @@ function renderDemoInvites() {
 }
 
 function saveDemoInvites() {
+  if (!isDemoMode) throw new Error("Os convites fictícios só podem ser salvos na demonstração.");
   localStorage.setItem("tatame-demo-invites", JSON.stringify(demoInvites));
 }
 
@@ -1872,6 +2105,14 @@ function monthlyChargeIsLate(charge, today = demoTodayIsoDate()) {
     today > addDemoDays(charge.dueDate, billingGraceDaysFor(charge.professorAccount));
 }
 
+function studentCanSeeCharge(charge, account) {
+  return charge.studentAccount === account && Boolean(charge.sentOn) && charge.status !== "cancelada";
+}
+
+function monthlyChargeMessage(charge) {
+  return `Olá, ${charge.studentName}! Sua mensalidade é ${formatDemoCents(charge.finalAmountCents)}, com vencimento em ${formatDemoDate(charge.dueDate)}.`;
+}
+
 function studentBillingKey(student) {
   return String(demoRoster.indexOf(student));
 }
@@ -1999,7 +2240,20 @@ function renderMonthlyChargeRow(charge, canCancel = false) {
           ? `<p class="field-help">Motivo informado: ${escapeHtml(charge.exemptionReason)}</p>`
           : ""}
       </div>
+      ${canCancel && charge.sentOn ? `<p class="field-help">Enviada em ${escapeHtml(formatDemoDate(charge.sentOn))}${charge.resentOn ? ` · Reenviada em ${escapeHtml(formatDemoDate(charge.resentOn))}` : ""}</p>` : ""}
       ${canCancel && charge.status === "aberta" ? `
+        <p class="field-help">${escapeHtml(monthlyChargeMessage(charge))}</p>
+        <div class="student-action-control monthly-charge-actions">
+          <button class="button button--primary button--action" type="button" data-send-monthly-charge="${escapeHtml(charge.id)}"${charge.studentAccount ? "" : ` disabled aria-describedby="send-charge-disabled-${escapeHtml(charge.id)}"`}><span data-action-label>${charge.sentOn ? "Reenviar ao aluno" : "Enviar ao aluno"}</span></button>
+          <p class="login-action-error student-action-error" role="alert" data-send-charge-error></p>
+          <p class="field-help" role="status" aria-live="polite" data-send-charge-status></p>
+          ${charge.studentAccount ? "" : `<p class="field-help" id="send-charge-disabled-${escapeHtml(charge.id)}">aluno sem conta no app</p>`}
+        </div>
+        <div class="student-action-control monthly-charge-actions">
+          <button class="button button--quiet button--action" type="button" data-copy-monthly-charge="${escapeHtml(charge.id)}"><span data-action-label>Copiar mensagem</span></button>
+          <p class="login-action-error student-action-error" role="alert" data-copy-charge-error></p>
+          <p class="field-help" role="status" aria-live="polite" data-copy-charge-status></p>
+        </div>
         <div class="student-action-control monthly-charge-actions">
           <button class="button button--danger button--action" type="button" data-cancel-monthly-charge="${escapeHtml(charge.id)}" aria-label="Cancelar cobrança de ${escapeHtml(charge.studentName)}">
             <span data-action-label>Cancelar cobrança</span>
@@ -2010,6 +2264,1128 @@ function renderMonthlyChargeRow(charge, canCancel = false) {
       ` : ""}
     </article>
   `;
+}
+
+function parseRealBillingCents(value) {
+  const match = /^(\d+)(?:[,.](\d{1,2}))?$/.exec(String(value).trim());
+  if (!match) return null;
+  const whole = Number(match[1]);
+  if (!Number.isSafeInteger(whole)) return null;
+  const cents = whole * 100 + Number((match[2] || "").padEnd(2, "0"));
+  return Number.isSafeInteger(cents) ? cents : null;
+}
+
+function realBillingIntegerCents(value) {
+  const text = String(value);
+  if (!/^\d+$/.test(text)) throw new TypeError("Valor de cobrança inválido.");
+  return BigInt(text);
+}
+
+function formatRealBillingCents(value) {
+  const cents = realBillingIntegerCents(value);
+  const whole = new Intl.NumberFormat("pt-BR").format(cents / 100n);
+  const fraction = String(cents % 100n).padStart(2, "0");
+  return `R$ ${whole},${fraction}`;
+}
+
+function realBillingCentsInput(value) {
+  const cents = realBillingIntegerCents(value);
+  return `${cents / 100n}.${String(cents % 100n).padStart(2, "0")}`;
+}
+
+function realBillingDate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value));
+  if (!match) return "Data indisponível";
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+function realBillingTimestamp(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Data indisponível"
+    : new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date);
+}
+
+function realBillingIsLate(charge) {
+  if (charge.status !== "aberta") return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(charge.vencimento);
+  if (!match) throw new TypeError("Vencimento de cobrança inválido.");
+  const due = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  due.setDate(due.getDate() + realBillingGraceDays);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today > due;
+}
+
+function renderRealBillingRuleRow(rule) {
+  const studentName = realBillingStudentNames.get(rule.aluno_id) || "Aluno sem nome";
+  const canEdit = realBillingStudentNames.has(rule.aluno_id);
+  const discount = rule.tipo_desconto === "valor_fixo"
+    ? formatRealBillingCents(rule.desconto_centavos)
+    : rule.tipo_desconto === "percentual"
+      ? `${rule.desconto_percentual}%`
+      : rule.tipo_desconto === "isencao" ? "Isenção" : "Sem desconto";
+  const duration = rule.duracao_tipo === "este_mes"
+    ? "Só este mês"
+    : rule.duracao_tipo === "n_meses" ? `${rule.duracao_meses} mês(es)` : "Até remover";
+  return `
+    <article class="monthly-charge-row" data-real-billing-rule="${escapeHtml(rule.id)}">
+      <div class="list-row">
+        <span class="row-copy"><strong>${escapeHtml(studentName)}</strong><small>Base ${formatRealBillingCents(rule.valor_base_centavos)} · vence dia ${escapeHtml(rule.dia_vencimento)}</small></span>
+        <span class="badge badge--pending">${escapeHtml(discount)}</span>
+      </div>
+      <p class="field-help">${escapeHtml(duration)} · início ${realBillingDate(rule.mes_inicio)}</p>
+      <div class="row-actions">
+        <button class="button button--small button--quiet" type="button" data-real-billing-edit-rule="${escapeHtml(rule.id)}"${canEdit ? "" : ` disabled aria-describedby="real-rule-student-unavailable-${escapeHtml(rule.id)}"`}>Editar</button>
+        <button class="button button--small button--danger button--action" type="button" data-real-billing-remove-rule="${escapeHtml(rule.id)}" aria-describedby="real-rule-error-${escapeHtml(rule.id)} real-rule-status-${escapeHtml(rule.id)}"><span data-action-label>Remover regra</span></button>
+      </div>
+      ${canEdit ? "" : `<p class="field-help" id="real-rule-student-unavailable-${escapeHtml(rule.id)}">Edição indisponível: aluno sem vínculo ativo.</p>`}
+      <p class="login-action-error student-action-error" id="real-rule-error-${escapeHtml(rule.id)}" role="alert"></p>
+      <p class="field-help" id="real-rule-status-${escapeHtml(rule.id)}" role="status" aria-live="polite"></p>
+    </article>
+  `;
+}
+
+function renderRealMonthlyChargeRow(charge) {
+  const studentName = realBillingStudentNames.get(charge.aluno_id) || "Aluno sem nome";
+  const late = realBillingIsLate(charge);
+  const statusLabel = charge.status === "paga"
+    ? "PAGA"
+    : charge.status === "isenta"
+      ? "ISENTA"
+      : charge.status === "cancelada"
+        ? "CANCELADA"
+        : late ? "ATRASADA" : "EM ABERTO";
+  const statusClass = charge.status === "paga" ? "badge--green"
+    : charge.status === "isenta" ? "badge--amber"
+      : charge.status === "cancelada" ? "badge--red"
+        : late ? "badge--red" : "badge--pending";
+  return `
+    <article class="monthly-charge-row" data-real-monthly-charge="${escapeHtml(charge.id)}">
+      <div class="list-row">
+        <span class="row-copy"><strong>${escapeHtml(studentName)}</strong><small>Vencimento: ${realBillingDate(charge.vencimento)}</small></span>
+        <span class="badge ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="monthly-charge-values">
+        ${listRow("Valor-base", "", formatRealBillingCents(charge.valor_base_centavos))}
+        ${listRow(charge.status === "isenta" ? "Isenção" : "Desconto", "", formatRealBillingCents(charge.desconto_centavos))}
+        ${listRow("Valor final", "", formatRealBillingCents(charge.valor_final_centavos))}
+        ${listRow("Confirmado", "", formatRealBillingCents(realPaymentTotalForCharge(charge.id, "confirmado", realBillingPayments)))}
+        ${listRow("Aguardando confirmação", "", formatRealBillingCents(realPaymentTotalForCharge(charge.id, "pendente", realBillingPayments)))}
+        ${listRow("Saldo", "", formatRealBillingCents(realBillingBalance(charge, realBillingPayments)))}
+      </div>
+      ${charge.enviada_em ? `<p class="field-help">Enviada em ${realBillingTimestamp(charge.enviada_em)}${charge.reenviada_em ? ` · Reenviada em ${realBillingTimestamp(charge.reenviada_em)}` : ""}</p>` : ""}
+      ${charge.status === "aberta" ? `
+        <div class="student-action-control monthly-charge-actions">
+          <button class="button button--primary button--action" type="button" data-real-billing-send="${escapeHtml(charge.id)}" aria-describedby="real-send-error-${escapeHtml(charge.id)} real-send-status-${escapeHtml(charge.id)}"><span data-action-label>${charge.enviada_em ? "Reenviar ao aluno" : "Enviar ao aluno"}</span></button>
+          <p class="login-action-error student-action-error" id="real-send-error-${escapeHtml(charge.id)}" role="alert"></p>
+          <p class="field-help" id="real-send-status-${escapeHtml(charge.id)}" role="status" aria-live="polite"></p>
+        </div>
+        <div class="student-action-control monthly-charge-actions">
+          <button class="button button--danger button--action" type="button" data-real-billing-cancel="${escapeHtml(charge.id)}" aria-describedby="real-cancel-error-${escapeHtml(charge.id)} real-cancel-status-${escapeHtml(charge.id)}"><span data-action-label>Cancelar cobrança</span></button>
+          <p class="login-action-error student-action-error" id="real-cancel-error-${escapeHtml(charge.id)}" role="alert"></p>
+          <p class="field-help" id="real-cancel-status-${escapeHtml(charge.id)}" role="status" aria-live="polite"></p>
+        </div>
+      ` : ""}
+    </article>
+  `;
+}
+
+function realPaymentTotalForCharge(chargeId, status, payments) {
+  return payments
+    .filter((payment) => payment.cobranca_id === chargeId && payment.status === status)
+    .reduce((total, payment) => total + realBillingIntegerCents(payment.valor_centavos), 0n);
+}
+
+function realBillingBalance(charge, payments) {
+  return realBillingIntegerCents(charge.valor_final_centavos) -
+    realPaymentTotalForCharge(charge.id, "confirmado", payments);
+}
+
+function realBillingSummary() {
+  const sum = (charges, predicate, field = "valor_final_centavos") => charges
+    .filter(predicate)
+    .reduce((total, charge) => total + realBillingIntegerCents(charge[field]), 0n);
+  const balanceSum = (predicate) => realBillingCharges
+    .filter(predicate)
+    .reduce((total, charge) => total + realBillingBalance(charge, realBillingPayments), 0n);
+  return {
+    expected: sum(realBillingCharges, (charge) => charge.status !== "cancelada"),
+    confirmed: realBillingPayments
+      .filter((payment) => payment.status === "confirmado")
+      .reduce((total, payment) => total + realBillingIntegerCents(payment.valor_centavos), 0n),
+    pending: realBillingPayments
+      .filter((payment) => payment.status === "pendente")
+      .reduce((total, payment) => total + realBillingIntegerCents(payment.valor_centavos), 0n),
+    open: balanceSum((charge) => charge.status === "aberta" && !realBillingIsLate(charge)),
+    late: balanceSum((charge) => charge.status === "aberta" && realBillingIsLate(charge)),
+    exempt: sum(realBillingCharges, (charge) => charge.status === "isenta", "valor_base_centavos"),
+    exemptCount: realBillingCharges.filter((charge) => charge.status === "isenta").length
+  };
+}
+
+function renderRealBillingUnregisteredStudentsPanel() {
+  const unregisteredOptions = realBillingUnregisteredStudents.map((student) =>
+    `<option value="${escapeHtml(student.id)}">${escapeHtml(student.nome)}</option>`
+  ).join("");
+  const content = realBillingUnregisteredStudentsState === "checking"
+    ? '<p class="field-help" role="status" aria-live="polite">Carregando alunos sem conta...</p>'
+    : realBillingUnregisteredStudentsState === "error"
+      ? `<p class="login-action-error" role="alert">${escapeHtml(realBillingUnregisteredStudentsNotice)}</p>`
+      : unregisteredOptions
+        ? `
+          <form data-real-unregistered-message-form novalidate>
+            <div class="form-grid">
+              <div class="field"><label for="real-unregistered-student">Aluno sem conta no app</label><select id="real-unregistered-student" required>
+                <option value="" disabled selected>Selecione um aluno</option>${unregisteredOptions}
+              </select></div>
+              <div class="field"><label for="real-unregistered-amount">Valor (R$)</label><input id="real-unregistered-amount" type="text" inputmode="decimal" required></div>
+              <div class="field"><label for="real-unregistered-due-date">Vencimento</label><input id="real-unregistered-due-date" type="date" required></div>
+            </div>
+            <div class="student-action-control">
+              <button class="button button--quiet button--action" type="submit" data-real-unregistered-copy aria-describedby="real-unregistered-copy-error real-unregistered-copy-status"><span data-action-label>Copiar mensagem</span></button>
+              <p class="login-action-error student-action-error" id="real-unregistered-copy-error" role="alert"></p>
+              <p class="field-help" id="real-unregistered-copy-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        `
+        : emptyState("Nenhum aluno sem conta cadastrado", "Cadastre um aluno sem conta para preparar uma mensagem.");
+  return panel("Copiar mensagem para aluno sem conta", `
+    <p class="field-help">Esta cobrança não é salva no app.</p>
+    ${content}
+  `);
+}
+
+function renderRealBillingScreen() {
+  const ready = realBillingState === "found" && realBillingStudentsState === "found";
+  const loading = realBillingState === "checking" || realBillingStudentsState === "checking";
+  const disabled = ready ? "" : " disabled";
+  const ruleSubmitDisabled = !ready || realBillingStudentNames.size === 0;
+  const summary = ready ? realBillingSummary() : null;
+  const studentOptions = Array.from(realBillingStudentNames, ([studentId, studentName]) =>
+    `<option value="${escapeHtml(studentId)}">${escapeHtml(studentName)}</option>`
+  ).join("");
+  const ruleRows = ready && realBillingRules.length
+    ? realBillingRules.map(renderRealBillingRuleRow).join("")
+    : ready ? emptyState("Nenhuma regra ativa", "Configure uma regra para um aluno vinculado.")
+      : loading
+        ? '<p class="field-help" role="status" aria-live="polite">Consultando cobranças e alunos vinculados...</p>'
+        : "";
+  const chargeRows = ready && realBillingCharges.length
+    ? realBillingCharges.map(renderRealMonthlyChargeRow).join("")
+    : ready ? emptyState("Nenhuma cobrança neste mês", "Salve as regras e gere as cobranças do mês.")
+      : loading
+        ? '<p class="field-help" role="status" aria-live="polite">Consultando cobranças e alunos vinculados...</p>'
+        : "";
+  return `
+    ${heading("VISÃO DO PROFESSOR", "Cobranças mensais", "Configure regras, gere cobranças e acompanhe o mês na sua conta real.")}
+    <div class="notice notice--info">O app só controla pagamentos; não há gateway nem envio de mensagens fora do app. Alunos sem conta não entram nas cobranças do banco real; a mensagem copiada no painel não salva cobrança ou texto.</div>
+    ${realBillingNotice ? `<p class="login-action-error" role="alert">${escapeHtml(realBillingNotice)}</p>` : ""}
+    ${realBillingStudentsNotice ? `<p class="login-action-error" role="alert">${escapeHtml(realBillingStudentsNotice)}</p>` : ""}
+    ${summary ? `
+      <div class="summary-grid">
+        ${metric("PREVISTO", formatRealBillingCents(summary.expected), "Cobranças do mês, sem canceladas", "gold")}
+        ${metric("CONFIRMADO", formatRealBillingCents(summary.confirmed), "Pagamentos confirmados", "green")}
+        ${metric("AGUARDANDO CONFIRMAÇÃO", formatRealBillingCents(summary.pending), "Avisos de pagamento pendentes", "amber")}
+        ${metric("EM ABERTO", formatRealBillingCents(summary.open), "Saldo dentro do prazo", "gold")}
+        ${metric("ATRASADO", formatRealBillingCents(summary.late), "Saldo após vencimento e carência", "red")}
+        ${metric("ISENTO", formatRealBillingCents(summary.exempt), `${summary.exemptCount} cobrança(s) isenta(s)`, "amber")}
+      </div>
+      <p class="field-help">Saldo calculado pelo valor final menos pagamentos confirmados. O atraso é calculado no app.</p>
+    ` : ""}
+    <div class="content-grid">
+      <div class="stack">
+        ${panel("Carência", `
+          <form data-real-billing-grace-form novalidate>
+            <div class="form-grid">
+              <div class="field"><label for="real-billing-grace-days">Dias após vencimento (0 a 30)</label><input id="real-billing-grace-days" type="number" min="0" max="30" step="1" value="${ready ? escapeHtml(realBillingGraceDays) : ""}" required${disabled}></div>
+            </div>
+            <div class="student-action-control">
+              <button class="button button--primary button--action" type="submit" data-real-billing-save-grace aria-describedby="real-billing-grace-error real-billing-grace-status"${disabled}><span data-action-label>Salvar carência</span></button>
+              <p class="login-action-error student-action-error" id="real-billing-grace-error" role="alert"></p>
+              <p class="field-help" id="real-billing-grace-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        `)}
+        ${panel("Regra de cobrança", `
+          <form data-real-billing-rule-form novalidate>
+            <div class="form-grid">
+              <div class="field"><label for="real-billing-student-id">Aluno vinculado</label><select id="real-billing-student-id" required${disabled}>
+                ${studentOptions ? `<option value="" disabled selected>Selecione um aluno</option>${studentOptions}` : '<option value="" disabled selected>Nenhum aluno vinculado ainda</option>'}
+              </select></div>
+              <div class="field"><label for="real-billing-start-month">Início da regra</label><input id="real-billing-start-month" type="month" value="${escapeHtml(realBillingSelectedMonth)}" required${disabled}></div>
+              <div class="field"><label for="real-billing-base">Valor-base (R$)</label><input id="real-billing-base" type="text" inputmode="decimal" required${disabled}></div>
+              <div class="field"><label for="real-billing-due-day">Dia de vencimento (1 a 28)</label><input id="real-billing-due-day" type="number" min="1" max="28" step="1" required${disabled}></div>
+              <div class="field"><label for="real-billing-discount-type">Desconto ou isenção</label><select id="real-billing-discount-type" required${disabled}>
+                <option value="nenhum">Sem desconto</option>
+                <option value="valor_fixo">Desconto em R$</option>
+                <option value="percentual">Desconto em %</option>
+                <option value="isencao">Isenção</option>
+              </select></div>
+              <div class="field"><label for="real-billing-discount-value">Desconto em R$</label><input id="real-billing-discount-value" type="text" inputmode="decimal"${disabled}></div>
+              <div class="field"><label for="real-billing-discount-percent">Desconto em %</label><input id="real-billing-discount-percent" type="text" inputmode="decimal"${disabled}></div>
+              <div class="field"><label for="real-billing-duration">Duração</label><select id="real-billing-duration" required${disabled}>
+                <option value="este_mes">Só este mês</option>
+                <option value="n_meses">N meses</option>
+                <option value="ate_remover">Até remover</option>
+              </select></div>
+              <div class="field"><label for="real-billing-duration-months">Número de meses</label><input id="real-billing-duration-months" type="number" min="1" step="1"${disabled}></div>
+            </div>
+            <div class="field"><label for="real-billing-reason">Motivo opcional da isenção</label><textarea id="real-billing-reason" maxlength="400"${disabled}></textarea></div>
+            <div class="student-action-control">
+              <button class="button button--primary button--action" type="submit" data-real-billing-save-rule aria-describedby="real-billing-rule-error real-billing-rule-status"${ruleSubmitDisabled ? " disabled" : ""}><span data-action-label>Salvar regra</span></button>
+              <p class="login-action-error student-action-error" id="real-billing-rule-error" role="alert"></p>
+              <p class="field-help" id="real-billing-rule-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        `)}
+        ${panel("Regras ativas", ruleRows)}
+      </div>
+      <div class="stack">
+        ${panel("Cobranças do mês", `
+          <div class="field"><label for="real-billing-month">Mês das cobranças</label><input id="real-billing-month" type="month" value="${escapeHtml(realBillingSelectedMonth)}" data-real-billing-month required${disabled}></div>
+          <div class="student-action-control">
+            <button class="button button--quiet button--action" type="button" data-real-billing-generate aria-describedby="real-billing-generate-error real-billing-generate-status"${disabled}><span data-action-label>Gerar cobranças do mês</span></button>
+            <p class="login-action-error student-action-error" id="real-billing-generate-error" role="alert"></p>
+            <p class="field-help" id="real-billing-generate-status" role="status" aria-live="polite"></p>
+          </div>
+          <div id="real-monthly-charge-list">${chargeRows}</div>
+        `)}
+        <div id="real-billing-unregistered-panel">${renderRealBillingUnregisteredStudentsPanel()}</div>
+      </div>
+    </div>
+  `;
+}
+
+function realBillingErrorMessage(error) {
+  if (!authClient || !realUser) return "Sua sessão real não está ativa. Entre novamente.";
+  if (navigator.onLine === false || error instanceof TypeError) return "Falha de rede. Verifique sua conexão e tente novamente.";
+  return "Não foi possível carregar cobranças e pagamentos. Confira sua permissão e tente novamente.";
+}
+
+function renderRealProfessorScreen(screenId) {
+  return screenId === "monthly-charges"
+    ? renderRealBillingScreen()
+    : renderRealProfessorPaymentsScreen();
+}
+
+async function loadRealInstructorStudents() {
+  const sequence = ++realInstructorStudentsRequestSequence;
+  const screenId = "instructor-students";
+  const userId = realUser && realUser.id;
+  if (!authClient || !userId || !isRealActiveInstructor()) {
+    realInstructorStudentsState = "error";
+    realInstructorStudentsNotice = "Esta lista ainda não está disponível.";
+  } else {
+    try {
+      const { data, error } = await authClient.rpc("listar_alunos_do_instrutor");
+      if (error) throw error;
+      if (!Array.isArray(data)) throw new TypeError("Lista indisponível.");
+      if (sequence !== realInstructorStudentsRequestSequence || currentScreen !== screenId) return;
+      realInstructorStudents = data
+        .map((student) => {
+          if (!student || typeof student.aluno_id !== "string" || typeof student.nome !== "string") {
+            throw new TypeError("Dados da lista indisponíveis.");
+          }
+          const hasNoGraduation = student.faixa === null && student.grau === null;
+          const hasGraduation = typeof student.faixa === "string" && student.faixa.trim().length > 0 &&
+            Number.isInteger(student.grau) && student.grau >= 0;
+          if (!hasNoGraduation && !hasGraduation) {
+            throw new TypeError("Graduação atual indisponível.");
+          }
+          return {
+            id: student.aluno_id,
+            nome: student.nome.trim(),
+            faixa: hasGraduation ? student.faixa.trim() : null,
+            grau: hasGraduation ? student.grau : null
+          };
+        })
+        .filter((student) => student.nome);
+      realInstructorStudentsState = "found";
+      realInstructorStudentsNotice = "";
+    } catch (error) {
+      if (sequence !== realInstructorStudentsRequestSequence || currentScreen !== screenId) return;
+      logRealProfileSupabaseError("consultar alunos vinculados do Instrutor", error);
+      realInstructorStudentsState = "error";
+      realInstructorStudentsNotice = "Esta lista ainda não está disponível.";
+    }
+  }
+  if (sequence === realInstructorStudentsRequestSequence && currentScreen === screenId) {
+    screenContent.innerHTML = screens[screenId]();
+  }
+}
+
+async function loadRealAdminStudents(renderScreen = true) {
+  const sequence = ++realAdminStudentsRequestSequence;
+  const screenId = "admin-students";
+  const userId = realUser && realUser.id;
+  realAdminStudents = [];
+  realAdminStudentsState = "checking";
+  realAdminStudentsNotice = "";
+  if (!authClient || !userId || !isRealAdmSession()) {
+    realAdminStudentsState = "error";
+    realAdminStudentsNotice = "Esta lista exige uma conta real de Adm ativa.";
+  } else {
+    try {
+      const { data, error } = await authClient.rpc("listar_alunos_para_adm");
+      if (error) throw error;
+      if (!Array.isArray(data)) throw new TypeError("Lista indisponível.");
+      if (sequence !== realAdminStudentsRequestSequence || currentScreen !== screenId || !isRealAdmSession()) return;
+      realAdminStudents = data
+        .map((student) => {
+          if (!student || typeof student.aluno_id !== "string" || typeof student.nome !== "string") {
+            throw new TypeError("Dados da lista indisponíveis.");
+          }
+          const hasNoGraduation = student.faixa === null && student.grau === null;
+          const hasGraduation = typeof student.faixa === "string" && student.faixa.trim().length > 0 &&
+            Number.isInteger(student.grau) && student.grau >= 0;
+          if (!hasNoGraduation && !hasGraduation) {
+            throw new TypeError("Graduação atual indisponível.");
+          }
+          return {
+            id: student.aluno_id,
+            nome: student.nome.trim(),
+            faixa: hasGraduation ? student.faixa.trim() : null,
+            grau: hasGraduation ? student.grau : null
+          };
+        })
+        .filter((student) => student.nome);
+      realAdminStudentsState = "found";
+      realAdminStudentsNotice = "";
+    } catch (error) {
+      if (sequence !== realAdminStudentsRequestSequence || currentScreen !== screenId || !isRealAdmSession()) return;
+      logRealProfileSupabaseError("consultar alunos atuais para Adm", error);
+      realAdminStudentsState = "error";
+      realAdminStudentsNotice = navigator.onLine === false
+        ? "Falha de rede ao carregar os alunos. Verifique a conexão e tente novamente."
+        : "Não foi possível carregar os alunos. Confira sua permissão e tente novamente.";
+    }
+  }
+  if (renderScreen && sequence === realAdminStudentsRequestSequence && currentScreen === screenId) {
+    screenContent.innerHTML = renderRealAdminStudentsScreen();
+  }
+}
+
+async function loadRealBillingUnregisteredStudents() {
+  const sequence = ++realBillingUnregisteredStudentsRequestSequence;
+  const screenId = "monthly-charges";
+  const userId = realUser && realUser.id;
+  realBillingUnregisteredStudentsState = "checking";
+  realBillingUnregisteredStudentsNotice = "";
+  if (!authClient || !userId || !isRealActiveProfessor()) {
+    realBillingUnregisteredStudentsState = "error";
+    realBillingUnregisteredStudentsNotice = "Não foi possível carregar os alunos sem conta. Atualize a tela e tente novamente.";
+  } else {
+    try {
+      const { data, error } = await authClient.from("alunos_sem_conta")
+        .select("id,nome")
+        .eq("professor_id", userId)
+        .order("nome", { ascending: true });
+      if (error) throw error;
+      if (!Array.isArray(data)) throw new TypeError("Lista indisponível.");
+      if (sequence !== realBillingUnregisteredStudentsRequestSequence || currentScreen !== screenId) return;
+      realBillingUnregisteredStudents = data
+        .filter((student) => student && typeof student.id === "string" && typeof student.nome === "string")
+        .map((student) => ({ id: student.id, nome: student.nome.trim() || "Aluno sem nome" }));
+      realBillingUnregisteredStudentsState = "found";
+    } catch (error) {
+      if (sequence !== realBillingUnregisteredStudentsRequestSequence || currentScreen !== screenId) return;
+      logRealProfileSupabaseError("consultar alunos sem conta para mensagem local", error);
+      realBillingUnregisteredStudentsState = "error";
+      realBillingUnregisteredStudentsNotice = "Não foi possível carregar os alunos sem conta. Atualize a tela e tente novamente.";
+    }
+  }
+  if (sequence === realBillingUnregisteredStudentsRequestSequence && currentScreen === screenId) {
+    const panelContainer = screenContent.querySelector("#real-billing-unregistered-panel");
+    if (panelContainer) panelContainer.innerHTML = renderRealBillingUnregisteredStudentsPanel();
+  }
+}
+
+async function loadRealBillingStudents(screenId = "monthly-charges", renderScreen = true) {
+  const sequence = ++realBillingStudentsRequestSequence;
+  realBillingStudentsState = "checking";
+  realBillingStudentsNotice = "";
+  const userId = realUser && realUser.id;
+  if (!authClient || !userId || !isRealActiveProfessor()) {
+    realBillingStudentsState = "error";
+    realBillingStudentsNotice = "Esta leitura exige uma conta Google de Professor ativa.";
+    if (renderScreen && currentScreen === screenId) screenContent.innerHTML = renderRealProfessorScreen(screenId);
+    return;
+  }
+
+  try {
+    const { data: links, error: linksError } = await authClient.from("vinculos")
+      .select("aluno_id")
+      .eq("professor_id", userId);
+    if (linksError) throw linksError;
+    if (!Array.isArray(links)) throw new Error("Lista de vínculos indisponível.");
+    if (sequence !== realBillingStudentsRequestSequence || currentScreen !== screenId) return;
+
+    const studentIds = [...new Set(links.map((link) => link.aluno_id).filter((id) => typeof id === "string"))];
+    const names = new Map(studentIds.map((id) => [id, "Aluno sem nome"]));
+    if (studentIds.length) {
+      const { data: profiles, error: profilesError } = await authClient.from("perfis")
+        .select("id,nome")
+        .in("id", studentIds);
+      if (profilesError) throw profilesError;
+      if (!Array.isArray(profiles)) throw new Error("Nomes dos alunos indisponíveis.");
+      if (sequence !== realBillingStudentsRequestSequence || currentScreen !== screenId) return;
+      for (const profile of profiles) {
+        if (names.has(profile.id) && typeof profile.nome === "string" && profile.nome.trim()) {
+          names.set(profile.id, profile.nome.trim());
+        }
+      }
+    }
+
+    if (sequence !== realBillingStudentsRequestSequence || currentScreen !== screenId) return;
+    realBillingStudentNames = names;
+    realBillingStudentsState = "found";
+  } catch (error) {
+    if (sequence !== realBillingStudentsRequestSequence || currentScreen !== screenId) return;
+    logRealProfileSupabaseError("consultar alunos vinculados do Professor", error);
+    realBillingStudentsState = "error";
+    realBillingStudentsNotice = navigator.onLine === false
+      ? "Falha de rede ao carregar os alunos vinculados. Verifique a conexão e tente novamente."
+      : "Não foi possível carregar os alunos vinculados. Confira sua permissão e tente novamente.";
+  }
+
+  if (renderScreen && sequence === realBillingStudentsRequestSequence && currentScreen === screenId) {
+    screenContent.innerHTML = renderRealProfessorScreen(screenId);
+  }
+}
+
+async function loadRealBillingData() {
+  const sequence = ++realBillingRequestSequence;
+  realBillingState = "checking";
+  realBillingNotice = "";
+  realBillingPayments = [];
+  if (!authClient || !realUser || !isRealActiveProfessor()) {
+    realBillingState = "error";
+    realBillingNotice = "Esta tela exige uma conta Google de Professor ativa.";
+    if (currentScreen === "monthly-charges") screenContent.innerHTML = renderRealBillingScreen();
+    return;
+  }
+  if (currentScreen === "monthly-charges") screenContent.innerHTML = renderRealBillingScreen();
+
+  try {
+    const month = `${realBillingSelectedMonth}-01`;
+    const [rulesResult, chargesResult, academyResult] = await Promise.all([
+      authClient.from("regras_cobranca")
+        .select("id,aluno_id,valor_base_centavos,dia_vencimento,tipo_desconto,desconto_centavos,desconto_percentual,motivo_isencao,duracao_tipo,mes_inicio,duracao_meses,ativa")
+        .eq("academia_id", realProfile.academia_id)
+        .eq("professor_id", realUser.id)
+        .eq("ativa", true)
+        .order("aluno_id"),
+      authClient.from("cobrancas_mensais")
+        .select("id,aluno_id,mes,vencimento,valor_base_centavos,desconto_centavos,valor_final_centavos,status,enviada_em,reenviada_em")
+        .eq("academia_id", realProfile.academia_id)
+        .eq("professor_id", realUser.id)
+        .eq("mes", month)
+        .order("vencimento"),
+      authClient.from("academias")
+        .select("dias_carencia")
+        .eq("id", realProfile.academia_id)
+        .maybeSingle()
+    ]);
+    if (sequence !== realBillingRequestSequence || currentScreen !== "monthly-charges") return;
+    for (const result of [rulesResult, chargesResult, academyResult]) {
+      if (result.error) throw result.error;
+    }
+    if (!Array.isArray(rulesResult.data) || !Array.isArray(chargesResult.data) ||
+        !academyResult.data || !Number.isInteger(academyResult.data.dias_carencia) ||
+        academyResult.data.dias_carencia < 0 || academyResult.data.dias_carencia > 30) {
+      throw new Error("Dados de cobrança indisponíveis.");
+    }
+    let payments = [];
+    const chargeIds = chargesResult.data.map((charge) => charge.id);
+    if (chargeIds.length) {
+      const { data: paymentRows, error: paymentError } = await authClient.from("pagamentos")
+        .select("cobranca_id,valor_centavos,status")
+        .in("cobranca_id", chargeIds);
+      if (paymentError) throw paymentError;
+      if (!Array.isArray(paymentRows)) throw new Error("Pagamentos indisponíveis.");
+      payments = paymentRows;
+    }
+    if (sequence !== realBillingRequestSequence || currentScreen !== "monthly-charges") return;
+    realBillingRules = rulesResult.data;
+    realBillingCharges = chargesResult.data;
+    realBillingPayments = payments;
+    realBillingGraceDays = academyResult.data.dias_carencia;
+    realBillingState = "found";
+  } catch (error) {
+    if (sequence !== realBillingRequestSequence || currentScreen !== "monthly-charges") return;
+    logRealProfileSupabaseError("consultar cobranças do Professor", error);
+    realBillingState = "error";
+    realBillingNotice = realBillingErrorMessage(error);
+  }
+
+  if (sequence === realBillingRequestSequence && currentScreen === "monthly-charges") {
+    screenContent.innerHTML = renderRealBillingScreen();
+  }
+}
+
+function realPaymentStatusLabel(status) {
+  return ({
+    pendente: "Pendente",
+    confirmado: "Confirmado",
+    rejeitado: "Rejeitado",
+    estornado: "Estornado",
+    desfeito: "Desfeito"
+  })[status] || "Indisponível";
+}
+
+function realPaymentUndoDeadline(payment) {
+  if (payment.origem !== "professor" || payment.status !== "confirmado" || !payment.confirmado_em) return 0;
+  const confirmedAt = new Date(payment.confirmado_em).getTime();
+  return Number.isNaN(confirmedAt) ? 0 : confirmedAt + 120000;
+}
+
+function scheduleRealPaymentUndoRefresh() {
+  window.clearTimeout(realPaymentUndoTimer);
+  if (currentScreen !== "payment-review" || realProfessorPaymentsState !== "found") return;
+  const nextDeadline = realProfessorPayments
+    .map(realPaymentUndoDeadline)
+    .filter((deadline) => deadline > Date.now())
+    .sort((left, right) => left - right)[0];
+  if (!nextDeadline) return;
+  realPaymentUndoTimer = window.setTimeout(() => {
+    if (currentScreen === "payment-review") {
+      screenContent.innerHTML = renderRealProfessorPaymentsScreen();
+    }
+  }, Math.max(0, nextDeadline - Date.now() + 10));
+}
+
+function renderRealStudentPaymentRow(charge) {
+  const payments = realStudentPayments.filter((payment) => payment.cobranca_id === charge.id);
+  const statusLabel = charge.status === "aberta" && realBillingIsLate(charge)
+    ? "Atrasada"
+    : ({ aberta: "Em aberto", paga: "Paga", isenta: "Isenta" })[charge.status] || "Indisponível";
+  const balance = realBillingBalance(charge, realStudentPayments);
+  const pending = payments.some((payment) => payment.status === "pendente");
+  return `
+    <article class="monthly-charge-row" data-real-student-charge="${escapeHtml(charge.id)}">
+      <div class="list-row">
+        <span class="row-copy"><strong>${escapeHtml(realBillingDate(charge.mes).slice(3))}</strong><small>Vencimento: ${realBillingDate(charge.vencimento)}</small></span>
+        <span class="badge ${charge.status === "paga" ? "badge--green" : statusLabel === "Atrasada" ? "badge--red" : "badge--pending"}">${statusLabel}</span>
+      </div>
+      <div class="monthly-charge-values">
+        ${listRow("Valor final", "", formatRealBillingCents(charge.valor_final_centavos))}
+        ${listRow("Saldo", "", formatRealBillingCents(balance))}
+      </div>
+      ${payments.length ? `
+        <div class="stack">
+          ${payments.map((payment) => `
+            <p class="field-help">${escapeHtml(realPaymentStatusLabel(payment.status))} · ${escapeHtml(payment.tipo)} · ${formatRealBillingCents(payment.valor_centavos)} · ${realBillingTimestamp(payment.criado_em)}</p>
+          `).join("")}
+        </div>
+      ` : ""}
+      ${pending ? '<p class="notice notice--pending">Há um aviso de pagamento aguardando confirmação do Professor.</p>' : ""}
+    </article>
+  `;
+}
+
+function realGraduationToday() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+}
+
+function isValidRealGraduationDate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(0);
+  date.setFullYear(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 &&
+    date.getDate() === day && value <= realGraduationToday();
+}
+
+function isValidRealGraduationRecord(record) {
+  const beltIndex = record && typeof record.faixa === "string" ? demoBelts.indexOf(record.faixa) : -1;
+  return Boolean(record) &&
+    typeof record.aluno_id === "string" &&
+    beltDegrees(beltIndex).includes(record.grau) &&
+    typeof record.data_graduacao === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(record.data_graduacao) &&
+    typeof record.criado_em === "string" &&
+    (record.observacao === null || typeof record.observacao === "string");
+}
+
+function renderRealGraduationCurrent(graduations) {
+  const latest = graduations[0];
+  if (!latest) return '<div class="notice notice--info">Sem graduação registrada</div>';
+  const grade = gradeLabel(latest.faixa, latest.grau);
+  return `
+    <div class="belt-display belt-display--rank real-graduation-current">
+      ${gradeVisual(grade)}
+      <span class="belt-copy"><strong>${escapeHtml(grade)}</strong><small>Data: ${escapeHtml(formatDemoDate(latest.data_graduacao))}</small></span>
+    </div>
+  `;
+}
+
+function renderRealGraduationHistory(graduations) {
+  if (!graduations.length) return emptyState("Histórico vazio", "As graduações registradas aparecerão aqui.");
+  return `
+    <div class="timeline real-graduation-history">
+      ${graduations.map((graduation) => {
+        const grade = gradeLabel(graduation.faixa, graduation.grau);
+        return `
+          <div class="timeline-item">
+            <span class="timeline-dot"></span>
+            <div>
+              <strong>${escapeHtml(grade)}</strong>
+              ${gradeVisual(grade)}
+              <small>Data: ${escapeHtml(formatDemoDate(graduation.data_graduacao))}</small>
+              ${graduation.observacao ? `<small>Observação: ${escapeHtml(graduation.observacao)}</small>` : ""}
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderRealProfessorGraduationsScreen() {
+  if (realProfessorGraduationsState === "checking") {
+    return `${heading("VISÃO DO PROFESSOR", "Ficha do aluno", "Carregando graduações dos alunos vinculados.")}<div class="notice notice--info" role="status">Carregando...</div>`;
+  }
+  if (realProfessorGraduationsState === "error") {
+    return `${heading("VISÃO DO PROFESSOR", "Ficha do aluno", "Consulte e registre graduações dos alunos vinculados.")}<div class="notice notice--pending" role="alert">${escapeHtml(realProfessorGraduationsNotice)}</div><div class="student-action-control"><button class="button button--primary button--action" type="button" data-real-professor-graduations-retry aria-describedby="real-professor-graduations-retry-error real-professor-graduations-retry-status"><span data-action-label>Tentar novamente</span></button><p class="login-action-error student-action-error" id="real-professor-graduations-retry-error" role="alert"></p><p class="field-help" id="real-professor-graduations-retry-status" role="status" aria-live="polite"></p></div>`;
+  }
+  if (!realProfessorGraduationStudents.length) {
+    return `${heading("VISÃO DO PROFESSOR", "Ficha do aluno", "Consulte e registre graduações dos alunos vinculados.")}<div class="notice notice--info">Nenhum aluno vinculado ainda.</div>`;
+  }
+
+  const selectedStudent = realProfessorGraduationStudents.find((student) => student.id === realSelectedGraduationStudentId);
+  if (!selectedStudent) {
+    return `${heading("VISÃO DO PROFESSOR", "Ficha do aluno", "Selecione um aluno vinculado para consultar graduações.")}<div class="notice notice--info">Selecione um aluno vinculado.</div>`;
+  }
+  const graduations = realProfessorGraduations.filter((graduation) => graduation.aluno_id === selectedStudent.id);
+  const today = realGraduationToday();
+  return `
+    ${heading("VISÃO DO PROFESSOR", "Ficha do aluno", "Consulte a faixa atual e o histórico; novas graduações ficam registradas sem alterar as anteriores.")}
+    <div class="content-grid">
+      ${panel("Aluno vinculado", `
+        <div class="field">
+          <label for="real-graduation-student">Aluno</label>
+          <select id="real-graduation-student">
+            ${realProfessorGraduationStudents.map((student) => `<option value="${escapeHtml(student.id)}"${student.id === selectedStudent.id ? " selected" : ""}>${escapeHtml(student.nome)}</option>`).join("")}
+          </select>
+        </div>
+      `)}
+      ${panel("Graduação atual", renderRealGraduationCurrent(graduations), "panel-card--highlight")}
+      ${panel("Histórico de graduações", renderRealGraduationHistory(graduations))}
+      ${panel("Atribuir graduação", `
+        <form class="real-graduation-form" data-real-graduation-form novalidate>
+          <div class="form-grid">
+            <div class="field">
+              <label for="real-graduation-belt">Faixa</label>
+              <select id="real-graduation-belt" required>
+                <option value="">Selecione</option>
+                ${demoBelts.map((belt) => `<option value="${escapeHtml(belt)}">${escapeHtml(belt)}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label for="real-graduation-degree">Grau</label>
+              <select id="real-graduation-degree" required disabled>
+                <option value="">Selecione a faixa</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="real-graduation-date">Data da graduação</label>
+              <input id="real-graduation-date" type="date" max="${today}" required>
+            </div>
+            <div class="field field--wide">
+              <label for="real-graduation-observation">Observação (opcional)</label>
+              <textarea id="real-graduation-observation" maxlength="200" rows="3"></textarea>
+              <small class="field-help">Até 200 caracteres.</small>
+            </div>
+          </div>
+          <div class="student-action-control">
+            <button class="button button--primary button--action" type="submit" data-real-graduation-submit aria-describedby="real-graduation-error real-graduation-status"><span data-action-label>Atribuir graduação</span></button>
+            <p class="login-action-error student-action-error" id="real-graduation-error" role="alert"></p>
+            <p class="field-help" id="real-graduation-status" role="status" aria-live="polite"></p>
+          </div>
+        </form>
+      `)}
+    </div>
+  `;
+}
+
+function renderRealStudentGraduationsScreen() {
+  if (realStudentGraduationsState === "checking") {
+    return `${heading("VISÃO DO ALUNO", "Minhas graduações", "Carregando sua graduação e histórico.")}<div class="notice notice--info" role="status">Carregando...</div>`;
+  }
+  if (realStudentGraduationsState === "error") {
+    return `${heading("VISÃO DO ALUNO", "Minhas graduações", "Consulte sua faixa atual e seu histórico.")}<div class="notice notice--pending" role="alert">${escapeHtml(realStudentGraduationsNotice)}</div><div class="student-action-control"><button class="button button--primary button--action" type="button" data-real-student-graduations-retry aria-describedby="real-student-graduations-retry-error real-student-graduations-retry-status"><span data-action-label>Tentar novamente</span></button><p class="login-action-error student-action-error" id="real-student-graduations-retry-error" role="alert"></p><p class="field-help" id="real-student-graduations-retry-status" role="status" aria-live="polite"></p></div>`;
+  }
+  return `
+    ${heading("VISÃO DO ALUNO", "Minhas graduações", "Consulte sua faixa atual e o histórico registrado pelo Professor.")}
+    <div class="content-grid">
+      ${panel("Graduação atual", renderRealGraduationCurrent(realStudentGraduations), "panel-card--highlight")}
+      ${panel("Histórico de graduações", renderRealGraduationHistory(realStudentGraduations))}
+    </div>
+  `;
+}
+
+async function loadRealProfessorGraduations(renderScreen = true) {
+  const sequence = ++realProfessorGraduationsRequestSequence;
+  const screenId = "student-detail";
+  const userId = realUser && realUser.id;
+  realProfessorGraduationsState = "checking";
+  realProfessorGraduationsNotice = "";
+  if (!authClient || !userId || !isRealActiveProfessor()) {
+    realProfessorGraduationsState = "error";
+    realProfessorGraduationsNotice = "Esta tela exige uma conta Google de Professor ativa.";
+    if (renderScreen && currentScreen === screenId) screenContent.innerHTML = renderRealProfessorGraduationsScreen();
+    return;
+  }
+  if (renderScreen && currentScreen === screenId) screenContent.innerHTML = renderRealProfessorGraduationsScreen();
+
+  try {
+    const { data: links, error: linksError } = await authClient.from("vinculos")
+      .select("aluno_id")
+      .eq("professor_id", userId);
+    if (linksError) throw linksError;
+    if (!Array.isArray(links) || links.some((link) => !link || typeof link.aluno_id !== "string")) {
+      throw new TypeError("Vínculos indisponíveis.");
+    }
+    if (sequence !== realProfessorGraduationsRequestSequence || currentScreen !== screenId) return;
+
+    const studentIds = [...new Set(links.map((link) => link.aluno_id))];
+    let students = [];
+    let graduations = [];
+    if (studentIds.length) {
+      const { data: profiles, error: profilesError } = await authClient.from("perfis")
+        .select("id,nome")
+        .in("id", studentIds);
+      if (profilesError) throw profilesError;
+      if (!Array.isArray(profiles)) throw new TypeError("Nomes dos alunos indisponíveis.");
+      if (sequence !== realProfessorGraduationsRequestSequence || currentScreen !== screenId) return;
+
+      const names = new Map();
+      for (const profile of profiles) {
+        if (profile && typeof profile.id === "string" && typeof profile.nome === "string" && profile.nome.trim()) {
+          names.set(profile.id, profile.nome.trim());
+        }
+      }
+      students = studentIds.map((id) => ({ id, nome: names.get(id) || "Aluno sem nome" }))
+        .sort((left, right) => left.nome.localeCompare(right.nome, "pt-BR"));
+
+      const result = await authClient.from("graduacoes")
+        .select("aluno_id,faixa,grau,data_graduacao,observacao,criado_em")
+        .in("aluno_id", studentIds)
+        .order("data_graduacao", { ascending: false })
+        .order("criado_em", { ascending: false });
+      if (result.error) throw result.error;
+      if (!Array.isArray(result.data) || !result.data.every(isValidRealGraduationRecord)) {
+        throw new TypeError("Histórico de graduações indisponível.");
+      }
+      graduations = result.data;
+    }
+    if (sequence !== realProfessorGraduationsRequestSequence || currentScreen !== screenId) return;
+
+    realProfessorGraduationStudents = students;
+    realProfessorGraduations = graduations;
+    if (!students.some((student) => student.id === realSelectedGraduationStudentId)) {
+      realSelectedGraduationStudentId = students[0] ? students[0].id : "";
+    }
+    realProfessorGraduationsState = "found";
+  } catch (error) {
+    if (sequence !== realProfessorGraduationsRequestSequence || currentScreen !== screenId) return;
+    logRealProfileSupabaseError("consultar graduações dos alunos", error);
+    realProfessorGraduationsState = "error";
+    realProfessorGraduationsNotice = navigator.onLine === false
+      ? "Falha de rede ao carregar graduações. Verifique a conexão e tente novamente."
+      : "Não foi possível carregar graduações. Confira sua permissão e tente novamente.";
+  }
+
+  if (renderScreen && sequence === realProfessorGraduationsRequestSequence && currentScreen === screenId) {
+    screenContent.innerHTML = renderRealProfessorGraduationsScreen();
+  }
+}
+
+async function loadRealStudentGraduations(renderScreen = true) {
+  const sequence = ++realStudentGraduationsRequestSequence;
+  const screenId = "student-grades";
+  const userId = realUser && realUser.id;
+  realStudentGraduationsState = "checking";
+  realStudentGraduationsNotice = "";
+  if (!authClient || !userId || !isRealActiveStudent()) {
+    realStudentGraduationsState = "error";
+    realStudentGraduationsNotice = "Esta tela exige uma conta real de Aluno ativa.";
+    if (renderScreen && currentScreen === screenId) screenContent.innerHTML = renderRealStudentGraduationsScreen();
+    return;
+  }
+  if (renderScreen && currentScreen === screenId) screenContent.innerHTML = renderRealStudentGraduationsScreen();
+
+  try {
+    const { data, error } = await authClient.from("graduacoes")
+      .select("aluno_id,faixa,grau,data_graduacao,observacao,criado_em")
+      .eq("aluno_id", userId)
+      .order("data_graduacao", { ascending: false })
+      .order("criado_em", { ascending: false });
+    if (error) throw error;
+    if (!Array.isArray(data) || !data.every(isValidRealGraduationRecord)) {
+      throw new TypeError("Histórico de graduações indisponível.");
+    }
+    if (sequence !== realStudentGraduationsRequestSequence || currentScreen !== screenId) return;
+    realStudentGraduations = data;
+    realStudentGraduationsState = "found";
+  } catch (error) {
+    if (sequence !== realStudentGraduationsRequestSequence || currentScreen !== screenId) return;
+    logRealProfileSupabaseError("consultar graduações do Aluno", error);
+    realStudentGraduationsState = "error";
+    realStudentGraduationsNotice = navigator.onLine === false
+      ? "Falha de rede ao carregar suas graduações. Verifique a conexão e tente novamente."
+      : "Não foi possível carregar suas graduações. Confira sua permissão e tente novamente.";
+  }
+
+  if (renderScreen && sequence === realStudentGraduationsRequestSequence && currentScreen === screenId) {
+    screenContent.innerHTML = renderRealStudentGraduationsScreen();
+  }
+}
+
+function renderRealStudentPaymentsScreen() {
+  const charges = realStudentCharges;
+  const openCharges = charges.filter((charge) =>
+    charge.status === "aberta" &&
+    realBillingBalance(charge, realStudentPayments) > 0n &&
+    !realStudentPayments.some((payment) => payment.cobranca_id === charge.id && payment.status === "pendente")
+  );
+  const defaultCharge = openCharges[0] || null;
+  if (realStudentPaymentsState === "checking") {
+    return `${heading("VISÃO DO ALUNO", "Meus pagamentos", "Carregando suas cobranças e pagamentos.")}<div class="notice notice--info">Carregando...</div>`;
+  }
+  if (realStudentPaymentsState === "error") {
+    return `${heading("VISÃO DO ALUNO", "Meus pagamentos", "Consulte somente suas cobranças enviadas pelo Professor.")}<div class="notice notice--pending" role="alert">${escapeHtml(realStudentPaymentsNotice)}</div><div class="student-action-control"><button class="button button--primary button--action" type="button" data-real-student-payments-retry aria-describedby="real-student-retry-error real-student-retry-status"><span data-action-label>Tentar novamente</span></button><p class="login-action-error student-action-error" id="real-student-retry-error" role="alert"></p><p class="field-help" id="real-student-retry-status" role="status" aria-live="polite"></p></div>`;
+  }
+  return `
+    ${heading("VISÃO DO ALUNO", "Meus pagamentos", "Consulte suas cobranças enviadas pelo Professor e avise quando realizar um pagamento.")}
+    <div class="content-grid">
+      <div class="stack">
+        ${panel("Minhas cobranças", charges.length
+          ? charges.map(renderRealStudentPaymentRow).join("")
+          : emptyState("Nenhuma cobrança enviada", "Quando o Professor enviar uma cobrança, ela aparecerá aqui."))}
+      </div>
+      ${panel("Avisar pagamento", defaultCharge ? `
+        <form data-real-student-payment-form novalidate>
+          <div class="form-grid">
+            <div class="field">
+              <label for="real-student-charge">Cobrança aberta</label>
+              <select id="real-student-charge" required>
+                ${openCharges.map((charge) => `<option value="${escapeHtml(charge.id)}">${realBillingDate(charge.mes).slice(3)} · saldo ${formatRealBillingCents(realBillingBalance(charge, realStudentPayments))}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label for="real-student-payment-type">Tipo</label>
+              <select id="real-student-payment-type" required>
+                <option value="dinheiro">Dinheiro</option>
+                <option value="comprovante">Comprovante (sem envio de arquivo)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="real-student-payment-amount">Valor pago</label>
+              <input id="real-student-payment-amount" type="number" min="0.01" step="0.01" max="${realBillingCentsInput(realBillingBalance(defaultCharge, realStudentPayments))}" required>
+              <small class="field-help">O valor não pode ultrapassar o saldo da cobrança.</small>
+            </div>
+          </div>
+          <div class="student-action-control">
+            <button class="button button--primary button--action" type="submit" data-real-student-payment-submit aria-describedby="real-student-payment-error real-student-payment-status"><span data-action-label>Avisar pagamento</span></button>
+            <p class="login-action-error student-action-error" id="real-student-payment-error" role="alert"></p>
+            <p class="field-help" id="real-student-payment-status" role="status" aria-live="polite"></p>
+          </div>
+        </form>
+      ` : '<div class="notice notice--info">Não há cobrança aberta com saldo para avisar.</div>')}
+    </div>
+  `;
+}
+
+function renderRealProfessorPaymentRow(payment, charge) {
+  const studentName = realBillingStudentNames.get(charge.aluno_id) || "Aluno sem nome";
+  const paymentId = escapeHtml(payment.id);
+  const isPending = payment.status === "pendente";
+  const canUndo = realPaymentUndoDeadline(payment) > Date.now();
+  const actions = isPending
+    ? `<div class="row-actions">
+        <button class="button button--small button--primary button--action" type="button" data-real-payment-action="confirmar" data-real-payment-id="${paymentId}" aria-describedby="real-payment-error-${paymentId} real-payment-status-${paymentId}"><span data-action-label>Confirmar</span></button>
+        <button class="button button--small button--danger button--action" type="button" data-real-payment-action="rejeitar" data-real-payment-id="${paymentId}" aria-describedby="real-payment-error-${paymentId} real-payment-status-${paymentId}"><span data-action-label>Rejeitar</span></button>
+      </div>`
+    : payment.status === "confirmado"
+      ? `<div class="row-actions">
+          ${canUndo ? `<button class="button button--small button--quiet button--action" type="button" data-real-payment-action="desfazer" data-real-payment-id="${paymentId}" aria-describedby="real-payment-error-${paymentId} real-payment-status-${paymentId}"><span data-action-label>Desfazer</span></button>` : ""}
+          <button class="button button--small button--danger button--action" type="button" data-real-payment-action="estornar" data-real-payment-id="${paymentId}" aria-describedby="real-payment-error-${paymentId} real-payment-status-${paymentId}"><span data-action-label>Estornar</span></button>
+        </div>`
+      : "";
+  return `
+    <article class="payment-review-row" data-real-payment-row="${paymentId}">
+      <div class="list-row">
+        <span class="row-copy"><strong>${escapeHtml(studentName)}</strong><small>${escapeHtml(charge.mes.slice(0, 7))} · vence ${realBillingDate(charge.vencimento)}</small></span>
+        <span class="badge ${payment.status === "confirmado" ? "badge--green" : payment.status === "pendente" ? "badge--pending" : "badge--red"}">${escapeHtml(realPaymentStatusLabel(payment.status))}</span>
+      </div>
+      <p class="field-help">${escapeHtml(payment.origem === "professor" ? "Lançamento do Professor" : "Aviso do aluno")} · ${escapeHtml(payment.tipo)} · ${formatRealBillingCents(payment.valor_centavos)} · saldo ${formatRealBillingCents(realBillingBalance(charge, realProfessorPayments))}${payment.referencia ? ` · ${escapeHtml(payment.referencia)}` : ""} · ${realBillingTimestamp(payment.criado_em)}</p>
+      ${actions}
+      <p class="login-action-error student-action-error" id="real-payment-error-${paymentId}" role="alert"></p>
+      <p class="field-help" id="real-payment-status-${paymentId}" role="status" aria-live="polite"></p>
+    </article>
+  `;
+}
+
+function renderRealProfessorPaymentsScreen() {
+  if (realProfessorPaymentsState === "checking") {
+    return `${heading("VISÃO DO PROFESSOR", "Pagamentos a confirmar", "Carregando avisos, lançamentos e saldos.")}<div class="notice notice--info">Carregando...</div>`;
+  }
+  if (realProfessorPaymentsState === "error") {
+    return `${heading("VISÃO DO PROFESSOR", "Pagamentos a confirmar", "Confirme avisos e registre recebimentos.")}<div class="notice notice--pending" role="alert">${escapeHtml(realProfessorPaymentsNotice)}</div><div class="student-action-control"><button class="button button--primary button--action" type="button" data-real-professor-payments-retry aria-describedby="real-professor-retry-error real-professor-retry-status"><span data-action-label>Tentar novamente</span></button><p class="login-action-error student-action-error" id="real-professor-retry-error" role="alert"></p><p class="field-help" id="real-professor-retry-status" role="status" aria-live="polite"></p></div>`;
+  }
+  const chargeById = new Map(realProfessorCharges.map((charge) => [charge.id, charge]));
+  const payments = realProfessorPayments.filter((payment) => chargeById.has(payment.cobranca_id));
+  const pending = payments.filter((payment) => payment.status === "pendente");
+  const history = payments.filter((payment) => payment.status !== "pendente");
+  const openCharges = realProfessorCharges.filter((charge) =>
+    charge.status === "aberta" && realBillingBalance(charge, realProfessorPayments) > 0n
+  );
+  scheduleRealPaymentUndoRefresh();
+  return `
+    ${heading("VISÃO DO PROFESSOR", "Pagamentos a confirmar", "Confirme ou rejeite avisos e registre recebimentos. O app controla pagamentos, mas não movimenta dinheiro.")}
+    ${realBillingStudentsState === "error" ? `<div class="notice notice--pending" role="alert">${escapeHtml(realBillingStudentsNotice)}</div>` : ""}
+    <div class="content-grid">
+      <div class="stack">
+        ${panel("Aguardando confirmação", pending.length
+          ? pending.map((payment) => renderRealProfessorPaymentRow(payment, chargeById.get(payment.cobranca_id))).join("")
+          : emptyState("Nenhum pagamento pendente", "Avisos enviados pelos alunos aparecerão aqui."))}
+        ${panel("Histórico de pagamentos", history.length
+          ? history.map((payment) => renderRealProfessorPaymentRow(payment, chargeById.get(payment.cobranca_id))).join("")
+          : emptyState("Nenhum pagamento no histórico", "Os pagamentos confirmados, rejeitados, estornados ou desfeitos aparecerão aqui."))}
+      </div>
+      ${panel("Lançar dinheiro recebido", openCharges.length ? `
+        <form data-real-professor-payment-form novalidate>
+          <div class="form-grid">
+            <div class="field">
+              <label for="real-professor-charge">Cobrança aberta</label>
+              <select id="real-professor-charge" required>
+                ${openCharges.map((charge) => `<option value="${escapeHtml(charge.id)}">${escapeHtml(realBillingStudentNames.get(charge.aluno_id) || "Aluno sem nome")} · ${realBillingDate(charge.mes).slice(3)} · saldo ${formatRealBillingCents(realBillingBalance(charge, realProfessorPayments))}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field"><label for="real-professor-payment-amount">Valor recebido</label><input id="real-professor-payment-amount" type="number" min="0.01" step="0.01" max="${realBillingCentsInput(realBillingBalance(openCharges[0], realProfessorPayments))}" required></div>
+            <div class="field"><label for="real-professor-payment-type">Tipo</label><input id="real-professor-payment-type" type="text" maxlength="80" required></div>
+            <div class="field"><label for="real-professor-payment-reference">Referência</label><input id="real-professor-payment-reference" type="text" maxlength="120" required></div>
+          </div>
+          <div class="student-action-control">
+            <button class="button button--primary button--action" type="submit" data-real-professor-payment-submit aria-describedby="real-professor-payment-error real-professor-payment-status"><span data-action-label>Registrar recebido em dinheiro</span></button>
+            <p class="login-action-error student-action-error" id="real-professor-payment-error" role="alert"></p>
+            <p class="field-help" id="real-professor-payment-status" role="status" aria-live="polite"></p>
+          </div>
+        </form>
+      ` : '<div class="notice notice--info">Não há cobrança aberta com saldo para lançar.</div>')}
+    </div>
+  `;
+}
+
+async function loadRealStudentPayments(renderScreen = true) {
+  const sequence = ++realStudentPaymentsRequestSequence;
+  realStudentPaymentsState = "checking";
+  realStudentPaymentsNotice = "";
+  if (!authClient || !realUser || !isRealActiveStudent() || !realProfile || !realProfile.academia_id) {
+    realStudentPaymentsState = "error";
+    realStudentPaymentsNotice = "Esta tela exige uma conta real de Aluno ativa.";
+    if (renderScreen && currentScreen === "student-payments") screenContent.innerHTML = renderRealStudentPaymentsScreen();
+    return;
+  }
+  if (renderScreen && currentScreen === "student-payments") screenContent.innerHTML = renderRealStudentPaymentsScreen();
+  try {
+    const [chargesResult, academyResult] = await Promise.all([
+      authClient.from("cobrancas_mensais")
+        .select("id,aluno_id,mes,vencimento,valor_base_centavos,desconto_centavos,valor_final_centavos,status,enviada_em,reenviada_em")
+        .eq("aluno_id", realUser.id)
+        .order("vencimento", { ascending: false }),
+      authClient.from("academias")
+        .select("dias_carencia")
+        .eq("id", realProfile.academia_id)
+        .maybeSingle()
+    ]);
+    if (sequence !== realStudentPaymentsRequestSequence || currentScreen !== "student-payments") return;
+    for (const result of [chargesResult, academyResult]) {
+      if (result.error) throw result.error;
+    }
+    if (!Array.isArray(chargesResult.data) || !academyResult.data ||
+        !Number.isInteger(academyResult.data.dias_carencia) ||
+        academyResult.data.dias_carencia < 0 || academyResult.data.dias_carencia > 30) {
+      throw new Error("Dados de pagamento indisponíveis.");
+    }
+    const charges = chargesResult.data.filter((charge) => charge.enviada_em && charge.status !== "cancelada");
+    let payments = [];
+    if (charges.length) {
+      const { data, error } = await authClient.from("pagamentos")
+        .select("id,cobranca_id,origem,tipo,referencia,valor_centavos,status,criado_em,confirmado_em,rejeitado_em,estornado_em,desfeito_em")
+        .in("cobranca_id", charges.map((charge) => charge.id))
+        .order("criado_em", { ascending: false });
+      if (error) throw error;
+      if (!Array.isArray(data)) throw new Error("Histórico de pagamentos indisponível.");
+      payments = data;
+    }
+    if (sequence !== realStudentPaymentsRequestSequence || currentScreen !== "student-payments") return;
+    realStudentCharges = charges;
+    realStudentPayments = payments;
+    realBillingGraceDays = academyResult.data.dias_carencia;
+    realStudentPaymentsState = "found";
+  } catch (error) {
+    if (sequence !== realStudentPaymentsRequestSequence || currentScreen !== "student-payments") return;
+    logRealProfileSupabaseError("consultar pagamentos do Aluno", error);
+    realStudentPaymentsState = "error";
+    realStudentPaymentsNotice = navigator.onLine === false
+      ? "Falha de rede ao carregar seus pagamentos. Verifique a conexão e tente novamente."
+      : "Não foi possível carregar seus pagamentos. Confira sua permissão e tente novamente.";
+  }
+  if (renderScreen && sequence === realStudentPaymentsRequestSequence && currentScreen === "student-payments") {
+    screenContent.innerHTML = renderRealStudentPaymentsScreen();
+  }
+}
+
+async function loadRealProfessorPaymentsData(renderScreen = true) {
+  const sequence = ++realProfessorPaymentsRequestSequence;
+  realProfessorPaymentsState = "checking";
+  realProfessorPaymentsNotice = "";
+  if (!authClient || !realUser || !isRealActiveProfessor()) {
+    realProfessorPaymentsState = "error";
+    realProfessorPaymentsNotice = "Esta tela exige uma conta Google de Professor ativa.";
+    if (renderScreen && currentScreen === "payment-review") screenContent.innerHTML = renderRealProfessorPaymentsScreen();
+    return;
+  }
+  if (renderScreen && currentScreen === "payment-review") screenContent.innerHTML = renderRealProfessorPaymentsScreen();
+  try {
+    const { data: charges, error: chargesError } = await authClient.from("cobrancas_mensais")
+      .select("id,aluno_id,mes,vencimento,valor_base_centavos,desconto_centavos,valor_final_centavos,status,enviada_em,reenviada_em")
+      .eq("professor_id", realUser.id)
+      .order("vencimento", { ascending: false });
+    if (chargesError) throw chargesError;
+    if (!Array.isArray(charges)) throw new Error("Cobranças indisponíveis.");
+    let payments = [];
+    if (charges.length) {
+      const { data, error } = await authClient.from("pagamentos")
+        .select("id,cobranca_id,origem,tipo,referencia,valor_centavos,status,criado_em,confirmado_em,rejeitado_em,estornado_em,desfeito_em")
+        .in("cobranca_id", charges.map((charge) => charge.id))
+        .order("criado_em", { ascending: false });
+      if (error) throw error;
+      if (!Array.isArray(data)) throw new Error("Pagamentos indisponíveis.");
+      payments = data;
+    }
+    if (sequence !== realProfessorPaymentsRequestSequence || currentScreen !== "payment-review") return;
+    realProfessorCharges = charges;
+    realProfessorPayments = payments;
+    realProfessorPaymentsState = "found";
+  } catch (error) {
+    if (sequence !== realProfessorPaymentsRequestSequence || currentScreen !== "payment-review") return;
+    logRealProfileSupabaseError("consultar pagamentos do Professor", error);
+    realProfessorPaymentsState = "error";
+    realProfessorPaymentsNotice = navigator.onLine === false
+      ? "Falha de rede ao carregar os pagamentos. Verifique a conexão e tente novamente."
+      : "Não foi possível carregar os pagamentos. Confira sua permissão e tente novamente.";
+  }
+  if (renderScreen && sequence === realProfessorPaymentsRequestSequence && currentScreen === "payment-review") {
+    screenContent.innerHTML = renderRealProfessorPaymentsScreen();
+  }
 }
 
 function readBillingForm(form) {
@@ -2387,6 +3763,10 @@ function tutorialStorageKey(account) {
   return `tatame-tutorial-seen-${account}-${demoProfiles[account].role}`;
 }
 
+function professorConsentStorageKey(account) {
+  return `tatame-demo-professor-consent-${account}`;
+}
+
 function renderTutorialStep() {
   const profile = demoProfiles[tutorialAccount];
   const steps = tutorialStepsByRole[profile.role] || [];
@@ -2423,6 +3803,7 @@ function closeTutorial() {
 }
 
 function maybeOpenFirstTutorial(account) {
+  if (!isDemoMode) return;
   const key = tutorialStorageKey(account);
   try {
     if (localStorage.getItem(key)) return;
@@ -2434,58 +3815,73 @@ function maybeOpenFirstTutorial(account) {
   openTutorial(account);
 }
 
-const privacyPlaceholder = "Política e termo em rascunho, sujeitos a revisão jurídica. O consentimento de Instrutor será registrado após o convite ser aceito.";
+const privacyPlaceholder = "O aceite do termo (versão \"rascunho-1\") é gravado com o identificador do perfil, a versão e a data e hora. O Professor aceita na primeira vez, o Instrutor depois de usar o convite e o Aluno novo ao criar o perfil.";
 
 function renderPrivacyDraftContent(headingTag = "h2") {
   return `
-    <p class="notice notice--pending">Conteúdo provisório e sujeito a revisão jurídica; não declara conformidade legal.</p>
-    <p class="panel-copy">O termo de consentimento segue em rascunho. Nos fluxos reais, o aceite do Professor é registrado; para Instrutor, o registro ocorre após o convite ser consumido; para Aluno novo, o aceite cria o perfil e registra o identificador do perfil, a versão do termo e a data e hora. Finalidades, bases legais e prazo de retenção precisam ser confirmados antes da publicação.</p>
+    <p class="notice notice--pending">Versão inicial, feita sem revisão jurídica. Não declara conformidade com a lei. Finalidades, bases legais e prazos de retenção ainda serão definidos.</p>
+    <p class="panel-copy">O aceite do termo (versão "rascunho-1") é gravado com o identificador do perfil, a versão e a data e hora. O Professor aceita na primeira vez. O Instrutor aceita depois de usar o convite. O Aluno novo aceita ao criar o perfil.</p>
 
     <section class="privacy-draft-section">
-      <${headingTag}>Dados presentes no protótipo</${headingTag}>
-      <p>As telas de demonstração usam dados fictícios, guardados no navegador, e não enviam esses dados ao Supabase. Nos fluxos reais já conectados, o código prevê categorias como:</p>
+      <${headingTag}>1. Dados que o app guarda</${headingTag}>
+      <p>A conta real guarda os dados abaixo. O modo demonstração usa dados fictícios, guardados só no navegador, e não os envia ao Supabase.</p>
       <ul>
-        <li>e-mail da conta usado na autenticação Google;</li>
-        <li>nome, papel, idade declarada, foto de perfil e vínculo com a academia;</li>
-        <li>nome da academia, vínculos e pedidos entre Aluno e Professor;</li>
+        <li>e-mail da conta (login Google, ou e-mail e senha para Aluno e Instrutor);</li>
+        <li>nome, papel, idade declarada (adulto ou menor de 18 anos) e vínculo com a academia;</li>
+        <li>nome da academia, pedidos de vínculo e vínculos entre Aluno e Professor;</li>
         <li>e-mail de Professor convidado e estado do convite; convites de Instrutor guardam o hash do token, datas e estado;</li>
-        <li>nome e idade declarada de aluno sem conta.</li>
+        <li>nome e idade declarada de aluno sem conta;</li>
+        <li>cobranças mensais: valor-base, vencimento, desconto, isenção (com motivo opcional de até 200 caracteres), estado e datas de envio;</li>
+        <li>pagamentos: tipo (dinheiro ou comprovante), valor, estado e referência.</li>
       </ul>
-      <p>O protótipo não solicita data de nascimento nos fluxos de idade declarada. Contato de academia e outros dados exibidos na demonstração são fictícios.</p>
+      <p>No cadastro por e-mail e senha, o app coleta nome e e-mail. A senha é tratada pelo Supabase Auth e não é guardada pelo app.</p>
+      <p>O comprovante no fluxo real guarda só o tipo e o valor, sem imagem. Não pedimos data de nascimento, telefone nem WhatsApp. Pedimos que não escreva dados sensíveis no motivo da isenção.</p>
     </section>
 
     <section class="privacy-draft-section">
-      <${headingTag}>Compartilhamento</${headingTag}>
-      <p>As telas e políticas de acesso usam o papel e os vínculos para limitar o que cada conta pode consultar. O detalhamento das finalidades, dos destinatários e das informações necessárias ainda deve ser revisado antes da publicação.</p>
+      <${headingTag}>2. Compartilhamento</${headingTag}>
+      <p>O acesso depende do papel e dos vínculos:</p>
+      <ul>
+        <li>o Professor vê os Alunos vinculados a ele, suas cobranças e seus pagamentos;</li>
+        <li>o Aluno vê apenas as cobranças que o Professor enviou a ele;</li>
+        <li>o Instrutor vê só o nome dos Alunos do Professor, nunca valores;</li>
+        <li>o Administrador vê fotos de Professores, e não vê foto, nome ou faixa de Alunos.</li>
+      </ul>
+      <p>O app só controla pagamentos. Ele não processa dinheiro. O app não envia notificações push.</p>
     </section>
 
     <section class="privacy-draft-section">
-      <${headingTag}>Menores de 18 anos</${headingTag}>
-      <p>A idade é declarada como adulto ou menor de 18 anos; não é solicitada data de nascimento. Para menores, o protótipo prevê somente avatar, sem foto de perfil. Convites de Instrutor exigem declaração de adulto.</p>
+      <${headingTag}>3. Menores de 18 anos</${headingTag}>
+      <p>A idade é só declarada, sem verificação. Menores usam apenas avatar, sem foto de perfil. Convites de Instrutor exigem declaração de adulto. O tratamento de dados de menores e o consentimento de responsáveis ainda não foram resolvidos nesta política.</p>
     </section>
 
     <section class="privacy-draft-section">
-      <${headingTag}>Fotos</${headingTag}>
-      <p>O perfil pode usar uma foto por URL nos fluxos permitidos; menores de 18 anos ficam apenas com avatar. Origem, armazenamento, visibilidade e prazo de retenção das fotos precisam ser confirmados antes da versão final.</p>
+      <${headingTag}>4. Fotos</${headingTag}>
+      <p>No momento, o app real não grava foto de perfil. O envio de arquivos só será ligado depois do login real, e menores seguirão só com avatar. A escolha de avatar masculino ou feminino é só de imagem na demonstração e não é gravada.</p>
     </section>
 
     <section class="privacy-draft-section">
-      <${headingTag}>Exclusão de conta</${headingTag}>
-      <p>Na demonstração, a exclusão remove os dados pessoais fictícios desta conta, anonimiza registros compartilhados e encerra a sessão. A exclusão real ainda está em construção e não é executada pelo protótipo.</p>
+      <${headingTag}>5. Exclusão de conta</${headingTag}>
+      <p>Na demonstração, a exclusão remove os dados pessoais fictícios, mantém registros compartilhados como "Conta excluída" e encerra a sessão. A exclusão de conta real está em construção e não é executada. Existe um conflito conhecido: registros de consentimento e de cobrança podem impedir a remoção de perfis. Até que seja resolvido, esta política não promete exclusão completa.</p>
     </section>
 
     <section class="privacy-draft-section">
-      <${headingTag}>Retenção</${headingTag}>
-      <p>Os prazos de retenção ainda não foram definidos. Eles precisam ser especificados por categoria de dado e revisados antes da publicação; este rascunho não estabelece um prazo.</p>
+      <${headingTag}>6. Retenção</${headingTag}>
+      <p>Os prazos não estão definidos. Hoje, pagamentos e cobranças não são apagados, apenas mudam de estado (por exemplo, cancelada ou estornado). Um Professor substituído na academia é desativado, não apagado.</p>
     </section>
 
     <section class="privacy-draft-section">
-      <${headingTag}>Direitos e solicitações</${headingTag}>
-      <p>O titular poderá solicitar informações sobre seus dados, correção ou exclusão pelo canal de contato indicado abaixo. Os procedimentos e prazos de atendimento ainda precisam ser definidos; não há autosserviço de direitos implementado neste protótipo.</p>
+      <${headingTag}>7. Direitos e solicitações</${headingTag}>
+      <p>O titular pode pedir informação, correção ou exclusão pelo contato abaixo. Procedimentos e prazos ainda não foram definidos, e o app não tem autosserviço para isso.</p>
+    </section>
+
+    <section class="privacy-draft-section">
+      <${headingTag}>O que ainda está em construção</${headingTag}>
+      <p>No modo real, ainda estão em construção a exclusão de conta, o armazenamento de fotos e as notas privadas. Esses recursos ainda não estão disponíveis.</p>
     </section>
 
     <section class="privacy-draft-section privacy-draft-contact">
-      <${headingTag}>Contato</${headingTag}>
+      <${headingTag}>8. Contato</${headingTag}>
       <p>desenvolvedor.aylton@gmail.com</p>
     </section>
   `;
@@ -2493,48 +3889,142 @@ function renderPrivacyDraftContent(headingTag = "h2") {
 
 const screens = {
   login() {
+    const loginControls = isDemoMode
+      ? `
+        <section class="demo-login-options" aria-labelledby="demo-login-title">
+          <p class="eyebrow" id="demo-login-title">MODO DEMONSTRAÇÃO</p>
+          <p class="field-help">Contas fictícias independentes para visualizar cada papel. Sair encerra a sessão simulada.</p>
+          <div class="demo-login-list">
+            ${Object.entries(demoProfiles).map(([account, profile]) => `<button class="button button--quiet" type="button" data-demo-login="${account}">Entrar como ${profile.label} · ${profile.name}</button>`).join("")}
+          </div>
+          ${button("Tenho um código de convite", "link-teacher", "button button--quiet", "↗")}
+        </section>
+      `
+      : `
+        <div class="visually-hidden" id="login-action-status" role="status" aria-live="polite" aria-atomic="true"></div>
+        <button class="button button--google button--action" type="button" data-login-action aria-describedby="google-login-error">
+          <img class="google-icon" src="assets/logos/google-g.svg" alt="" aria-hidden="true">
+          <span data-action-label>Fazer login com o Google</span>
+        </button>
+        <div class="login-action-error" id="google-login-error" role="alert" aria-atomic="true">${escapeHtml(loginNotice)}</div>
+        <div class="auth-divider">ou entre com e-mail</div>
+        <form data-real-login-form novalidate>
+          <div class="field">
+            <label for="login-email">E-mail</label>
+            <input id="login-email" name="email" type="email" autocomplete="username" placeholder="seu e-mail" aria-describedby="email-login-error" required>
+          </div>
+          <div class="field" style="margin-top:12px">
+            <label for="login-password">Senha</label>
+            <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Sua senha" aria-describedby="email-login-error" required>
+          </div>
+          <button class="button button--primary button--action" type="submit" data-login-action aria-describedby="email-login-error" style="width:100%;margin-top:14px"><span data-action-label>Entrar</span></button>
+          <div class="login-action-error" id="email-login-error" role="alert" aria-atomic="true"></div>
+        </form>
+        <p class="field-help" style="margin:15px 0 0">E-mail e senha são para Alunos e Instrutores. Professor e Adm entram pelo Google.</p>
+        <button class="button button--quiet" type="button" data-screen-target="create-account">Criar conta</button>
+        <button class="button button--quiet" type="button" data-screen-target="forgot-password">Esqueci a senha</button>
+      `;
     return `
-      ${heading("ACESSO", "Entre na sua conta", "Use o Google quando configurado ou explore as contas de demonstração.")}
+      ${heading("ACESSO", "Entre na sua conta", isDemoMode ? "Explore a demonstração com contas fictícias." : "Acesse sua conta pelo Google ou com e-mail e senha.")}
       <div class="auth-layout">
         <section class="auth-visual">
           <div>
             <img src="assets/logos/tatame-icone-escudo.svg" alt="">
             <h2>Treino, gestão e evolução no mesmo lugar.</h2>
-            <p>Entre para acompanhar suas aulas, graduações e pagamentos.</p>
+            <p>${isDemoMode ? "Explore as telas com perfis fictícios." : "Entre para acompanhar suas aulas, graduações e pagamentos."}</p>
           </div>
-          <span class="auth-visual-foot">Acesso protegido · permissões vêm do banco</span>
+          <span class="auth-visual-foot">${isDemoMode ? "Dados fictícios · sem login real" : "Acesso protegido · permissões vêm do banco"}</span>
         </section>
         <section class="auth-card">
           <img class="auth-mobile-mark" src="assets/logos/tatame-icone-escudo.svg" alt="">
           <p class="eyebrow">BEM-VINDO AO TATAME</p>
-          <h2>Continuar</h2>
-          <p>O Google inicia uma autenticação real quando configurado. A entrada por e-mail e as contas de demonstração são apenas simulações.</p>
-          <div class="visually-hidden" id="login-action-status" role="status" aria-live="polite" aria-atomic="true"></div>
-          <button class="button button--google button--action" type="button" data-login-action aria-describedby="google-login-error">
-            <img class="google-icon" src="assets/logos/google-g.svg" alt="" aria-hidden="true">
-            <span data-action-label>Fazer login com o Google</span>
-          </button>
-          <div class="login-action-error" id="google-login-error" role="alert" aria-atomic="true">${escapeHtml(loginNotice)}</div>
-          <div class="auth-divider">ou entre com e-mail</div>
-          <form data-demo-form data-login-form>
-            ${field("login-email", "E-mail", "seu e-mail", "email")}
-            <div class="field" style="margin-top:12px">
-              <label for="login-password">Senha</label>
-              <input id="login-password" name="password" type="password" placeholder="Sua senha">
-            </div>
-            <button class="button button--primary button--action" type="submit" data-login-action aria-describedby="email-login-error" style="width:100%;margin-top:14px"><span data-action-label>Entrar</span></button>
-            <div class="login-action-error" id="email-login-error" role="alert" aria-atomic="true"></div>
-          </form>
-          <p class="field-help" style="margin:15px 0 0">Ainda não tem conta? A criação começa por um convite.</p>
-          ${button("Tenho um código de convite", "link-teacher", "button button--quiet", "↗")}
-          <section class="demo-login-options" aria-labelledby="demo-login-title">
-            <p class="eyebrow" id="demo-login-title">ACESSO DE DEMONSTRAÇÃO</p>
-            <p class="field-help">Contas fictícias independentes para visualizar cada papel. No produto, o papel vem da conta autenticada; aqui, sair encerra a sessão simulada.</p>
-            <div class="demo-login-list">
-              ${Object.entries(demoProfiles).map(([account, profile]) => `<button class="button button--quiet" type="button" data-demo-login="${account}">Entrar como ${profile.label} · ${profile.name}</button>`).join("")}
-            </div>
-          </section>
+          <h2>${isDemoMode ? "Demonstração" : "Continuar"}</h2>
+          <p>${isDemoMode ? "Nenhuma conta real é autenticada nesta área." : "Entre com sua conta real. O papel e as permissões são definidos pelo banco."}</p>
+          ${loginControls}
           <div class="login-version"><span>Versão do app</span><span class="version-badge">${APP_VERSION}</span></div>
+        </section>
+      </div>
+    `;
+  },
+
+  "create-account"() {
+    return `
+      ${heading("ACESSO", "Criar conta", "Use seu e-mail para criar uma conta de Aluno ou aceitar um convite de Instrutor.")}
+      <div class="content-grid auth-form-layout">
+        <section class="panel-card" style="max-width:620px;margin:0 auto">
+          <form data-real-signup-form novalidate>
+            <div class="field">
+              <label for="real-signup-name">Nome</label>
+              <input id="real-signup-name" name="name" type="text" autocomplete="name" maxlength="80" aria-describedby="real-signup-error" required>
+            </div>
+            <div class="field" style="margin-top:12px">
+              <label for="real-signup-email">E-mail</label>
+              <input id="real-signup-email" name="email" type="email" autocomplete="email" placeholder="seu e-mail" aria-describedby="real-signup-error" required>
+            </div>
+            <div class="field" style="margin-top:12px">
+              <label for="real-signup-password">Senha</label>
+              <input id="real-signup-password" name="password" type="password" autocomplete="new-password" minlength="8" aria-describedby="real-signup-help real-signup-error" required>
+            </div>
+            <div class="field" style="margin-top:12px">
+              <label for="real-signup-confirm-password">Confirmar senha</label>
+              <input id="real-signup-confirm-password" name="password-confirmation" type="password" autocomplete="new-password" minlength="8" aria-describedby="real-signup-help real-signup-error" required>
+            </div>
+            <small class="field-help" id="real-signup-help">A senha deve ter pelo menos 8 caracteres.</small>
+            <div class="form-actions">
+              <button class="button button--primary button--action" type="submit" data-login-action aria-describedby="real-signup-error real-signup-status"><span data-action-label>Criar conta</span></button>
+              <button class="button button--quiet" type="button" data-screen-target="login">Voltar para entrar</button>
+            </div>
+            <div class="login-action-error" id="real-signup-error" role="alert" aria-atomic="true"></div>
+            <div class="field-help" id="real-signup-status" role="status" aria-live="polite" aria-atomic="true"></div>
+          </form>
+        </section>
+      </div>
+    `;
+  },
+
+  "forgot-password"() {
+    return `
+      ${heading("ACESSO", "Esqueci a senha", "Enviaremos um link para redefinir a senha, se houver uma conta com este e-mail.")}
+      <div class="content-grid auth-form-layout">
+        <section class="panel-card" style="max-width:620px;margin:0 auto">
+          <form data-real-password-reset-form novalidate>
+            <div class="field">
+              <label for="real-reset-email">E-mail</label>
+              <input id="real-reset-email" name="email" type="email" autocomplete="email" placeholder="seu e-mail" aria-describedby="real-reset-error" required>
+            </div>
+            <div class="form-actions">
+              <button class="button button--primary button--action" type="submit" data-login-action aria-describedby="real-reset-error real-reset-status"><span data-action-label>Enviar link</span></button>
+              <button class="button button--quiet" type="button" data-screen-target="login">Voltar para entrar</button>
+            </div>
+            <div class="login-action-error" id="real-reset-error" role="alert" aria-atomic="true"></div>
+            <div class="field-help" id="real-reset-status" role="status" aria-live="polite" aria-atomic="true"></div>
+          </form>
+        </section>
+      </div>
+    `;
+  },
+
+  "password-recovery"() {
+    return `
+      ${heading("ACESSO", "Definir nova senha", "Escolha uma nova senha para sua conta.")}
+      <div class="content-grid auth-form-layout">
+        <section class="panel-card" style="max-width:620px;margin:0 auto">
+          <form data-real-password-update-form novalidate>
+            <div class="field">
+              <label for="real-new-password">Nova senha</label>
+              <input id="real-new-password" name="password" type="password" autocomplete="new-password" minlength="8" aria-describedby="real-password-update-help real-password-update-error" required>
+            </div>
+            <div class="field" style="margin-top:12px">
+              <label for="real-confirm-new-password">Confirmar nova senha</label>
+              <input id="real-confirm-new-password" name="password-confirmation" type="password" autocomplete="new-password" minlength="8" aria-describedby="real-password-update-help real-password-update-error" required>
+            </div>
+            <small class="field-help" id="real-password-update-help">A senha deve ter pelo menos 8 caracteres.</small>
+            <div class="form-actions">
+              <button class="button button--primary button--action" type="submit" data-login-action aria-describedby="real-password-update-error real-password-update-status"><span data-action-label>Salvar nova senha</span></button>
+            </div>
+            <div class="login-action-error" id="real-password-update-error" role="alert" aria-atomic="true"></div>
+            <div class="field-help" id="real-password-update-status" role="status" aria-live="polite" aria-atomic="true"></div>
+          </form>
         </section>
       </div>
     `;
@@ -2577,24 +4067,39 @@ const screens = {
       : realProfessorAccessNotice
         ? `<p class="notice notice--pending" role="status">${escapeHtml(realProfessorAccessNotice)}</p>`
         : "";
+    const realRoleAvailabilityNotice = !realProfile
+      ? "Sem telas próprias identificadas para este papel por enquanto."
+      : realProfile.papel === "professor"
+        ? `Papel lido do banco: ${role}. Disponível agora: cobranças mensais, pagamentos (confirmar, rejeitar, estornar e lançar dinheiro), graduações, seleção de alunos vinculados nas cobranças e nas graduações e convite de Instrutor.`
+        : realProfile.papel === "aluno"
+          ? `Papel lido do banco: ${role}. Disponível agora: suas cobranças enviadas pelo Professor, avisar pagamento, sua faixa e histórico de graduações.${isRealActiveInstructor() ? " Como Instrutor de apoio, também pode consultar a lista de alunos do Professor com nome e faixa/grau atuais." : ""}`
+          : realProfile.papel === "instrutor"
+            ? `Papel lido do banco: ${role}. Disponível agora: lista de alunos do Professor com nome e faixa/grau atuais.`
+            : realProfile.papel === "adm"
+              ? `Papel lido do banco: ${role}. Disponível agora: gestão de academias, convites de Professor, gestão de Professores e lista de alunos com nome e faixa atual.`
+              : `Papel lido do banco: ${role}. Sem telas próprias identificadas para este papel por enquanto.`;
+    const realRoleStatusNotice = realProfile && ["professor", "aluno", "instrutor", "adm"].includes(realProfile.papel)
+      ? `${realRoleAvailabilityNotice} Em construção: exclusão real da conta, notas privadas reais, armazenamento de fotos (Storage) e conversa real.`
+      : realRoleAvailabilityNotice;
     const text = realProfileState === "checking"
       ? ["Verificando seu perfil", "Aguarde a consulta da conta."]
       : realProfileState === "missing"
-        ? ["Sua conta ainda não tem perfil", realProfileNotice || "Não há convite pendente para este e-mail Google ou o e-mail ainda não está confirmado. Confira a conta e tente novamente mais tarde."]
+        ? ["Sua conta ainda não tem perfil", realProfileNotice || "Conclua o cadastro do perfil para acessar o aplicativo."]
         : realProfileState === "found"
           ? realProfessorActivated
             ? realProfile && realProfile.ativo === false
               ? ["Perfil de Professor aguardando troca pelo Adm", `Papel lido do banco: ${role}. O perfil está inativo até o Adm concluir a troca.`]
-              : ["Perfil de Professor ativado", `Papel lido do banco: ${role}.`]
+              : ["Perfil de Professor ativado", realRoleStatusNotice]
             : isRealAdmSession()
-              ? ["Perfil de Adm encontrado", `Papel lido do banco: ${role}. A academia, os convites e a gestão de Professores são ligados ao banco.`]
-              : ["Perfil encontrado", `Papel lido do banco: ${role}. A integração das demais telas com o perfil real ainda está em construção.`]
+              ? ["Perfil de Adm encontrado", realRoleStatusNotice]
+              : ["Perfil encontrado", realRoleStatusNotice]
           : ["Não foi possível consultar seu perfil", realProfileNotice || "Confira a conexão e tente novamente. Não é possível determinar se existe um perfil."];
-    return `${heading("CONTA GOOGLE", text[0], text[1])}
-      ${panel("Sessão", `<p>A conta Google está conectada. Abra o painel da conta para ver o e-mail ou sair.</p>
+    return `${heading("CONTA", text[0], text[1])}
+      ${panel("Sessão", `<p>Sua conta está conectada. Abra o painel da conta para ver o e-mail ou sair.</p>
         ${realProfileState === "found" ? `<p><strong>Papel no banco:</strong> ${role}<br><strong>Nome:</strong> <span id="real-profile-name">${profileName}</span></p>` : ""}
         ${realProfileState === "found" ? realTeacherNameSection : ""}
         ${realProfileState === "error" ? `<p class="login-action-error" role="alert">${escapeHtml(realProfileNotice || text[1])}</p>` : ""}
+        ${realInstructorLinkState === "error" ? `<p class="login-action-error" role="alert">${escapeHtml(realInstructorLinkNotice)}</p>` : ""}
         <button class="button button--quiet" type="button" data-open-user-panel>Abrir painel da conta</button>
         ${isRealAdmSession() ? `<div class="form-actions">${button("Academia", "academy", "button button--quiet")}${button("Professores convidados", "teacher-invites", "button button--quiet")}${button("Professores e papéis", "role-management", "button button--quiet")}</div>` : ""}
         ${isRealProfessorProfile() ? `<div class="form-actions">${button("Código e convites", "teacher-code", "button button--quiet")}</div>` : ""}
@@ -2712,7 +4217,9 @@ const screens = {
 
   "student-home"() {
     const profile = demoProfiles[activeDemoAccount];
-    const studentCharges = monthlyCharges.filter((charge) => charge.studentAccount === activeDemoAccount);
+    const studentCharges = activeRole === "student"
+      ? monthlyCharges.filter((charge) => studentCanSeeCharge(charge, activeDemoAccount))
+      : [];
     const latestCharge = [...studentCharges].sort((left, right) => right.month.localeCompare(left.month))[0];
     const nextDueCharge = studentCharges.filter((charge) => charge.status === "aberta")
       .sort((left, right) => left.dueDate.localeCompare(right.dueDate))[0];
@@ -2743,10 +4250,10 @@ const screens = {
           ${panel("Meu perfil", personRow(escapeHtml(profile.name), `${escapeHtml(profile.label)} · perfil de demonstração`, "avatar-masculino.jpg", "", activeDemoAccount, "self") + studentAcademyDetails(activeDemoAccount) + `
             <div class="student-belt"><span class="belt-swatch"></span><span><strong>Faixa cadastrada</strong><small>Graus e histórico em Minhas graduações</small></span></div>
           `, "panel-card--highlight")}
-          <div class="card-grid card-grid--two">
+          ${activeRole === "student" ? `<div class="card-grid card-grid--two">
             ${metric("SITUAÇÃO DA MENSALIDADE", chargeStatus, "Status demonstrativo", "gold")}
             ${metric("PRÓXIMO VENCIMENTO", nextDueCharge ? formatDemoDate(nextDueCharge.dueDate) : "—", nextDueCharge ? nextDueCharge.month : "Data não informada", "amber")}
-          </div>
+          </div>` : ""}
         </div>
         <div class="stack">
           ${panel("Pagamento recente", paymentSummary)}
@@ -2790,22 +4297,15 @@ const screens = {
 
   "student-payments"() {
     if (activeRole === "instructor") {
-      const instructorCharges = monthlyCharges.filter((charge) => charge.studentAccount === activeDemoAccount);
       return `
-        ${heading("VISÃO DO INSTRUTOR", "Meus pagamentos", "Consulte o estado dos seus avisos. Valores de pagamentos não são exibidos para Instrutores.")}
-        ${panel("Situação das cobranças", instructorCharges.length
-          ? instructorCharges.map((charge) => {
-            const label = charge.status === "paga" ? "PAGA" : charge.status === "isenta" ? "ISENTA" : charge.status === "cancelada" ? "CANCELADA" : monthlyChargeIsLate(charge) ? "ATRASADA" : "EM ABERTO";
-            return listRow(charge.month, `Vencimento: ${formatDemoDate(charge.dueDate)}`, "", `<span class="badge">${label}</span>`);
-          }).join("")
-          : emptyState("Nenhuma cobrança registrada", "O estado das cobranças aparecerá aqui sem valores."))}
+        ${heading("VISÃO DO INSTRUTOR", "Meus pagamentos", "Cobranças e valores não são exibidos para Instrutores.")}
       `;
     }
     const studentPayments = [...cashPayments, ...receiptPayments].filter((payment) => payment.account === activeDemoAccount);
     const pendingPayments = studentPayments.filter((payment) => payment.status === "pending");
     const receivedPayments = studentPayments.filter((payment) => payment.status === "confirmed");
     const lastCashPayment = [...cashPayments].reverse().find((payment) => payment.account === activeDemoAccount && !["undone", "reversed"].includes(payment.status));
-    const studentCharges = monthlyCharges.filter((charge) => charge.studentAccount === activeDemoAccount);
+    const studentCharges = monthlyCharges.filter((charge) => studentCanSeeCharge(charge, activeDemoAccount));
     const openCharges = studentCharges.filter((charge) => charge.status === "aberta");
     const selectedCharge = openCharges.find((charge) => charge.id === selectedStudentChargeId) || openCharges[0] || null;
     selectedStudentChargeId = selectedCharge ? selectedCharge.id : null;
@@ -2829,7 +4329,7 @@ const screens = {
           : "O Professor recusou o aviso de pagamento em dinheiro."
       : "";
     return `
-      ${heading("VISÃO DO ALUNO", "Meus pagamentos", "Consulte cobranças e avisos. O protótipo apenas controla pagamentos; não movimenta dinheiro.")}
+      ${heading("VISÃO DO ALUNO", "Meus pagamentos", "Consulte cobranças e avisos. O Tatame controla pagamentos; não movimenta dinheiro.")}
       <div class="card-grid card-grid--four">
         ${metric("EM ABERTO", formatDemoCents(openCents), "Saldo dentro do prazo", "gold")}
         ${metric("AGUARDANDO CONFIRMAÇÃO", formatDemoPaymentTotal(pendingPayments), `${pendingPayments.length} aviso(s) ou comprovante(s)`, "amber")}
@@ -2849,7 +4349,7 @@ const screens = {
               ${openCharges.map((charge) => `<option value="${escapeHtml(charge.id)}" ${selectedCharge && charge.id === selectedCharge.id ? "selected" : ""}>${escapeHtml(charge.month)} · venc. ${escapeHtml(formatDemoDate(charge.dueDate))} · saldo ${escapeHtml(formatDemoCents(Math.max(0, charge.finalAmountCents - chargeConfirmedCents(charge))))}</option>`).join("")}
             </select></div>
             <label class="button button--primary file-action" for="receipt-file">Escolher comprovante Pix (imagem ou PDF)</label>
-            <input id="receipt-file" class="visually-hidden" type="file" accept="image/*,application/pdf,.pdf" data-receipt-file ${receiptAlreadySent ? "disabled" : ""}>
+            <input id="receipt-file" class="visually-hidden" type="file" accept="image/*,application/pdf" data-receipt-file ${receiptAlreadySent ? "disabled" : ""}>
             <div class="form-grid cash-entry-fields${activeRole === "student" ? " cash-entry-fields--student" : ""}">
               <div class="field"><label for="cash-amount">Valor recebido</label><input id="cash-amount" type="number" min="0.01" step="0.01" value="${selectedChargeBalance === null ? "150.00" : (selectedChargeBalance / 100).toFixed(2)}"></div>
               <div class="field"><label for="cash-date">Data de recebimento</label><input id="cash-date" type="date" value="2026-11-07"></div>
@@ -2881,7 +4381,7 @@ const screens = {
           <div class="notice notice--pending" id="duplicate-receipt-warning" style="margin-top:10px" ${receiptAlreadySent ? "" : "hidden"}>Já existe um aviso pendente para esta cobrança fictícia. Aguarde a decisão do Professor.</div>
           <p class="field-help">Isenções e descontos são definidos pelo Professor. O estado atrasado considera o vencimento e a carência configurada.</p>
           <p class="field-help" style="margin-top:8px">Parser de comprovante: pendente de teste real no iPhone.</p>
-          <p class="field-help" style="margin-top:12px">O protótipo não envia nem guarda arquivos.</p>
+          <p class="field-help" style="margin-top:12px">O Tatame não envia nem guarda arquivos.</p>
         `)}
       </div>
     `;
@@ -2953,27 +4453,34 @@ const screens = {
         `)}
       </div>
       <div style="margin-top:16px">
-        ${panel("Aulas de hoje", `<div class="notice notice--info">O plano de aulas, arquivo de temas e sugestões ficam na Fase 2; a decisão é sempre sua.</div>`)}
+        ${panel("Aulas de hoje", `<div class="notice notice--info">Disponível em versão futura. O plano de aulas, arquivo de temas e sugestões ainda não estão disponíveis.</div>`)}
       </div>
     `;
   },
 
   students() {
+    const students = demoRoster
+      .map((student, index) => ({ student, index }))
+      .filter(({ student }) => student.teacherAccount === activeDemoAccount &&
+        (student.account !== "instructor" || student.demoCreated));
     return `
       ${heading("VISÃO DO PROFESSOR", "Alunos", "Gerencie somente os alunos vinculados ao seu perfil.", button("Novo aluno", "student-create", "button button--primary", "+"))}
       ${panel("Lista de alunos", `
-        <label class="search-wrap"><span class="search-symbol" aria-hidden="true">⌕</span><input class="search-input" type="search" placeholder="Buscar aluno (demonstração)" aria-label="Buscar aluno"></label>
+        <label class="search-wrap"><span class="search-symbol" aria-hidden="true">⌕</span><input class="search-input" type="search" placeholder="Buscar aluno (demonstração)" aria-label="Buscar aluno" data-student-search></label>
         <div class="filter-row" role="group" aria-label="Filtros de demonstração">
-          <button class="filter-chip" type="button" aria-pressed="true" data-demo-action>Todos</button>
-          <button class="filter-chip" type="button" aria-pressed="false" data-demo-action>Ativos</button>
-          <button class="filter-chip" type="button" aria-pressed="false" data-demo-action>Trancados</button>
-          <button class="filter-chip" type="button" aria-pressed="false" data-demo-action>Sem acesso</button>
+          <button class="filter-chip" type="button" aria-pressed="true" data-student-filter="all">Todos</button>
+          <button class="filter-chip" type="button" aria-pressed="false" data-student-filter="active">Ativos</button>
+          <button class="filter-chip" type="button" aria-pressed="false" data-student-filter="locked">Trancados</button>
+          <button class="filter-chip" type="button" aria-pressed="false" data-student-filter="no-access">Sem acesso</button>
         </div>
-        ${studentEntry(demoRoster[0].name, "ATIVO", "avatar-masculino.jpg", "badge--green")}
-        ${studentEntry(demoRoster[2].name, "SEM LOGIN", "avatar-feminino.jpg", "badge--blue")}
-        ${studentEntry(demoRoster[3].name, "TRANCADO", "avatar-masculino.jpg", "badge--amber")}
-        ${demoRoster.map((student, index) => student.demoCreated && student.teacherAccount === activeDemoAccount
-          ? studentEntry(student.name, "SEM LOGIN", "avatar-masculino.jpg", "badge--blue", index) : "").join("")}
+        ${students.length ? students.map(({ student, index }) => {
+          const locked = student.status === "locked";
+          const hasAccess = Boolean(student.account);
+          const detail = locked ? "TRANCADO" : hasAccess ? "ATIVO" : "SEM LOGIN";
+          const badge = locked ? "badge--amber" : hasAccess ? "badge--green" : "badge--blue";
+          const image = index === 2 ? "avatar-feminino.jpg" : "avatar-masculino.jpg";
+          return studentEntry(student.name, detail, image, badge, index);
+        }).join("") : emptyState("Nenhum aluno vinculado", "Alunos vinculados ao Professor aparecerão aqui.")}
       `)}
     `;
   },
@@ -3048,54 +4555,42 @@ const screens = {
       <section class="tab-panel panel-card" id="panel-payments" role="tabpanel" aria-labelledby="tab-payments" data-tab-panel="payments" hidden>${listRow("Cobrança", "Vencimento: —", "R$ —", '<span class="badge badge--pending">PENDENTE</span>')}${emptyState("Sem registros adicionais", "O histórico é demonstrativo.")}</section>
       <section class="tab-panel panel-card" id="panel-grades" role="tabpanel" aria-labelledby="tab-grades" data-tab-panel="grades" hidden>${gradeForm}</section>
       <section class="tab-panel panel-card" id="panel-feedback" role="tabpanel" aria-labelledby="tab-feedback" data-tab-panel="feedback" hidden>${emptyState("Nenhum feedback demonstrativo", "Mensagens e metas aparecem conforme o roadmap.")}</section>
-      <section class="tab-panel panel-card" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" data-tab-panel="notes" hidden><div class="notice notice--info">Anotações privadas do professor. Não são exibidas ao aluno nem ao instrutor.</div><textarea class="search-input" aria-label="Prévia de anotação privada" placeholder="Campo visual; nada será salvo" style="margin-top:12px"></textarea></section>
+      <section class="tab-panel panel-card" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" data-tab-panel="notes" hidden>${renderDemoPrivateNotes(student)}</section>
     `;
   },
 
   "student-create"() {
     return `
-      ${heading("VISÃO DO PROFESSOR", "Novo aluno e convite", "Use somente dados fictícios. Nome e graduação ficam neste navegador; os demais campos são apenas visuais.")}
+      ${heading("VISÃO DO PROFESSOR", "Novo aluno e convite", "Use somente dados fictícios. Nome e graduação ficam neste navegador; nenhum login ou convite é criado.")}
       <div class="content-grid">
         ${panel("Cadastro", `
           <form data-create-demo-student>
             <div class="form-grid">
               <div class="field"><label for="student-name">Nome fictício</label><input id="student-name" type="text" placeholder="Nome fictício do aluno" required></div>
-              ${field("student-contact", "Contato", "Contato (opcional)")}
               <div class="field" id="student-age-field" hidden>
                 <label for="student-age-status">Idade declarada pelo Professor</label>
                 <select id="student-age-status"><option value="unknown">Ainda não informada</option><option value="adult">18 anos ou mais</option><option value="minor">Menor de 18 anos</option></select>
                 <small class="field-help">Sem data de nascimento. Menor de 18 anos usa somente avatar.</small>
               </div>
               <div class="field">
-                <label for="student-plan">Plano</label>
-                <select id="student-plan"><option>Selecione</option><option>Mensalidade</option><option>Avulso</option></select>
-              </div>
-              ${field("student-fee", "Valor", "R$ —")}
-              ${field("student-due", "Dia do vencimento", "—", "number")}
-              <div class="field">
                 <label for="student-belt">Faixa</label>
                 <select id="student-belt" required><option value="">Selecione</option>${demoBelts.map((belt) => `<option>${belt}</option>`).join("")}</select>
               </div>
               <div class="field"><label for="student-degree">Grau atual</label><select id="student-degree" required disabled><option value="">Selecione a faixa</option></select></div>
               <div class="field">
-                <label for="student-access">Acesso</label>
-                <select id="student-access"><option value="invite">Convite para conta</option><option value="no-login">Perfil sem login</option></select>
-                <small class="field-help">Aluno sem telefone pode permanecer gerenciado pelo professor.</small>
+                <label for="student-access">Acesso (demonstração)</label>
+                <select id="student-access"><option value="invite">Convite não gerado</option><option value="no-login">Perfil sem login</option></select>
+                <small class="field-help">A demonstração não cria conta nem convite.</small>
               </div>
             </div>
-            <p class="field-help" id="student-age-help">Com convite, a pessoa declara a idade no primeiro acesso. Para perfil sem login, o Professor faz essa marcação, sem data de nascimento.</p>
-            <div class="notice notice--info" style="margin-top:16px">O cadastro fictício não cria login nem convite. Contato, plano, valor, vencimento e acesso não são salvos; a idade declarada fica apenas nesta sessão.</div>
+            <p class="field-help" id="student-age-help">Na versão funcional, a idade é declarada no primeiro acesso. Na demonstração, nenhum convite é criado; para perfil sem login, o Professor marca a faixa etária sem data de nascimento.</p>
+            <div class="notice notice--info" style="margin-top:16px">A demonstração salva apenas o nome e a graduação no navegador. Nenhum contato, plano, valor, vencimento, login ou convite é criado; a idade declarada fica nesta sessão.</div>
             <div class="form-actions"><button class="button button--quiet" type="reset">Limpar campos</button><div class="student-action-control"><button class="button button--primary button--action" type="submit" data-student-create-action><span data-action-label>Cadastrar aluno fictício</span></button><p class="login-action-error student-action-error" role="alert"></p></div></div>
             <p class="field-help" role="status" aria-live="polite"></p>
           </form>
         `)}
         ${panel("Convite do aluno", `
-          <div class="invite-preview">
-            <span class="eyebrow">LINK DE DEMONSTRAÇÃO</span>
-            <strong>Convite ainda não gerado</strong>
-            <p>Na versão funcional, o vínculo será validado no banco e usado uma única vez.</p>
-            ${actionButton("Pré-visualizar convite")}
-          </div>
+          <div class="notice notice--info">A demonstração não cria nem envia convites. O cadastro é somente local.</div>
         `)}
       </div>
     `;
@@ -3275,7 +4770,7 @@ const screens = {
         `)}
         <div class="stack">
           ${panel("Lançar dinheiro recebido", `
-            <p class="panel-copy">O recebimento fica confirmado na hora. Você pode desfazê-lo por 10 segundos no histórico; depois, use Estornar.</p>
+            <p class="panel-copy">O recebimento fica confirmado na hora. Você pode desfazê-lo por 120 segundos no histórico; depois, use Estornar.</p>
             <form data-register-teacher-cash>
               <div class="form-grid">
                 <div class="field"><label for="teacher-cash-student">Aluno da sua turma</label><input id="teacher-cash-student" type="text" role="combobox" aria-autocomplete="list" aria-controls="teacher-cash-students" aria-expanded="false" autocomplete="off" aria-describedby="teacher-cash-student-help teacher-cash-selection" required><div class="teacher-cash-options" id="teacher-cash-students" role="listbox" aria-label="Alunos da sua turma" hidden></div><small class="field-help" id="teacher-cash-student-help">Digite o nome e selecione o aluno e sua graduação na lista.</small><small class="field-help teacher-cash-selection" id="teacher-cash-selection" role="status"></small></div>
@@ -3312,6 +4807,7 @@ const screens = {
     const charges = chargesForTeacherMonth(activeDemoAccount, billingSelectedMonth);
     return `
       ${heading("VISÃO DO PROFESSOR", "Cobranças mensais", "Configure a mensalidade por aluno e gere no máximo 24 cobranças por vez. Tudo fica na demonstração local; não há gateway.")}
+      <div class="notice notice--info">O app só controla pagamentos e não envia mensagens fora do app.</div>
       <div class="content-grid">
         <div class="stack">
           ${panel("Regras do mês", `
@@ -3364,13 +4860,6 @@ const screens = {
             : '<div class="notice notice--info">Nenhuma cobrança atrasada neste mês.</div>'}
           ${button("Configurar cobranças", "monthly-charges", "button button--quiet")}
         `)}
-        ${panel("Lembrete manual pelo WhatsApp", `
-          <p class="panel-copy">O link abre o WhatsApp sem destinatário, nome ou mensagem preenchidos. Nada é enviado automaticamente.</p>
-          <div class="row-actions">
-            <a class="button button--small button--quiet" href="https://wa.me/" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>
-          </div>
-          <p class="field-help">Escolha o contato e escreva/envie a mensagem manualmente. Destinatário e conteúdo do lembrete ainda precisam ser definidos.</p>
-        `)}
       </div>
     `;
   },
@@ -3383,7 +4872,7 @@ const screens = {
         <button class="quick-action" type="button" data-screen-target="role-management"><span class="quick-action-icon" aria-hidden="true">◈</span><span><strong>Papéis e autorizações</strong><small>Administrar contas e instrutores</small></span></button>
         <button class="quick-action" type="button" data-screen-target="pix-import"><span class="quick-action-icon" aria-hidden="true">⇧</span><span><strong>Importar extrato Pix</strong><small>Sugerir cobranças correspondentes</small></span></button>
         <button class="quick-action" type="button" data-screen-target="payment-review"><span class="quick-action-icon" aria-hidden="true">▤</span><span><strong>Confirmar pagamento</strong><small>Revisar avisos dos alunos</small></span></button>
-        <button class="quick-action" type="button" data-screen-target="overdue"><span class="quick-action-icon" aria-hidden="true">◷</span><span><strong>Cobrar manualmente</strong><small>Abrir WhatsApp sem envio automático</small></span></button>
+        <button class="quick-action" type="button" data-screen-target="overdue"><span class="quick-action-icon" aria-hidden="true">◷</span><span><strong>Consultar atrasos</strong><small>Ver cobranças atrasadas</small></span></button>
         <button class="quick-action" type="button" data-screen-target="students"><span class="quick-action-icon" aria-hidden="true">♧</span><span><strong>Ver alunos</strong><small>Lista e perfis vinculados</small></span></button>
         <button class="quick-action" type="button" data-screen-target="teacher-home"><span class="quick-action-icon" aria-hidden="true">▦</span><span><strong>Voltar ao painel</strong><small>Resumo e alertas</small></span></button>
       </div>
@@ -3427,7 +4916,7 @@ const screens = {
           ${button("Ver professores convidados", "teacher-invites", "button button--quiet")}
         `)}
         ${panel("Suporte", `
-          <div class="notice notice--pending">Acesso individual a dados só em modo de suporte, com auditoria. As regras e a tela de auditoria serão definidas antes de implementar esse recurso.</div>
+          <div class="notice notice--pending">Disponível em versão futura. As regras e a tela de auditoria de suporte ainda não estão definidas.</div>
         `)}
       </div>
     `;
@@ -3447,16 +4936,37 @@ const screens = {
           ${emptyState("Sem outros registros", "Esta lista não contém pessoas reais.")}
         `)}
         ${panel("Convidar professor", `
-          <form data-demo-form>
-            ${field("teacher-email", "E-mail", "e-mail do professor", "email")}
-            <div class="form-actions"><button class="button button--primary" type="submit">Prévia do convite</button></div>
-          </form>
-          <p class="field-help" style="margin-top:12px">O convite real e a atribuição do papel serão validados no banco.</p>
+          <div class="notice notice--info">Convidar professores estará disponível em versão futura. Nenhum convite é criado nesta demonstração.</div>
         `)}
       </div>
     `;
   },
 
+  "instructor-students"() {
+    const isRealInstructorView = isRealActiveInstructor();
+    const linkNotice = realInstructorLinkState === "error"
+      ? `<div class="notice notice--pending" role="alert">${escapeHtml(realInstructorLinkNotice)}</div>`
+      : "";
+    const studentsContent = realInstructorStudentsState === "checking"
+      ? '<p class="field-help" role="status" aria-live="polite">Carregando alunos vinculados...</p>'
+      : realInstructorStudentsState === "error"
+        ? `<div class="notice notice--pending" role="alert">${escapeHtml(realInstructorStudentsNotice)}</div>`
+        : isRealInstructorView && realInstructorStudents.length
+          ? `<ul aria-label="Alunos vinculados">${realInstructorStudents.map((student) => {
+            const graduation = student.faixa && Number.isInteger(student.grau)
+              ? `Faixa ${escapeHtml(student.faixa)} · ${student.grau} grau${student.grau === 1 ? "" : "s"}`
+              : "Sem graduação registrada";
+            return `<li><strong>${escapeHtml(student.nome)}</strong><br><small>${graduation}</small></li>`;
+          }).join("")}</ul>`
+          : '<div class="empty-state"><div><strong>Nenhum aluno vinculado ainda</strong></div></div>';
+    return `
+      ${heading("VISÃO DO INSTRUTOR", "Alunos vinculados", isRealInstructorView
+        ? "Consulte somente o nome e a faixa/grau atuais dos alunos do seu Professor."
+        : "Consulte somente os nomes dos alunos vinculados ao seu Professor.")}
+      ${linkNotice}
+      ${panel("Alunos vinculados", studentsContent)}
+    `;
+  },
   "instructor-class"() {
     const profile = demoProfiles[activeDemoAccount];
     if (!profile || !authorizedInstructorNames.has(profile.name)) {
@@ -3580,9 +5090,9 @@ const screens = {
         ${profilePhotoCard(activeDemoAccount, activeRole)}
         ${panel("Preferências", `
           <div class="settings-row"><span><strong>Tema</strong><small>Segue o aparelho por padrão; alterne para conferir.</small></span><button class="button button--small button--quiet" type="button" data-theme-toggle>Alternar tema</button></div>
-          <div class="settings-row"><span><strong>Atualização</strong><small>Verificação visual, sem buscar versão remota.</small></span>${actionButton("Buscar versão", "button button--small button--quiet")}</div>
+          <div class="settings-row"><span><strong>Atualização</strong><small>Disponível em versão futura.</small></span><button class="button button--small button--quiet" type="button" disabled>Buscar versão</button></div>
           <div class="settings-row"><span><strong>Privacidade</strong><small>Texto pendente de revisão e aprovação.</small></span><button class="button button--small button--quiet" type="button" data-open-privacy>Consultar</button></div>
-          <div class="settings-row"><span><strong>Ajuda e tutorial</strong><small>Conteúdo previsto para fase posterior.</small></span>${actionButton("Abrir ajuda", "button button--small button--quiet")}</div>
+          <div class="settings-row"><span><strong>Ajuda e tutorial</strong><small>Disponível em versão futura.</small></span><button class="button button--small button--quiet" type="button" disabled>Abrir ajuda</button></div>
         `)}
       </div>
     `;
@@ -3590,7 +5100,7 @@ const screens = {
 
   privacy() {
     return `
-      ${heading("PRIVACIDADE", "Rascunho de privacidade", "O aceite do Professor é registrado; para Instrutor, após a confirmação do convite; para Aluno novo, o aceite cria o perfil e registra a versão do termo e a data e hora.")}
+      ${heading("PRIVACIDADE", "Privacidade e consentimento", "Texto provisório, feito sem revisão jurídica.")}
       <div class="content-grid">
         ${panel("Conteúdo a revisar", `
           <div class="privacy-draft-content">${renderPrivacyDraftContent("h3")}</div>
@@ -3626,32 +5136,52 @@ function renderScreen(id) {
   const screen = screens[id];
   const isRealAdmin = isRealAdmSession();
   const isRealStudentLink = id === "link-teacher" && isRealActiveStudent();
+  const isRealStudentPayments = id === "student-payments" && isRealActiveStudent();
+  const isRealProfessorPayments = id === "payment-review" && isRealActiveProfessor();
+  const isRealProfessorGraduations = id === "student-detail" && isRealActiveProfessor();
+  const isRealStudentGraduations = id === "student-grades" && isRealActiveStudent();
   const realAdminRenderer = isRealAdmin
     ? {
+      "admin-students": renderRealAdminStudentsScreen,
       academy: renderRealAdminAcademyScreen,
       "teacher-invites": renderRealAdminInvitesScreen,
       "role-management": renderRealAdminManagementScreen
     }[id]
     : null;
   const isRealTeacherCode = id === "teacher-code" && isRealProfessorProfile();
-  const isRealInstructorInvite = id === "instructor-invite" && !activeRole &&
+  const isRealBilling = id === "monthly-charges" && isRealActiveProfessor();
+  const isRealInstructorStudents = id === "instructor-students" && isRealActiveInstructor();
+  const isRealInstructorInvite = !isDemoMode && id === "instructor-invite" && !activeRole &&
     (Boolean(realUser) || Boolean(realInstructorInviteToken));
   const screenRenderer = isRealInstructorInvite
     ? renderRealInstructorInviteScreen
     : isRealStudentLink
     ? renderRealStudentLinkScreen
+    : isRealStudentPayments
+    ? renderRealStudentPaymentsScreen
+    : isRealProfessorPayments
+    ? renderRealProfessorPaymentsScreen
+    : isRealProfessorGraduations
+    ? renderRealProfessorGraduationsScreen
+    : isRealStudentGraduations
+    ? renderRealStudentGraduationsScreen
+    : isRealBilling
+    ? renderRealBillingScreen
     : isRealTeacherCode
     ? renderRealTeacherCodeScreen
     : realAdminRenderer || screen;
   if (!screenRenderer || !canViewScreen(id)) {
-    const message = realUser && !activeRole && ["academy", "teacher-invites", "role-management"].includes(id)
+    const message = realUser && !activeRole && ["academy", "teacher-invites", "role-management", "admin-students"].includes(id)
       ? "Esta tela está disponível somente para uma conta real com papel Adm."
       : "Esta tela não está disponível para o papel desta conta.";
     showToast(message, "error");
     return;
   }
 
+  const changedScreen = currentScreen !== id;
   currentScreen = id;
+  syncAppModeUI();
+  if (changedScreen) window.clearTimeout(realPaymentUndoTimer);
   if (isRealTeacherCode) {
     realTeacherCode = null;
     realTeacherCodeState = "checking";
@@ -3666,15 +5196,75 @@ function renderScreen(id) {
     realUnregisteredStudentsState = "checking";
     realUnregisteredStudentsNotice = "";
   }
+  if (isRealBilling) {
+    realBillingStudentNames = new Map();
+    realBillingStudentsState = "checking";
+    realBillingStudentsNotice = "";
+    realBillingUnregisteredStudents = [];
+    realBillingUnregisteredStudentsState = "checking";
+    realBillingUnregisteredStudentsNotice = "";
+  }
+  if (isRealInstructorStudents) {
+    realInstructorStudents = [];
+    realInstructorStudentsState = "checking";
+    realInstructorStudentsNotice = "";
+  }
+  const isRealAdminStudents = id === "admin-students" && isRealAdmSession();
+  if (isRealAdminStudents) {
+    realAdminStudents = [];
+    realAdminStudentsState = "checking";
+    realAdminStudentsNotice = "";
+  }
+  if (isRealProfessorPayments) {
+    realBillingStudentNames = new Map();
+    realBillingStudentsState = "checking";
+    realBillingStudentsNotice = "";
+    realProfessorPayments = [];
+    realProfessorCharges = [];
+    realProfessorPaymentsState = "checking";
+    realProfessorPaymentsNotice = "";
+  }
+  if (isRealStudentPayments) {
+    realStudentPayments = [];
+    realStudentCharges = [];
+    realStudentPaymentsState = "checking";
+    realStudentPaymentsNotice = "";
+  }
+  if (isRealProfessorGraduations) {
+    realProfessorGraduationStudents = [];
+    realProfessorGraduations = [];
+    realProfessorGraduationsState = "checking";
+    realProfessorGraduationsNotice = "";
+    realSelectedGraduationStudentId = "";
+  }
+  if (isRealStudentGraduations) {
+    realStudentGraduations = [];
+    realStudentGraduationsState = "checking";
+    realStudentGraduationsNotice = "";
+  }
   if (isRealStudentLink) {
     realStudentLinkState = "checking";
     realStudentLinkRequest = null;
     realStudentLinkNotice = "";
   }
-  if (screenContent.querySelector('[data-login-action][data-action-state="success"]')) {
+  if (isDemoMode && screenContent.querySelector('[data-login-action][data-action-state="success"]')) {
     showToast("Simulação concluída. Nenhum login foi realizado.");
   }
   screenContent.innerHTML = screenRenderer();
+  if (isRealBilling) {
+    loadRealBillingStudents();
+    loadRealBillingData();
+    loadRealBillingUnregisteredStudents();
+  }
+  if (isRealInstructorStudents) loadRealInstructorStudents();
+  if (isRealAdminStudents) loadRealAdminStudents();
+  if (isRealProfessorPayments) {
+    loadRealBillingStudents("payment-review");
+    loadRealProfessorPaymentsData();
+  }
+  if (isRealProfessorGraduations) loadRealProfessorGraduations();
+  if (isRealStudentGraduations) loadRealStudentGraduations();
+  if (isRealStudentPayments) loadRealStudentPayments();
   if (isRealTeacherCode) loadRealTeacherCode();
   if (isRealTeacherCode) loadRealInstructorInvites();
   if (isRealStudentLink) loadRealStudentLinkStatus();
@@ -3822,7 +5412,7 @@ function renderRealInstructorInvites() {
 function renderRealInstructorInviteScreen() {
   if (!realUser) {
     return `
-      ${heading("CONVITE DE INSTRUTOR", "Aceitar convite", "Entre com Google para verificar o convite recebido.")}
+      ${heading("CONVITE DE INSTRUTOR", "Aceitar convite", "Entre ou crie sua conta para verificar o convite recebido.")}
       <div class="auth-card">
         <p class="panel-copy">O link é de uso único e expira em três dias. Não exibimos o código do convite nesta tela.</p>
         <button class="button button--google button--action" type="button" data-login-action aria-describedby="google-login-error">
@@ -3830,6 +5420,9 @@ function renderRealInstructorInviteScreen() {
         </button>
         <div class="login-action-error" id="google-login-error" role="alert" aria-atomic="true"></div>
         <div class="visually-hidden" id="login-action-status" role="status" aria-live="polite" aria-atomic="true"></div>
+        <div class="auth-divider">ou use e-mail e senha</div>
+        <button class="button button--quiet" type="button" data-screen-target="login">Entrar com e-mail e senha</button>
+        <button class="button button--quiet" type="button" data-screen-target="create-account">Criar conta</button>
       </div>
     `;
   }
@@ -3869,7 +5462,7 @@ function renderRealInstructorInviteScreen() {
         ${isNewAccount ? `
           <div class="field">
             <label for="real-instructor-invite-name">Nome</label>
-            <input id="real-instructor-invite-name" name="nome" type="text" autocomplete="name" maxlength="80" required>
+            <input id="real-instructor-invite-name" name="nome" type="text" autocomplete="name" maxlength="80" value="${escapeHtml(getPendingRealSignupName())}" required>
           </div>
           <label class="consent-row">
             <input id="real-instructor-invite-adult" name="adulto" type="checkbox" required>
@@ -3895,6 +5488,7 @@ function renderRealInstructorInviteScreen() {
       ${panel("Convite de uso único", `
         <p class="panel-copy">O convite expira em três dias. Ao aceitar, sua conta passa a Instrutor e fica vinculada ao Professor que enviou o convite.</p>
         <p class="field-help">A idade é declarada; não pedimos data de nascimento.</p>
+        ${realInstructorLinkState === "error" ? `<div class="notice notice--pending" role="alert">${escapeHtml(realInstructorLinkNotice)}</div>` : ""}
         ${accountState}
       `)}
     </div>
@@ -3999,7 +5593,7 @@ function renderRealStudentLinkScreen() {
     : "";
 
   return `
-    ${heading("CONTA GOOGLE · ALUNO", "Vincular a um Professor", "Envie seu código para solicitar um vínculo. A demonstração continua separada.") }
+    ${heading("CONTA · ALUNO", "Vincular a um Professor", "Envie seu código para solicitar um vínculo. A demonstração continua separada.") }
     <div class="content-grid">
       ${panel("Pedido de vínculo", `${requestState}${form}`, "panel-card--highlight")}
     </div>
@@ -4116,7 +5710,7 @@ async function loadRealStudentLinkStatus() {
   screenContent.innerHTML = renderRealStudentLinkScreen();
   if (!authClient || !userId || !isRealActiveStudent()) {
     realStudentLinkState = "error";
-    realStudentLinkNotice = "Esta ação exige uma conta Google de Aluno ativa.";
+    realStudentLinkNotice = "Esta ação exige uma conta real de Aluno ativa.";
     if (sequence === realStudentLinkRequestSequence && currentScreen === "link-teacher") {
       screenContent.innerHTML = renderRealStudentLinkScreen();
     }
@@ -4355,7 +5949,7 @@ async function loadRealProfessorStudentRecords() {
 function updateUserPanelProfile() {
   const profile = demoProfiles[activeDemoAccount];
   document.querySelector("#user-panel-profile-academy").textContent =
-    profile && profile.academyId === demoAcademy.id ? demoAcademy.name : profile ? "Sem academia vinculada" : "Conta Google";
+    profile && profile.academyId === demoAcademy.id ? demoAcademy.name : profile ? "Sem academia vinculada" : "Conta real";
 }
 
 function canEditAcademy() {
@@ -4386,15 +5980,53 @@ function isRealActiveStudent() {
     realProfile.papel === "aluno" && realProfile.ativo === true);
 }
 
+function isRealActiveInstructor() {
+  return Boolean(!activeRole && realUser && realProfileState === "found" && realProfile &&
+    realProfile.ativo === true &&
+    (realProfile.papel === "instrutor" || realInstructorLink && realInstructorLink.instrutor_id === realUser.id));
+}
+
+async function loadRealInstructorLink(userId) {
+  const sequence = ++realInstructorLinkRequestSequence;
+  realInstructorLinkState = "checking";
+  realInstructorLinkNotice = "";
+  if (!authClient || !userId) {
+    realInstructorLink = null;
+    realInstructorLinkState = "error";
+    realInstructorLinkNotice = "Não foi possível verificar o vínculo de Instrutor. Sua sessão continua ativa.";
+    return;
+  }
+
+  try {
+    const { data, error } = await authClient.from("instrutores_professor")
+      .select("instrutor_id,professor_id")
+      .eq("instrutor_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    if (data && (data.instrutor_id !== userId || typeof data.professor_id !== "string")) {
+      throw new TypeError("Vínculo de Instrutor indisponível.");
+    }
+    if (sequence !== realInstructorLinkRequestSequence || !realUser || realUser.id !== userId) return;
+    realInstructorLink = data || null;
+    realInstructorLinkState = data ? "found" : "missing";
+  } catch (error) {
+    if (sequence !== realInstructorLinkRequestSequence || !realUser || realUser.id !== userId) return;
+    logRealProfileSupabaseError("consultar vínculo de Instrutor", error);
+    realInstructorLink = null;
+    realInstructorLinkState = "error";
+    realInstructorLinkNotice = "Não foi possível verificar o vínculo de Instrutor. Sua sessão continua ativa; tente novamente mais tarde.";
+  }
+}
+
 function realInstructorInviteReturnMessage(code) {
   const messages = {
-    nao_autenticado: "Entre com Google para aceitar este convite.",
+    nao_autenticado: "Entre na sua conta para aceitar este convite.",
     convite_invalido_ou_expirado: "O convite é inválido ou expirou. Peça um novo link ao Professor.",
     convite_ja_usado_ou_revogado: "Este convite já foi usado ou revogado. Peça um novo link ao Professor.",
     papel_nao_permitido: "Use uma conta nova ou uma conta de Aluno para aceitar este convite.",
     idade_nao_adulta: "Este convite só pode ser aceito por uma pessoa que declarou ser adulta.",
-    vinculado_outro_professor: "Esta conta já está vinculada a outro Professor e não pode aceitar este convite.",
-    email_nao_confirmado: "Confirme o e-mail da conta Google antes de aceitar o convite.",
+    ja_e_instrutor_de_outro_professor: "Esta conta já é Instrutor de outro Professor.",
+    email_nao_confirmado: "Confirme o e-mail da conta antes de aceitar o convite.",
     nome_invalido: "Informe um nome com até 80 caracteres para criar o perfil."
   };
   return messages[code] || "O servidor retornou uma resposta inesperada. Tente novamente mais tarde.";
@@ -4435,6 +6067,14 @@ async function refreshRealProfileAfterInstructorInvite() {
       realProfileNotice = "Convite aceito, mas não foi possível atualizar o perfil. Recarregue a página.";
     }
   }
+  if (realProfileState === "found" && realProfile &&
+      (realProfile.papel === "aluno" || realProfile.papel === "instrutor")) {
+    await loadRealInstructorLink(userId);
+  } else {
+    realInstructorLink = null;
+    realInstructorLinkState = "idle";
+    realInstructorLinkNotice = "";
+  }
   renderNavigation();
   renderScreen(realInstructorConsentPending ? "instructor-invite" : "real-account");
 }
@@ -4456,7 +6096,7 @@ function handleRealInstructorInviteSubmit(form) {
     successDelay: 0,
     afterSuccess: refreshRealProfileAfterInstructorInvite
   }, async () => {
-    if (!authClient || !realUser) return { errorMessage: "Entre com Google para aceitar este convite." };
+    if (!authClient || !realUser) return { errorMessage: "Entre na sua conta para aceitar este convite." };
     if (realProfileState !== "missing" && realProfileState !== "found") {
       return { errorMessage: "Não foi possível verificar sua conta. Atualize a página e tente novamente." };
     }
@@ -4522,6 +6162,7 @@ function handleRealInstructorInviteSubmit(form) {
       if (linkInput) linkInput.value = "";
       if (nameInput) nameInput.value = "";
       if (ageCheck) ageCheck.checked = false;
+      clearPendingRealSignupName();
       realInstructorConsentPending = true;
       if (await registerRealConsent() === "ok") realInstructorConsentPending = false;
       return {};
@@ -4549,7 +6190,7 @@ function handleRealStudentLinkSubmit(form) {
   }, async () => {
     const userId = realUser && realUser.id;
     if (!authClient || !userId || !isRealActiveStudent()) {
-      return { errorMessage: "Esta ação exige uma conta Google de Aluno ativa." };
+      return { errorMessage: "Esta ação exige uma conta real de Aluno ativa." };
     }
 
     const code = input.value.replace(/\s/g, "").toUpperCase();
@@ -4828,6 +6469,32 @@ function matchesDatabaseInviteEmailCheck(email) {
 
 function academyPhotoText() {
   return demoAcademy.photo === "icon" ? "⌂" : escapeHtml(demoAcademy.name.trim().split(/\s+/).slice(0, 2).map((word) => Array.from(word)[0] || "").join("").toLocaleUpperCase("pt-BR"));
+}
+
+function renderRealAdminStudentsScreen() {
+  const studentsContent = realAdminStudentsState === "checking"
+    ? '<p class="field-help" role="status" aria-live="polite">Carregando alunos...</p>'
+    : realAdminStudentsState === "error"
+      ? `<div class="notice notice--pending" role="alert">${escapeHtml(realAdminStudentsNotice)}</div>
+        <div class="student-action-control">
+          <button class="button button--primary button--action" type="button" data-real-admin-students-retry aria-describedby="real-admin-students-retry-error real-admin-students-retry-status">
+            <span data-action-label>Tentar novamente</span>
+          </button>
+          <p class="login-action-error student-action-error" id="real-admin-students-retry-error" role="alert"></p>
+          <p class="field-help" id="real-admin-students-retry-status" role="status" aria-live="polite"></p>
+        </div>`
+      : realAdminStudents.length
+        ? `<ul aria-label="Alunos ativos">${realAdminStudents.map((student) => {
+          const graduation = student.faixa && Number.isInteger(student.grau)
+            ? `Faixa ${escapeHtml(student.faixa)} · ${student.grau} grau${student.grau === 1 ? "" : "s"}`
+            : "Sem graduação registrada";
+          return `<li><strong>${escapeHtml(student.nome)}</strong><br><small>${graduation}</small></li>`;
+        }).join("")}</ul>`
+        : '<div class="empty-state"><div><strong>Nenhum aluno ativo encontrado</strong></div></div>';
+  return `
+    ${heading("CONTA REAL · ADM", "Alunos", "Consulte somente o nome e a faixa/grau atuais dos alunos ativos.")}
+    ${panel("Alunos ativos", studentsContent)}
+  `;
 }
 
 function renderRealAdminAcademyResult() {
@@ -5668,7 +7335,7 @@ function updateReceiptComparison() {
   const amount = document.querySelector("#receipt-amount");
   const date = document.querySelector("#receipt-date");
   if (!editor || !result || !amount || !date) return;
-  const charge = monthlyCharges.find((item) => item.id === selectedStudentChargeId);
+  const charge = monthlyCharges.find((item) => item.id === selectedStudentChargeId && studentCanSeeCharge(item, activeDemoAccount) && item.status === "abberta");
   const amountCents = parseDemoPaymentCents(amount.value);
   const balanceCents = charge
     ? Math.max(0, charge.finalAmountCents - chargeConfirmedCents(charge))
@@ -5722,6 +7389,9 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
 
   try {
     const outcome = await action();
+    const actionSuccessMessage = outcome && typeof outcome.successMessage === "string"
+      ? outcome.successMessage
+      : successMessage;
     if (outcome && outcome.errorMessage) {
       recordDiagnostic("Ação não concluída");
       if (button.isConnected) {
@@ -5756,11 +7426,11 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
       button.removeAttribute("aria-busy");
       button.dataset.actionState = "success";
       label.textContent = successLabel || "✓ Concluído";
-      announcement.textContent = successMessage;
+      announcement.textContent = actionSuccessMessage;
       if (afterSuccess) {
         if (successDelay > 0) await new Promise((resolve) => window.setTimeout(resolve, successDelay));
         if (button.isConnected) afterSuccess();
-        else showToast(successMessage);
+        else showToast(actionSuccessMessage);
       } else {
         const nextLabel = outcome && outcome.nextLabel ? outcome.nextLabel : originalText;
         button.dataset.originalLabel = nextLabel;
@@ -5770,7 +7440,7 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
         }, 2500));
       }
     } else {
-      showToast(successMessage);
+      showToast(actionSuccessMessage);
     }
   } catch (error) {
     recordDiagnostic(error instanceof Error && error.message.startsWith("Falha simulada") ? "Erro simulado de ação" : "Erro ao executar uma ação");
@@ -5792,35 +7462,6 @@ async function runButtonAction(button, { feedback, announcement, buttons, loadin
   }
 }
 
-function simulateLogin(button) {
-  const card = button.closest(".auth-card");
-  if (!card) {
-    console.error("Área de entrada não encontrada.");
-    showToast("Não foi possível iniciar a ação. Tente novamente.", "error");
-    return;
-  }
-  const feedback = card.querySelector(`#${button.getAttribute("aria-describedby")}`);
-  const announcement = card.querySelector("#login-action-status");
-  const buttons = [...card.querySelectorAll("[data-login-action]")];
-  runButtonAction(button, {
-    feedback,
-    announcement,
-    buttons,
-    loadingText: "Entrando...",
-    loadingMessage: "Simulando entrada. Nenhuma informação será enviada.",
-    successMessage: "Simulação concluída. Nenhum login foi realizado.",
-    errorMessage: "Falha na simulação. Tente novamente."
-  }, () => new Promise((resolve, reject) => {
-    window.setTimeout(() => {
-      if (new URLSearchParams(window.location.search).get("erro-simulado") === "entrada") {
-        reject(new Error("Falha simulada de entrada."));
-      } else {
-        resolve();
-      }
-    }, 900);
-  }));
-}
-
 function validPublicKey(key) {
   if (/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)) return true;
   const parts = key.split(".");
@@ -5840,11 +7481,26 @@ function authConfigurationError() {
   }
   if (!validPublicKey(config.publicKey.trim())) return "Chave inválida. Use apenas uma chave pública publishable ou anon.";
   if (!window.supabase || typeof window.supabase.createClient !== "function") return "A biblioteca de login não carregou. Confira os arquivos do aplicativo.";
-  if (!["http:", "https:"].includes(window.location.protocol)) return "Abra o aplicativo pelo Live Server ou HTTPS para usar o login Google.";
+  if (!["http:", "https:"].includes(window.location.protocol)) return "Abra o aplicativo por HTTP ou HTTPS para usar o login.";
   return "";
 }
 
+function syncAppModeUI() {
+  document.body.dataset.appMode = isDemoMode ? "demo" : "real";
+  document.querySelectorAll("[data-demo-only]").forEach((element) => { element.hidden = !isDemoMode; });
+  document.querySelectorAll("[data-real-only]").forEach((element) => { element.hidden = isDemoMode || !realUser; });
+  if (!isDemoMode) {
+    const realAccountDeletionNotice = document.querySelector(".user-panel-risk [data-real-only]");
+    if (realAccountDeletionNotice) {
+      realAccountDeletionNotice.textContent = "A exclusão da conta real está em construção. Nenhuma exclusão é executada pelo app.";
+    }
+  }
+  const demoEntryLink = document.querySelector("[data-demo-entry-link]");
+  if (demoEntryLink) demoEntryLink.hidden = isDemoMode || Boolean(realUser) || currentScreen !== "login";
+}
+
 function syncRealSessionPanel() {
+  syncAppModeUI();
   const realSession = document.querySelector("#real-session");
   realSession.hidden = !realUser;
   document.querySelector("#real-session-email").textContent = realUser ? realUser.email || "E-mail não disponível" : "";
@@ -5852,11 +7508,15 @@ function syncRealSessionPanel() {
   document.querySelector(".user-panel-links[aria-label='Ajuda']").hidden = !activeDemoAccount;
   if (!activeDemoAccount && realUser) {
     document.querySelector("#profile-button").hidden = false;
-    document.querySelector(".profile-button-copy").innerHTML = "<strong>Conta Google</strong><small>Sessão conectada</small>";
+    document.querySelector(".profile-button-copy").innerHTML = "<strong>Conta real</strong><small>Sessão conectada</small>";
     document.querySelector("#user-panel-profile-name").textContent = realUser.email || "E-mail não disponível";
-    document.querySelector("#user-panel-profile-role").textContent = "Conta Google";
+    document.querySelector("#user-panel-profile-role").textContent = "Conta real";
     document.querySelector(".user-panel-links[aria-label='Navegação da conta']").hidden = true;
   }
+  const profileNote = document.querySelector(".user-panel-note");
+  profileNote.textContent = isDemoMode
+    ? "A demonstração usa perfis fictícios e não realiza login real."
+    : "O perfil e as permissões são definidos pelo banco.";
 }
 
 function logRealProfileSupabaseError(action, error) {
@@ -5867,7 +7527,7 @@ function logRealProfileSupabaseError(action, error) {
 }
 
 function realProfileErrorMessage(error) {
-  if (!authClient || !realUser) return "Sua sessão real não está ativa. Entre novamente com o Google.";
+  if (!authClient || !realUser) return "Sua sessão real não está ativa. Entre novamente.";
   if (navigator.onLine === false || error instanceof TypeError) return "Falha de rede. Verifique sua conexão e tente novamente.";
   return "Não foi possível consultar ou ativar seu perfil. Tente novamente mais tarde.";
 }
@@ -5919,9 +7579,15 @@ function activateProfessorOnce(userId) {
 }
 
 async function updateRealSession(session) {
+  if (realPasswordRecoveryPending) {
+    realUser = session && session.user ? { id: session.user.id, email: session.user.email } : null;
+    syncRealSessionPanel();
+    return;
+  }
   const sequence = ++authCheckSequence;
   const previousUser = realUser;
   realUser = session && session.user ? { id: session.user.id, email: session.user.email } : null;
+  realInstructorLinkRequestSequence += 1;
   realTeacherCodeRequestSequence += 1;
   realStudentLinkRequestSequence += 1;
   realTeacherLinkRequestsSequence += 1;
@@ -5939,8 +7605,20 @@ async function updateRealSession(session) {
     realOnboardingHandledSessionUserId = null;
     realOnboardingStage = null;
     realOnboardingAge = null;
+    if (previousUser) clearPendingRealSignupName();
     realProfile = null;
     realProfileNotice = "";
+    realInstructorLink = null;
+    realInstructorLinkState = "idle";
+    realInstructorLinkNotice = "";
+    realInstructorStudentsRequestSequence += 1;
+    realInstructorStudents = [];
+    realInstructorStudentsState = "idle";
+    realInstructorStudentsNotice = "";
+    realAdminStudentsRequestSequence += 1;
+    realAdminStudents = [];
+    realAdminStudentsState = "idle";
+    realAdminStudentsNotice = "";
     realProfessorActivated = false;
     professorActivationSessionUserId = null;
     professorActivationPromise = null;
@@ -5962,6 +7640,17 @@ async function updateRealSession(session) {
     realOnboardingStage = null;
     realOnboardingAge = null;
     realProfileNotice = "";
+    realInstructorLink = null;
+    realInstructorLinkState = "idle";
+    realInstructorLinkNotice = "";
+    realInstructorStudentsRequestSequence += 1;
+    realInstructorStudents = [];
+    realInstructorStudentsState = "idle";
+    realInstructorStudentsNotice = "";
+    realAdminStudentsRequestSequence += 1;
+    realAdminStudents = [];
+    realAdminStudentsState = "idle";
+    realAdminStudentsNotice = "";
     realProfessorActivated = false;
     professorActivationSessionUserId = null;
     professorActivationPromise = null;
@@ -5975,8 +7664,10 @@ async function updateRealSession(session) {
     realTeacherCodeState = "checking";
     screenContent.innerHTML = renderRealTeacherCodeScreen();
   }
+  const isPendingInviteAuthScreen = realInstructorInviteToken &&
+    ["instructor-invite", "login", "create-account", "forgot-password"].includes(currentScreen);
   if (!activeRole && (!previousUser || previousUser.id !== realUser.id || currentScreen === "real-account") &&
-      !(currentScreen === "instructor-invite" && realInstructorInviteToken)) renderScreen("real-account");
+      !isPendingInviteAuthScreen) renderScreen("real-account");
   try {
     if (!authClient) throw new Error("Sessão indisponível.");
     const { data, error } = await authClient.from("perfis")
@@ -5989,18 +7680,55 @@ async function updateRealSession(session) {
       realProfile = data;
       realProfileState = "found";
       realProfileNotice = "";
-    } else {
-      const activation = await activateProfessorOnce(realUser.id);
-      if (sequence !== authCheckSequence) return;
-      realProfileNotice = activation.message || "";
-      if (activation.state === "activated") {
-        realProfile = activation.profile;
-        realProfileState = "found";
-        realProfessorActivated = true;
-      } else {
+      const authProvider = session.user && session.user.app_metadata
+        ? session.user.app_metadata.provider
+        : "";
+      if (authProvider === "email" && ["professor", "adm"].includes(data.papel)) {
+        loginNotice = "Professor e Adm devem entrar com Google.";
+        const { error: signOutError } = await authClient.auth.signOut({ scope: "local" });
+        if (signOutError) {
+          recordDiagnostic("Falha ao encerrar sessão incompatível");
+          realUser = null;
+          realProfile = null;
+          realProfileState = "checking";
+          loginNotice = "Não foi possível encerrar a sessão. Recarregue a página e entre com Google.";
+          document.querySelector("#profile-button").hidden = true;
+          renderNavigation();
+          renderScreen("login");
+          return;
+        }
+        if (sequence !== authCheckSequence) return;
+        realUser = null;
         realProfile = null;
-        realProfileState = activation.state === "missing" ? "missing" : "error";
+        realProfileState = "checking";
+        renderNavigation();
+        renderScreen("login");
+        const feedback = document.querySelector("#email-login-error");
+        if (feedback) feedback.textContent = loginNotice;
+        return;
+      }
+    } else {
+      const authProvider = session.user && session.user.app_metadata
+        ? session.user.app_metadata.provider
+        : "";
+      if (authProvider === "email") {
+        realProfile = null;
+        realProfileState = "missing";
+        realProfileNotice = "";
         realProfessorActivated = false;
+      } else {
+        const activation = await activateProfessorOnce(realUser.id);
+        if (sequence !== authCheckSequence) return;
+        realProfileNotice = activation.message || "";
+        if (activation.state === "activated") {
+          realProfile = activation.profile;
+          realProfileState = "found";
+          realProfessorActivated = true;
+        } else {
+          realProfile = null;
+          realProfileState = activation.state === "missing" ? "missing" : "error";
+          realProfessorActivated = false;
+        }
       }
     }
   } catch (error) {
@@ -6011,14 +7739,29 @@ async function updateRealSession(session) {
     realProfileNotice = realProfileErrorMessage(error);
     realProfileState = "error";
   }
+  if (realProfileState === "found" && realProfile &&
+      (realProfile.papel === "aluno" || realProfile.papel === "instrutor")) {
+    await loadRealInstructorLink(realUser.id);
+  } else {
+    realInstructorLink = null;
+    realInstructorLinkState = "idle";
+    realInstructorLinkNotice = "";
+  }
+  if (sequence !== authCheckSequence) return;
   renderNavigation();
   if (!activeRole && currentScreen === "teacher-code" && isRealProfessorProfile()) {
     loadRealTeacherCode();
     loadRealInstructorInvites();
   }
   else if (!activeRole && currentScreen === "link-teacher" && isRealActiveStudent()) renderScreen("link-teacher");
+  else if (!activeRole && currentScreen === "password-recovery") {
+    renderScreen(realInstructorInviteToken ? "instructor-invite" : "real-account");
+  }
+  else if (!activeRole && realInstructorInviteToken &&
+      ["login", "create-account", "forgot-password"].includes(currentScreen)) renderScreen("instructor-invite");
   else if (!activeRole && currentScreen === "real-account") renderScreen("real-account");
   else if (!activeRole && currentScreen === "instructor-invite") renderScreen("instructor-invite");
+  else if (!activeRole && currentScreen === "instructor-students" && isRealActiveInstructor()) renderScreen("instructor-students");
   else if (!activeRole && !canViewScreen(currentScreen)) renderScreen("real-account");
   if (!activeRole) maybeOpenRealProfileOnboarding();
 }
@@ -6031,10 +7774,22 @@ function removeInstructorInviteTokenFromUrl() {
   history.replaceState(null, "", `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`);
 }
 
+function removeAuthTokensFromUrl() {
+  const query = new URLSearchParams(window.location.search);
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  ["code", "token", "token_hash", "type"].forEach((key) => query.delete(key));
+  ["access_token", "refresh_token", "provider_token", "provider_refresh_token", "token", "token_hash", "type", "expires_in", "expires_at"].forEach((key) => hash.delete(key));
+  const search = query.toString();
+  const fragment = hash.toString();
+  history.replaceState(null, "", `${window.location.pathname}${search ? `?${search}` : ""}${fragment ? `#${fragment}` : ""}`);
+}
+
 async function initializeRealAuth() {
+  if (isDemoMode) return;
   const hash = new URLSearchParams(window.location.hash.slice(1));
   const query = new URLSearchParams(window.location.search);
-  if (hash.has("error") || query.has("error")) {
+  const isErrorRedirect = hash.has("error") || query.has("error");
+  if (isErrorRedirect) {
     const codes = [hash.get("error"), query.get("error"), hash.get("error_code"), query.get("error_code")];
     loginNotice = codes.includes("access_denied")
       ? "O login foi cancelado. Tente novamente quando quiser."
@@ -6046,20 +7801,44 @@ async function initializeRealAuth() {
     const feedback = document.querySelector("#google-login-error");
     if (feedback) feedback.textContent = loginNotice;
   }
+  if (!isErrorRedirect && (hash.get("type") === "recovery" || query.get("type") === "recovery")) {
+    realPasswordRecoveryPending = true;
+  }
   if (authConfigurationError()) {
     removeInstructorInviteTokenFromUrl();
     return;
   }
   try {
-    authClient = window.supabase.createClient(window.TATAME_SUPABASE_CONFIG.url, window.TATAME_SUPABASE_CONFIG.publicKey.trim());
+    authClient = window.supabase.createClient(
+      window.TATAME_SUPABASE_CONFIG.url,
+      window.TATAME_SUPABASE_CONFIG.publicKey.trim(),
+      { auth: { storage: window.sessionStorage } }
+    );
+    authClient.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        realPasswordRecoveryPending = true;
+        authCheckSequence += 1;
+        realUser = session && session.user ? { id: session.user.id, email: session.user.email } : null;
+        realProfile = null;
+        realProfileState = "checking";
+        realProfileNotice = "";
+        syncRealSessionPanel();
+        removeAuthTokensFromUrl();
+        renderNavigation();
+        renderScreen("password-recovery");
+        return;
+      }
+      if (realPasswordRecoveryPending || event === "INITIAL_SESSION" ||
+          (event === "SIGNED_IN" && realEmailAuthRequestInProgress)) return;
+      if (event === "SIGNED_OUT" && realSignoutInProgress) return;
+      window.setTimeout(() => {
+        if (!realPasswordRecoveryPending) updateRealSession(session);
+      }, 0);
+    });
     const { data, error } = await authClient.auth.getSession();
     if (error) throw new Error("Sessão indisponível.");
     removeInstructorInviteTokenFromUrl();
-    await updateRealSession(data.session);
-    authClient.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT" && realSignoutInProgress) return;
-      window.setTimeout(() => { updateRealSession(session); }, 0);
-    });
+    if (!realPasswordRecoveryPending) await updateRealSession(data.session);
   } catch (error) {
     removeInstructorInviteTokenFromUrl();
     recordDiagnostic("Erro ao recuperar sessão");
@@ -6071,6 +7850,7 @@ async function initializeRealAuth() {
 }
 
 function realGoogleLogin(button) {
+  if (isDemoMode) return;
   const card = button.closest(".auth-card");
   runButtonAction(button, {
     feedback: card.querySelector("#google-login-error"),
@@ -6081,12 +7861,9 @@ function realGoogleLogin(button) {
     errorMessage: "Não foi possível conectar. Confira a conexão e tente novamente."
   }, async () => {
     loginNotice = "";
-    if (new URLSearchParams(window.location.search).get("erro-simulado") === "entrada") {
-      return { errorMessage: "Falha simulada. Tente novamente." };
-    }
     const configError = authConfigurationError();
     if (configError) return { errorMessage: configError };
-    if (realUser) return { errorMessage: "Já existe uma conta Google conectada. Saia dela antes de entrar novamente." };
+    if (realUser) return { errorMessage: "Já existe uma sessão ativa. Saia da conta antes de entrar novamente." };
     if (!authClient) return { errorMessage: "O login não está disponível. Recarregue a página e tente novamente." };
     try {
       const redirectUrl = new URL(window.location.href);
@@ -6109,21 +7886,266 @@ function realGoogleLogin(button) {
   });
 }
 
+function clearPendingRealSignupName() {
+  window.sessionStorage.removeItem(realSignupNameSessionKey);
+}
+
+function getPendingRealSignupName() {
+  if (!realUser || !realUser.email) return "";
+  const savedValue = window.sessionStorage.getItem(realSignupNameSessionKey) || "";
+  const separator = savedValue.indexOf("\n");
+  const savedEmail = separator === -1 ? "" : savedValue.slice(0, separator);
+  if (!savedEmail || savedEmail.toLowerCase() !== realUser.email.toLowerCase()) {
+    clearPendingRealSignupName();
+    return "";
+  }
+  return savedValue.slice(separator + 1);
+}
+
+function realAuthRedirectUrl() {
+  const redirectUrl = new URL(window.location.href);
+  redirectUrl.search = "";
+  redirectUrl.hash = "";
+  if (realInstructorInviteToken) redirectUrl.searchParams.set("convite_instrutor", realInstructorInviteToken);
+  return redirectUrl.toString();
+}
+
+async function signOutRealEmailSession(errorMessage) {
+  try {
+    const { error } = await authClient.auth.signOut({ scope: "local" });
+    return {
+      errorMessage: error
+        ? `${errorMessage} Não foi possível encerrar a sessão. Recarregue a página e tente novamente.`
+        : errorMessage
+    };
+  } catch {
+    return {
+      errorMessage: `${errorMessage} Não foi possível encerrar a sessão. Recarregue a página e tente novamente.`
+    };
+  }
+}
+
+async function verifyRealEmailSessionRole(session) {
+  try {
+    const { data: profile, error } = await authClient.from("perfis")
+      .select("papel")
+      .eq("id", session.user.id)
+      .maybeSingle();
+    if (error) {
+      return signOutRealEmailSession("Não foi possível verificar o acesso. Confira a conexão e tente novamente.");
+    }
+    if (profile && ["professor", "adm"].includes(profile.papel)) {
+      return signOutRealEmailSession("Professor e Adm devem entrar com Google.");
+    }
+    return {};
+  } catch {
+    return signOutRealEmailSession("Não foi possível verificar o acesso. Confira a conexão e tente novamente.");
+  }
+}
+
+function realEmailSignUp(form) {
+  const button = form.querySelector('button[data-login-action][type="submit"]');
+  const nameField = form.querySelector("#real-signup-name");
+  const emailField = form.querySelector("#real-signup-email");
+  const passwordField = form.querySelector("#real-signup-password");
+  const confirmationField = form.querySelector("#real-signup-confirm-password");
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-signup-error"),
+    announcement: form.querySelector("#real-signup-status"),
+    buttons: [...form.querySelectorAll("input,button")],
+    loadingText: "Criando...",
+    loadingMessage: "Criando sua conta.",
+    successMessage: "Enviamos um link para confirmar seu e-mail.",
+    errorMessage: "Não foi possível criar a conta. Confira os dados e tente novamente.",
+    afterSuccess: () => {
+      passwordField.value = "";
+      confirmationField.value = "";
+    }
+  }, async () => {
+    const name = nameField.value.trim();
+    const email = emailField.value.trim();
+    const password = passwordField.value;
+    const confirmation = confirmationField.value;
+    const nameLength = Array.from(name).length;
+    if (nameLength < 1 || nameLength > 80 || /[\u0000-\u001f\u007f-\u009f]/.test(name)) {
+      return { errorMessage: "Informe um nome válido com até 80 caracteres." };
+    }
+    if (!email || !emailField.validity.valid) return { errorMessage: "Informe um e-mail válido." };
+    if (password.length < 8) return { errorMessage: "A senha deve ter pelo menos 8 caracteres." };
+    if (password !== confirmation) return { errorMessage: "As senhas não conferem." };
+    const configError = authConfigurationError();
+    if (configError) return { errorMessage: configError };
+    if (!authClient) return { errorMessage: "O cadastro não está disponível. Recarregue a página e tente novamente." };
+    try {
+      window.sessionStorage.setItem(realSignupNameSessionKey, `${email.toLowerCase()}\n${name}`);
+    } catch {
+      return { errorMessage: "Não foi possível manter seu nome nesta sessão. Confira as configurações do navegador e tente novamente." };
+    }
+    try {
+      realEmailAuthRequestInProgress = true;
+      const { data, error } = await authClient.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: realAuthRedirectUrl()
+        }
+      });
+      if (error) return { errorMessage: "Não foi possível criar a conta. Confira os dados e tente novamente." };
+      if (data && data.session) {
+        const roleCheck = await verifyRealEmailSessionRole(data.session);
+        if (roleCheck.errorMessage) return roleCheck;
+        await updateRealSession(data.session);
+        return { successMessage: "Conta criada. Carregando seu perfil." };
+      }
+      return {};
+    } catch {
+      return { errorMessage: "Não foi possível criar a conta. Confira a conexão e tente novamente." };
+    } finally {
+      realEmailAuthRequestInProgress = false;
+    }
+  });
+}
+
+function realPasswordReset(form) {
+  const button = form.querySelector('button[data-login-action][type="submit"]');
+  const emailField = form.querySelector("#real-reset-email");
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-reset-error"),
+    announcement: form.querySelector("#real-reset-status"),
+    buttons: [...form.querySelectorAll("input,button")],
+    loadingText: "Enviando...",
+    loadingMessage: "Solicitando link de redefinição.",
+    successMessage: "Se o e-mail estiver associado a uma conta, enviaremos um link para redefinir a senha.",
+    errorMessage: "Não foi possível solicitar o link agora. Confira a conexão e tente novamente."
+  }, async () => {
+    const email = emailField.value.trim();
+    if (!email || !emailField.validity.valid) return { errorMessage: "Informe um e-mail válido." };
+    const configError = authConfigurationError();
+    if (configError) return { errorMessage: configError };
+    if (!authClient) return { errorMessage: "A redefinição não está disponível. Recarregue a página e tente novamente." };
+    try {
+      const { error } = await authClient.auth.resetPasswordForEmail(email, {
+        redirectTo: realAuthRedirectUrl()
+      });
+      if (error) return { errorMessage: "Não foi possível solicitar o link agora. Confira a conexão e tente novamente." };
+      return {};
+    } catch {
+      return { errorMessage: "Não foi possível solicitar o link agora. Confira a conexão e tente novamente." };
+    }
+  });
+}
+
+function realPasswordUpdate(form) {
+  const button = form.querySelector('button[data-login-action][type="submit"]');
+  const passwordField = form.querySelector("#real-new-password");
+  const confirmationField = form.querySelector("#real-confirm-new-password");
+  let recoverySession = null;
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-password-update-error"),
+    announcement: form.querySelector("#real-password-update-status"),
+    buttons: [...form.querySelectorAll("input,button")],
+    loadingText: "Salvando...",
+    loadingMessage: "Atualizando sua senha.",
+    successMessage: "Senha atualizada. Abrindo sua conta.",
+    errorMessage: "Não foi possível atualizar a senha. Solicite um novo link e tente novamente.",
+    successDelay: 0,
+    afterSuccess: () => {
+      passwordField.value = "";
+      confirmationField.value = "";
+      realPasswordRecoveryPending = false;
+      updateRealSession(recoverySession);
+    }
+  }, async () => {
+    const password = passwordField.value;
+    if (!realPasswordRecoveryPending || !realUser) {
+      return { errorMessage: "Abra o link de redefinição enviado ao seu e-mail e tente novamente." };
+    }
+    if (password.length < 8) return { errorMessage: "A senha deve ter pelo menos 8 caracteres." };
+    if (password !== confirmationField.value) return { errorMessage: "As senhas não conferem." };
+    if (!authClient) return { errorMessage: "A redefinição não está disponível. Solicite um novo link." };
+    try {
+      const { error } = await authClient.auth.updateUser({ password });
+      if (error) return { errorMessage: "Não foi possível atualizar a senha. Solicite um novo link e tente novamente." };
+      const { data, error: sessionError } = await authClient.auth.getSession();
+      if (sessionError || !data.session) {
+        return { errorMessage: "A senha foi atualizada, mas não foi possível continuar. Recarregue a página." };
+      }
+      recoverySession = data.session;
+      return {};
+    } catch {
+      return { errorMessage: "Não foi possível atualizar a senha. Solicite um novo link e tente novamente." };
+    }
+  });
+}
+
+function realEmailLogin(form) {
+  if (isDemoMode) return;
+  const button = form.querySelector('button[data-login-action][type="submit"]');
+  const card = form.closest(".auth-card");
+  const emailField = form.querySelector("#login-email");
+  const passwordField = form.querySelector("#login-password");
+  if (!(button instanceof HTMLButtonElement) || !(card instanceof HTMLElement) ||
+      !(emailField instanceof HTMLInputElement) || !(passwordField instanceof HTMLInputElement)) {
+    showToast("Não foi possível iniciar o login. Atualize a página e tente novamente.", "error");
+    return;
+  }
+  runButtonAction(button, {
+    feedback: form.querySelector("#email-login-error"),
+    announcement: card.querySelector("#login-action-status"),
+    buttons: [...card.querySelectorAll("[data-login-action]")],
+    loadingText: "Entrando...",
+    loadingMessage: "Verificando seus dados.",
+    successMessage: "Acesso confirmado. Carregando seu perfil.",
+    errorMessage: "Não foi possível entrar. Verifique o e-mail e a senha e tente novamente."
+  }, async () => {
+    const email = emailField.value.trim();
+    const password = passwordField.value;
+    if (!email) return { errorMessage: "Informe seu e-mail." };
+    if (!emailField.validity.valid) return { errorMessage: "Informe um e-mail válido." };
+    if (!password) return { errorMessage: "Informe sua senha." };
+    const configError = authConfigurationError();
+    if (configError) return { errorMessage: configError };
+    if (!authClient) return { errorMessage: "O login não está disponível. Recarregue a página e tente novamente." };
+    if (realUser) return { errorMessage: "Já existe uma sessão ativa. Saia da conta antes de entrar novamente." };
+    try {
+      realEmailAuthRequestInProgress = true;
+      const { data, error } = await authClient.auth.signInWithPassword({ email, password });
+      if (error || !data.session) {
+        const code = error && typeof error.code === "string" ? error.code.toLowerCase() : "";
+        const message = error && typeof error.message === "string" ? error.message.toLowerCase() : "";
+        if (code === "email_not_confirmed" || message.includes("email not confirmed")) {
+          return { errorMessage: "Confirme seu e-mail pelo link enviado antes de entrar." };
+        }
+        return { errorMessage: "Não foi possível entrar. Verifique o e-mail e a senha e tente novamente." };
+      }
+      const roleCheck = await verifyRealEmailSessionRole(data.session);
+      if (roleCheck.errorMessage) return roleCheck;
+      await updateRealSession(data.session);
+    } catch (error) {
+      recordDiagnostic("Erro ao entrar com e-mail");
+      console.error("Não foi possível entrar com e-mail.");
+      return { errorMessage: "Não foi possível conectar. Confira a conexão e tente novamente." };
+    } finally {
+      realEmailAuthRequestInProgress = false;
+    }
+  });
+}
+
 function signOutRealAccount(button) {
   runButtonAction(button, {
     feedback: document.querySelector("#real-signout-error"),
     announcement: document.querySelector("#real-signout-status"),
     buttons: [button],
     loadingText: "Saindo...",
-    loadingMessage: "Encerrando sessão Google.",
-    successMessage: "Sessão Google encerrada.",
+    loadingMessage: "Encerrando a sessão.",
+    successMessage: "Sessão encerrada.",
     errorMessage: "Não foi possível sair. Confira a conexão e tente novamente.",
     afterSuccess: () => {
       updateRealSession(null);
       closeUserPanel();
     }
   }, async () => {
-    if (!authClient || !realUser) return { errorMessage: "Não há sessão Google disponível para encerrar." };
+    if (!authClient || !realUser) return { errorMessage: "Não há sessão ativa para encerrar." };
     try {
       realSignoutInProgress = true;
       const { error } = await authClient.auth.signOut({ scope: "local" });
@@ -6167,9 +8189,9 @@ function setTheme() {
 renderNavigation();
 const initialQuery = new URLSearchParams(window.location.search);
 removeInstructorInviteTokenFromUrl();
-renderScreen(initialQuery.has("convite_instrutor")
+renderScreen(!isDemoMode && initialQuery.has("convite_instrutor")
   ? "instructor-invite"
-  : initialQuery.has("convite") ? "register" : "login");
+  : isDemoMode && initialQuery.has("convite") ? "register" : "login");
 document.querySelector("#app-version").textContent = APP_VERSION;
 document.querySelector("#diagnostics-version").textContent = `Versão do app: ${APP_VERSION}`;
 syncRealSessionPanel();
@@ -6182,9 +8204,24 @@ if (window.ResizeObserver) {
   new ResizeObserver(updateToastPosition).observe(document.querySelector("#mobile-navigation"));
 }
 
+document.addEventListener("input", (event) => {
+  const target = event.target;
+  if (target instanceof HTMLInputElement && target.matches("[data-student-search]") &&
+      currentScreen === "students") filterDemoStudentEntries();
+});
+
 document.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
+
+  const studentFilter = target.closest("[data-student-filter]");
+  if (studentFilter instanceof HTMLButtonElement && currentScreen === "students") {
+    screenContent.querySelectorAll("[data-student-filter]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button === studentFilter));
+    });
+    filterDemoStudentEntries();
+    return;
+  }
 
   const realProfessorAction = target.closest("[data-real-professor-action]");
   if (realProfessorAction instanceof HTMLButtonElement && isRealAdmSession()) {
@@ -6308,7 +8345,7 @@ document.addEventListener("click", (event) => {
             return { errorMessage: "Sua sessão expirou. Entre novamente." };
           }
           if (result === "email_nao_confirmado") {
-            return { errorMessage: "Confirme o e-mail da conta Google antes de continuar." };
+            return { errorMessage: "Confirme o e-mail da conta antes de continuar." };
           }
           if (result === "email_convidado_professor") {
             return { errorMessage: "Este e-mail foi convidado como Professor. Use o acesso de Professor." };
@@ -6331,6 +8368,7 @@ document.addEventListener("click", (event) => {
           }
         }
       });
+
     }
     return;
   }
@@ -6370,6 +8408,7 @@ document.addEventListener("click", (event) => {
 
   const googleConsent = target.closest("[data-consent-google]");
   if (googleConsent instanceof HTMLButtonElement) {
+    if (!isDemoMode) return;
     const accepted = googleConsent.dataset.consentGoogle === "accept";
     const buttons = Array.from(profileOnboardingDialog.querySelectorAll("[data-consent-google]"));
     runButtonAction(googleConsent, {
@@ -6384,8 +8423,13 @@ document.addEventListener("click", (event) => {
     }, async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 500));
       if (new URLSearchParams(window.location.search).get("erro-simulado") === "perfil-foto-consentimento") throw new Error("Falha simulada de consentimento.");
-      if (activeDemoAccount !== onboardingAccount || getPhotoProfile(onboardingAccount).age !== "adult") {
+      const professorConsent = activeRole === "professor" && activeDemoAccount === onboardingAccount;
+      if (activeDemoAccount !== onboardingAccount ||
+          (!professorConsent && getPhotoProfile(onboardingAccount).age !== "adult")) {
         return { errorMessage: "A declaração de idade precisa ser confirmada antes." };
+      }
+      if (professorConsent) {
+        localStorage.setItem(professorConsentStorageKey(onboardingAccount), accepted ? "accepted" : "declined");
       }
       const current = getPhotoProfile(onboardingAccount);
       updatePhotoProfile(onboardingAccount, {
@@ -7478,7 +9522,7 @@ document.addEventListener("click", (event) => {
     const requestedChargeId = chargeSelect ? chargeSelect.value : "";
     const selectedCharge = requestedChargeId
       ? monthlyCharges.find((charge) => charge.id === requestedChargeId &&
-        charge.studentAccount === activeDemoAccount && charge.professorAccount === professorAccount && charge.status === "aberta")
+        studentCanSeeCharge(charge, activeDemoAccount) && charge.professorAccount === professorAccount && charge.status === "aberta")
       : null;
     const amountValue = Number(amountInput.value);
     const amountCents = parseDemoPaymentCents(amountInput.value);
@@ -7555,7 +9599,7 @@ document.addEventListener("click", (event) => {
     const requestedChargeId = selectedStudentChargeId;
     const selectedCharge = requestedChargeId
       ? monthlyCharges.find((charge) => charge.id === requestedChargeId &&
-        charge.studentAccount === activeDemoAccount && charge.status === "aberta")
+        studentCanSeeCharge(charge, activeDemoAccount) && charge.status === "aberta")
       : null;
     const amountCents = amountInput ? parseDemoPaymentCents(amountInput.value.trim()) : null;
     const balanceCents = selectedCharge
@@ -7625,6 +9669,42 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const deletePrivateNoteButton = target.closest("[data-delete-private-note]");
+  if (deletePrivateNoteButton instanceof HTMLButtonElement) {
+    const noteId = deletePrivateNoteButton.dataset.deletePrivateNote;
+    const note = demoPrivateNotes.find((item) => item.id === noteId);
+    const noteCard = deletePrivateNoteButton.closest(".private-note-entry");
+    if (activeRole !== "professor" || currentScreen !== "student-detail" ||
+        !selectedGradeStudent || selectedGradeStudent.teacherAccount !== activeDemoAccount ||
+        !note || !noteCard) {
+      showToast("Esta nota não está disponível para sua conta.", "error");
+      return;
+    }
+    if (!window.confirm("Excluir esta nota privada?")) return;
+    runButtonAction(deletePrivateNoteButton, {
+      feedback: noteCard.querySelector("[data-private-note-error]"),
+      announcement: noteCard.querySelector("[data-private-note-status]"),
+      buttons: [...noteCard.querySelectorAll("button")],
+      loadingText: "Excluindo...",
+      loadingMessage: "Excluindo a nota da demonstração.",
+      successMessage: "Nota excluída.",
+      successLabel: "Nota excluída",
+      errorMessage: "Não foi possível excluir a nota. Tente novamente.",
+      afterSuccess: () => {
+        renderScreen("student-detail");
+        const notesTab = screenContent.querySelector('[data-tab="notes"]');
+        if (notesTab) notesTab.click();
+      }
+    }, async () => {
+      const index = demoPrivateNotes.findIndex((item) => item.id === noteId &&
+        item.professorAccount === activeDemoAccount &&
+        item.studentIndex === demoRoster.indexOf(selectedGradeStudent));
+      if (index < 0) return { errorMessage: "A nota não está mais disponível. Atualize a tela." };
+      updateDemoData(() => demoPrivateNotes.splice(index, 1), [[demoDataKeys.privateNotes, saveDemoPrivateNotes]]);
+    });
+    return;
+  }
+
   const demoAction = target.closest("[data-demo-action]");
   if (demoAction) {
     if (demoAction instanceof HTMLButtonElement && demoAction.dataset.loadingText) {
@@ -7645,6 +9725,25 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target instanceof HTMLSelectElement && target.matches("[data-demo-avatar-choice]")) {
+    const profile = demoProfiles[activeDemoAccount];
+    if (!activeRole || !activeDemoAccount || !profile ||
+        !["avatar-masculino.jpg", "avatar-feminino.jpg"].includes(target.value)) return;
+    const previousAvatar = profile.avatarImage;
+    profile.avatarImage = target.value;
+    try {
+      saveDemoProfiles();
+    } catch {
+      profile.avatarImage = previousAvatar;
+      target.value = demoAvatarImage(activeDemoAccount) || (activeRole === "instructor" ? "avatar-feminino.jpg" : "avatar-masculino.jpg");
+      document.querySelector("#profile-avatar-choice-error").textContent = "Não foi possível salvar o avatar na demonstração. Verifique o armazenamento e tente novamente.";
+      return;
+    }
+    updateProfileAvatars(activeDemoAccount, activeRole);
+    renderScreen("user-settings");
+    document.querySelector("#profile-avatar-choice-status").textContent = "Avatar atualizado na demonstração.";
+    return;
+  }
   if (target instanceof HTMLSelectElement && target.id === "teacher-chat-partner") {
     if (demoChatPartners(activeDemoAccount).includes(target.value)) {
       selectedTeacherChatPartner = target.value;
@@ -7701,6 +9800,10 @@ document.addEventListener("change", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  if (target instanceof HTMLTextAreaElement && target.matches("[data-private-note-input]")) {
+    const counter = screenContent.querySelector("[data-private-note-counter]");
+    if (counter) counter.textContent = `${target.value.length}/500 caracteres`;
+  }
   if (target instanceof HTMLInputElement && ["photo-editor-zoom", "photo-editor-x", "photo-editor-y"].includes(target.id)) {
     updatePhotoCropPreview();
   }
@@ -8026,6 +10129,49 @@ document.addEventListener("reset", (event) => {
 });
 
 document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-demo-private-note-form]")) return;
+  event.preventDefault();
+  const form = event.target;
+  const button = form.querySelector("[data-save-demo-private-note]");
+  const input = form.querySelector("[data-private-note-input]");
+  const student = selectedGradeStudent;
+  const studentIndex = demoRoster.indexOf(student);
+  const text = input.value.trim();
+  if (button.disabled) return;
+  runButtonAction(button, {
+    feedback: form.querySelector("[data-private-note-error]"),
+    announcement: form.querySelector("[data-private-note-status]"),
+    buttons: [...form.querySelectorAll("button, textarea")],
+    loadingText: "Salvando...",
+    loadingMessage: "Salvando a nota na demonstração.",
+    successMessage: "Nota salva nesta demonstração.",
+    successLabel: "Nota salva",
+    errorMessage: "Não foi possível salvar a nota. Tente novamente.",
+    afterSuccess: () => {
+      renderScreen("student-detail");
+      const notesTab = screenContent.querySelector('[data-tab="notes"]');
+      if (notesTab) notesTab.click();
+    }
+  }, async () => {
+    if (activeRole !== "professor" || !student || studentIndex < 0 ||
+        student.teacherAccount !== activeDemoAccount || currentScreen !== "student-detail") {
+      return { errorMessage: "Selecione um aluno da sua turma antes de salvar a nota." };
+    }
+    if (!text || text.length > 500) return { errorMessage: "Escreva uma nota de até 500 caracteres." };
+    const note = {
+      id: `nota-${Date.now()}-${demoPrivateNotes.length}`,
+      studentIndex,
+      studentName: student.name,
+      studentAccount: student.account,
+      professorAccount: activeDemoAccount,
+      text,
+      createdAt: new Date().toISOString().slice(0, 10)
+    };
+    updateDemoData(() => demoPrivateNotes.push(note), [[demoDataKeys.privateNotes, saveDemoPrivateNotes]]);
+  });
+});
+
+document.addEventListener("submit", (event) => {
   if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-create-demo-student]")) return;
   event.preventDefault();
   const form = event.target;
@@ -8158,7 +10304,7 @@ document.addEventListener("submit", (event) => {
     buttons: Array.from(screenContent.querySelectorAll("[data-professor-payment-action]")),
     loadingText: "Salvando...",
     loadingMessage: "Registrando recebimento.",
-    successMessage: "Recebimento lançado. Desfaça em até 10 segundos no histórico.",
+    successMessage: "Recebimento lançado. Desfaça em até 120 segundos no histórico.",
     errorMessage: "Não foi possível registrar. Tente novamente."
   }, async () => {
     await new Promise((resolve) => window.setTimeout(resolve, 900));
@@ -8180,7 +10326,7 @@ document.addEventListener("submit", (event) => {
       source: "teacher",
       status: "confirmed",
       chargeId: charge ? charge.id : null,
-      undoUntil: Date.now() + 10000
+      undoUntil: Date.now() + 120000
     };
     updateDemoPayments(() => {
       cashPayments.push(payment);
@@ -8188,20 +10334,35 @@ document.addEventListener("submit", (event) => {
     });
     refreshTeacherCashHistory();
     scheduleTeacherCashExpiry(payment);
-    showToast("Recebimento lançado. Desfaça em até 10 segundos no histórico.");
+    showToast("Recebimento lançado. Desfaça em até 120 segundos no histórico.");
   });
 });
 
 document.addEventListener("submit", (event) => {
-  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-demo-form]")) return;
-  event.preventDefault();
+  if (!(event.target instanceof HTMLFormElement)) return;
   const form = event.target;
-  if (form.matches("[data-login-form]")) {
-    const loginButton = form.querySelector('button[data-login-action][type="submit"]');
-    if (loginButton instanceof HTMLButtonElement) simulateLogin(loginButton);
-    else showToast("Não foi possível iniciar a ação. Tente novamente.", "error");
+  if (form.matches("[data-real-signup-form]")) {
+    event.preventDefault();
+    realEmailSignUp(form);
     return;
   }
+  if (form.matches("[data-real-password-reset-form]")) {
+    event.preventDefault();
+    realPasswordReset(form);
+    return;
+  }
+  if (form.matches("[data-real-password-update-form]")) {
+    event.preventDefault();
+    realPasswordUpdate(form);
+    return;
+  }
+  if (form.matches("[data-real-login-form]")) {
+    event.preventDefault();
+    realEmailLogin(form);
+    return;
+  }
+  if (!isDemoMode || !form.matches("[data-demo-form]")) return;
+  event.preventDefault();
   if (form.matches("[data-conversation-form]")) {
     const chatButton = form.querySelector("[data-conversation-send]");
     const messageField = form.querySelector("[data-chat-message]");
@@ -8437,7 +10598,7 @@ document.addEventListener("change", (event) => {
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-student-charge-select]")) {
     const selectedCharge = monthlyCharges.find((item) =>
-      item.id === target.value && item.studentAccount === activeDemoAccount && item.status === "aberta"
+      item.id === target.value && studentCanSeeCharge(item, activeDemoAccount) && item.status === "aberta"
     );
     selectedStudentChargeId = selectedCharge ? selectedCharge.id : null;
     const charge = selectedCharge || null;
@@ -8457,6 +10618,601 @@ document.addEventListener("change", (event) => {
     if (status) status.textContent = alreadySent ? "Comprovante enviado; aguardando confirmação do professor." : "";
     updateReceiptComparison();
   }
+});
+
+function readRealBillingRuleForm(form) {
+  const studentId = form.querySelector("#real-billing-student-id").value.trim();
+  const startMonth = form.querySelector("#real-billing-start-month").value;
+  const baseCents = parseRealBillingCents(form.querySelector("#real-billing-base").value);
+  const dueDay = Number(form.querySelector("#real-billing-due-day").value);
+  const discountType = form.querySelector("#real-billing-discount-type").value;
+  const discountValue = form.querySelector("#real-billing-discount-value").value.trim();
+  const percentValue = form.querySelector("#real-billing-discount-percent").value.trim();
+  const durationType = form.querySelector("#real-billing-duration").value;
+  const durationValue = form.querySelector("#real-billing-duration-months").value.trim();
+  const reasonValue = form.querySelector("#real-billing-reason").value.trim();
+
+  if (!realBillingStudentNames.has(studentId)) {
+    return { errorMessage: "Selecione um aluno vinculado." };
+  }
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(startMonth)) {
+    return { errorMessage: "Escolha o mês inicial da regra." };
+  }
+  if (baseCents === null || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 28) {
+    return { errorMessage: "Confira o valor-base e o dia de vencimento entre 1 e 28." };
+  }
+  if (discountType === "valor_fixo") {
+    const discountCents = parseRealBillingCents(discountValue);
+    if (discountCents === null) return { errorMessage: "Informe um desconto em reais válido, com até duas casas decimais." };
+  }
+  if (discountType === "percentual") {
+    const percent = Number(percentValue.replace(",", "."));
+    if (!/^\d+(?:[,.]\d{1,2})?$/.test(percentValue) || !Number.isFinite(percent) || percent < 0 || percent > 100) {
+      return { errorMessage: "Informe um desconto percentual entre 0 e 100, com até duas casas decimais." };
+    }
+  }
+  if (!["nenhum", "valor_fixo", "percentual", "isencao"].includes(discountType)) {
+    return { errorMessage: "Escolha um tipo de desconto válido." };
+  }
+  if (discountType !== "isencao" && reasonValue) {
+    return { errorMessage: "O motivo só pode ser informado quando a regra é uma isenção." };
+  }
+  if (Array.from(reasonValue).length > 200) {
+    return { errorMessage: "O motivo da isenção deve ter no máximo 200 caracteres." };
+  }
+  const durationMonths = durationValue === "" ? null : Number(durationValue);
+  if (!["este_mes", "n_meses", "ate_remover"].includes(durationType) ||
+      (durationType === "n_meses" && (!Number.isInteger(durationMonths) || durationMonths < 1)) ||
+      (durationType !== "n_meses" && durationMonths !== null)) {
+    return { errorMessage: "Confira a duração da regra e o número de meses." };
+  }
+
+  const fixedDiscount = discountType === "valor_fixo"
+    ? parseRealBillingCents(discountValue)
+    : null;
+  const percentageDiscount = discountType === "percentual"
+    ? Number(percentValue.replace(",", "."))
+    : null;
+  return {
+    p_aluno_id: studentId,
+    p_valor_base_centavos: baseCents,
+    p_dia_vencimento: dueDay,
+    p_tipo_desconto: discountType,
+    p_desconto_centavos: fixedDiscount,
+    p_desconto_percentual: percentageDiscount,
+    p_motivo_isencao: discountType === "isencao" ? reasonValue || null : null,
+    p_duracao_tipo: durationType,
+    p_mes_inicio: `${startMonth}-01`,
+    p_duracao_meses: durationMonths
+  };
+}
+
+async function callRealBillingRpc(functionName, parameters, failureMessage) {
+  if (!authClient || !realUser || !isRealActiveProfessor()) {
+    return { errorMessage: "Esta ação exige uma conta Google de Professor ativa." };
+  }
+  const { data, error } = await authClient.rpc(functionName, parameters);
+  if (error) {
+    logRealProfileSupabaseError(`executar ${functionName}`, error);
+    return { errorMessage: failureMessage };
+  }
+  return { data };
+}
+
+async function callRealPaymentRpc(functionName, parameters, role, failureMessage) {
+  const allowed = role === "student" ? isRealActiveStudent() : isRealActiveProfessor();
+  if (!authClient || !realUser || !allowed) {
+    return { errorMessage: "Esta ação exige uma conta ativa com a permissão necessária." };
+  }
+  try {
+    const { data, error } = await authClient.rpc(functionName, parameters);
+    if (error) {
+      logRealProfileSupabaseError(`executar ${functionName}`, error);
+      return { errorMessage: failureMessage };
+    }
+    return { data };
+  } catch (error) {
+    logRealProfileSupabaseError(`executar ${functionName}`, error);
+    return { errorMessage: failureMessage };
+  }
+}
+
+document.addEventListener("change", (event) => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (target instanceof HTMLSelectElement && target.id === "real-graduation-student" &&
+      currentScreen === "student-detail" && isRealActiveProfessor()) {
+    if (realProfessorGraduationStudents.some((student) => student.id === target.value)) {
+      realSelectedGraduationStudentId = target.value;
+      screenContent.innerHTML = renderRealProfessorGraduationsScreen();
+    }
+    return;
+  }
+  if (target instanceof HTMLSelectElement && target.id === "real-graduation-belt" &&
+      currentScreen === "student-detail" && isRealActiveProfessor()) {
+    const form = target.closest("[data-real-graduation-form]");
+    const degreeSelect = form && form.querySelector("#real-graduation-degree");
+    if (!degreeSelect) return;
+    const degrees = beltDegrees(demoBelts.indexOf(target.value));
+    degreeSelect.innerHTML = `<option value="">${degrees.length ? "Selecione" : "Selecione a faixa"}</option>${degrees.map((degree) => `<option value="${degree}">${degree} ${degree === 1 ? "grau" : "graus"}</option>`).join("")}`;
+    degreeSelect.disabled = degrees.length === 0;
+    return;
+  }
+  if (target.matches("#real-student-charge")) {
+    const charge = realStudentCharges.find((item) => item.id === target.value);
+    const amount = document.querySelector("#real-student-payment-amount");
+    if (charge && amount instanceof HTMLInputElement) {
+      amount.max = realBillingCentsInput(realBillingBalance(charge, realStudentPayments));
+    }
+    return;
+  }
+  if (target.matches("#real-professor-charge")) {
+    const charge = realProfessorCharges.find((item) => item.id === target.value);
+    const amount = document.querySelector("#real-professor-payment-amount");
+    if (charge && amount instanceof HTMLInputElement) {
+      amount.max = realBillingCentsInput(realBillingBalance(charge, realProfessorPayments));
+    }
+    return;
+  }
+  if (!(target instanceof HTMLInputElement) || !target.matches("[data-real-billing-month]") ||
+      !isRealActiveProfessor() || !/^\d{4}-(0[1-9]|1[0-2])$/.test(target.value)) return;
+  realBillingSelectedMonth = target.value;
+  loadRealBillingData();
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement)) return;
+  const form = event.target;
+  if (form.matches("[data-real-graduation-form]")) {
+    event.preventDefault();
+    const button = form.querySelector("[data-real-graduation-submit]");
+    const failureMessage = "Não foi possível atribuir a graduação. Confira os dados e tente novamente.";
+    runButtonAction(button, {
+      feedback: form.querySelector("#real-graduation-error"),
+      announcement: form.querySelector("#real-graduation-status"),
+      buttons: [button, ...form.querySelectorAll("select, input, textarea")],
+      loadingText: "Registrando...",
+      loadingMessage: "Registrando a nova graduação.",
+      successMessage: "Graduação registrada no histórico.",
+      errorMessage: failureMessage,
+      afterSuccess: () => loadRealProfessorGraduations()
+    }, async () => {
+      const student = realProfessorGraduationStudents.find((item) => item.id === realSelectedGraduationStudentId);
+      const belt = form.querySelector("#real-graduation-belt").value;
+      const degreeValue = form.querySelector("#real-graduation-degree").value;
+      const degree = degreeValue === "" ? -1 : Number(degreeValue);
+      const date = form.querySelector("#real-graduation-date").value;
+      const observation = form.querySelector("#real-graduation-observation").value;
+      const beltIndex = demoBelts.indexOf(belt);
+      if (!student || !isRealActiveProfessor() || !beltDegrees(beltIndex).includes(degree)) {
+        return { errorMessage: "Selecione um aluno vinculado e uma faixa e grau válidos." };
+      }
+      if (!isValidRealGraduationDate(date)) {
+        return { errorMessage: "Informe uma data válida que não seja futura." };
+      }
+      if (observation.length > 200) {
+        return { errorMessage: "A observação deve ter no máximo 200 caracteres." };
+      }
+      const result = await callRealBillingRpc("atribuir_graduacao", {
+        p_aluno_id: student.id,
+        p_faixa: belt,
+        p_grau: degree,
+        p_data_graduacao: date,
+        p_observacao: observation || null
+      }, failureMessage);
+      if (result.errorMessage) return result;
+      if (typeof result.data !== "string" || !result.data) return { errorMessage: failureMessage };
+    });
+    return;
+  }
+  if (form.matches("[data-real-student-payment-form]")) {
+    event.preventDefault();
+    const button = form.querySelector("[data-real-student-payment-submit]");
+    runButtonAction(button, {
+      feedback: form.querySelector("#real-student-payment-error"),
+      announcement: form.querySelector("#real-student-payment-status"),
+      buttons: [button],
+      loadingText: "Enviando...",
+      loadingMessage: "Registrando o aviso de pagamento.",
+      successMessage: "Aviso registrado e aguardando confirmação do Professor.",
+      errorMessage: "Não foi possível registrar. Confira o valor e o saldo.",
+      afterSuccess: () => loadRealStudentPayments()
+    }, async () => {
+      const chargeId = form.querySelector("#real-student-charge").value;
+      const charge = realStudentCharges.find((item) => item.id === chargeId);
+      const amount = parseRealBillingCents(form.querySelector("#real-student-payment-amount").value);
+      const type = form.querySelector("#real-student-payment-type").value;
+      const balance = charge ? realBillingBalance(charge, realStudentPayments) : 0n;
+      if (!charge || charge.status !== "aberta" || balance <= 0n ||
+          realStudentPayments.some((payment) => payment.cobranca_id === chargeId && payment.status === "pendente")) {
+        return { errorMessage: "Não foi possível registrar. Esta cobrança não está disponível para novo aviso." };
+      }
+      if (!amount || BigInt(amount) > balance || !["dinheiro", "comprovante"].includes(type)) {
+        return { errorMessage: "Não foi possível registrar. Confira o valor e o saldo." };
+      }
+      const result = await callRealPaymentRpc("registrar_aviso_pagamento", {
+        p_cobranca_id: chargeId,
+        p_valor_centavos: amount,
+        p_tipo: type
+      }, "student", "Não foi possível registrar. Confira o valor e o saldo.");
+      if (result.errorMessage) return result;
+      if (typeof result.data !== "string" || !result.data) {
+        return { errorMessage: "Não foi possível registrar. Confira o valor e o saldo." };
+      }
+    });
+    return;
+  }
+  if (form.matches("[data-real-professor-payment-form]")) {
+    event.preventDefault();
+    const button = form.querySelector("[data-real-professor-payment-submit]");
+    runButtonAction(button, {
+      feedback: form.querySelector("#real-professor-payment-error"),
+      announcement: form.querySelector("#real-professor-payment-status"),
+      buttons: [button],
+      loadingText: "Registrando...",
+      loadingMessage: "Registrando o recebimento em dinheiro.",
+      successMessage: "Recebimento lançado.",
+      errorMessage: "Não foi possível lançar o pagamento. Confira o valor e o saldo.",
+      afterSuccess: () => loadRealProfessorPaymentsData()
+    }, async () => {
+      const chargeId = form.querySelector("#real-professor-charge").value;
+      const charge = realProfessorCharges.find((item) => item.id === chargeId);
+      const amount = parseRealBillingCents(form.querySelector("#real-professor-payment-amount").value);
+      const type = form.querySelector("#real-professor-payment-type").value.trim();
+      const reference = form.querySelector("#real-professor-payment-reference").value.trim();
+      const balance = charge ? realBillingBalance(charge, realProfessorPayments) : 0n;
+      if (!charge || charge.status !== "aberta" || balance <= 0n || !type || type.length > 80 ||
+          !reference || reference.length > 120 || !amount || BigInt(amount) > balance) {
+        return { errorMessage: "Não foi possível lançar o pagamento. Confira o valor, o saldo, o tipo e a referência." };
+      }
+      const result = await callRealPaymentRpc("lancar_pagamento_professor", {
+        p_cobranca_id: chargeId,
+        p_valor_centavos: amount,
+        p_tipo: type,
+        p_referencia: reference
+      }, "professor", "Não foi possível lançar o pagamento. Confira o valor e o saldo.");
+      if (result.errorMessage) return result;
+      if (typeof result.data !== "string" || !result.data) {
+        return { errorMessage: "Não foi possível lançar o pagamento. Confira o valor e o saldo." };
+      }
+    });
+    return;
+  }
+  if (form.matches("[data-real-billing-grace-form]")) {
+    event.preventDefault();
+    const button = form.querySelector("[data-real-billing-save-grace]");
+    runButtonAction(button, {
+      feedback: form.querySelector("#real-billing-grace-error"),
+      announcement: form.querySelector("#real-billing-grace-status"),
+      buttons: [button],
+      loadingText: "Salvando...",
+      loadingMessage: "Atualizando a carência da academia.",
+      successMessage: "Carência atualizada.",
+      errorMessage: "Não foi possível salvar a carência. Confira a permissão e tente novamente.",
+      afterSuccess: () => loadRealBillingData()
+    }, async () => {
+      const days = Number(form.querySelector("#real-billing-grace-days").value);
+      if (!Number.isInteger(days) || days < 0 || days > 30) {
+        return { errorMessage: "Informe uma carência entre 0 e 30 dias." };
+      }
+      const result = await callRealBillingRpc("definir_carencia_cobranca", { p_dias: days },
+        "Não foi possível salvar a carência. Confira a permissão e tente novamente.");
+      if (result.errorMessage) return result;
+      if (result.data !== true) return { errorMessage: "Não foi possível salvar a carência. Confira a permissão e tente novamente." };
+    });
+    return;
+  }
+  if (!form.matches("[data-real-billing-rule-form]")) return;
+  event.preventDefault();
+  const button = form.querySelector("[data-real-billing-save-rule]");
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-billing-rule-error"),
+    announcement: form.querySelector("#real-billing-rule-status"),
+    buttons: [button],
+    loadingText: "Salvando...",
+    loadingMessage: "Salvando a regra de cobrança no banco.",
+    successMessage: "Regra salva.",
+    errorMessage: "Não foi possível salvar a regra. Confira os dados e tente novamente.",
+    afterSuccess: () => loadRealBillingData()
+  }, async () => {
+    const parameters = readRealBillingRuleForm(form);
+    if (parameters.errorMessage) return parameters;
+    const result = await callRealBillingRpc("salvar_regra_cobranca", parameters,
+      "Não foi possível salvar a regra. Confira o aluno, os dados e sua autorização.");
+    if (result.errorMessage) return result;
+    if (typeof result.data !== "string" || !result.data) {
+      return { errorMessage: "Não foi possível salvar a regra. Confira o aluno, os dados e sua autorização." };
+    }
+  });
+});
+
+document.addEventListener("submit", (event) => {
+  const form = event.target;
+  if (!(form instanceof HTMLFormElement) || !form.matches("[data-real-unregistered-message-form]")) return;
+  event.preventDefault();
+  const button = form.querySelector("[data-real-unregistered-copy]");
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-unregistered-copy-error"),
+    announcement: form.querySelector("#real-unregistered-copy-status"),
+    buttons: [button],
+    loadingText: "Copiando...",
+    loadingMessage: "Preparando a mensagem.",
+    successMessage: "Mensagem copiada. Ela não foi salva no app.",
+    errorMessage: "Não foi possível copiar a mensagem. Confira os dados e tente novamente.",
+    afterSuccess: () => form.reset()
+  }, async () => {
+    const student = realBillingUnregisteredStudents.find((item) =>
+      item.id === form.querySelector("#real-unregistered-student").value
+    );
+    const amount = parseRealBillingCents(form.querySelector("#real-unregistered-amount").value);
+    const dueDate = form.querySelector("#real-unregistered-due-date").value;
+    if (!student) return { errorMessage: "Selecione um aluno sem conta." };
+    if (amount === null || amount <= 0) return { errorMessage: "Informe um valor válido maior que zero." };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return { errorMessage: "Informe uma data de vencimento válida." };
+    if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+      return { errorMessage: "A área de transferência não está disponível. Tente novamente em um navegador compatível." };
+    }
+    const message = `Olá, ${student.nome}! Segue o lembrete da cobrança no valor de ${formatRealBillingCents(String(amount))}, com vencimento em ${realBillingDate(dueDate)}.`;
+    await navigator.clipboard.writeText(message);
+  });
+});
+
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+
+  const retryAdminStudents = target.closest("[data-real-admin-students-retry]");
+  if (retryAdminStudents) {
+    runButtonAction(retryAdminStudents, {
+      feedback: document.querySelector("#real-admin-students-retry-error"),
+      announcement: document.querySelector("#real-admin-students-retry-status"),
+      buttons: [retryAdminStudents],
+      loadingText: "Carregando...",
+      loadingMessage: "Atualizando a lista de alunos.",
+      successMessage: "Lista de alunos atualizada.",
+      errorMessage: "Não foi possível carregar os alunos. Tente novamente.",
+      afterSuccess: () => { screenContent.innerHTML = renderRealAdminStudentsScreen(); }
+    }, async () => {
+      await loadRealAdminStudents(false);
+      if (realAdminStudentsState === "error") return { errorMessage: realAdminStudentsNotice };
+    });
+    return;
+  }
+
+  const retryProfessorGraduations = target.closest("[data-real-professor-graduations-retry]");
+  if (retryProfessorGraduations) {
+    runButtonAction(retryProfessorGraduations, {
+      feedback: document.querySelector("#real-professor-graduations-retry-error"),
+      announcement: document.querySelector("#real-professor-graduations-retry-status"),
+      buttons: [retryProfessorGraduations],
+      loadingText: "Carregando...",
+      loadingMessage: "Atualizando graduações dos alunos vinculados.",
+      successMessage: "Graduações atualizadas.",
+      errorMessage: "Não foi possível carregar graduações. Tente novamente.",
+      afterSuccess: () => { screenContent.innerHTML = renderRealProfessorGraduationsScreen(); }
+    }, async () => {
+      await loadRealProfessorGraduations(false);
+      if (realProfessorGraduationsState === "error") return { errorMessage: realProfessorGraduationsNotice };
+    });
+    return;
+  }
+
+  const retryStudentGraduations = target.closest("[data-real-student-graduations-retry]");
+  if (retryStudentGraduations) {
+    runButtonAction(retryStudentGraduations, {
+      feedback: document.querySelector("#real-student-graduations-retry-error"),
+      announcement: document.querySelector("#real-student-graduations-retry-status"),
+      buttons: [retryStudentGraduations],
+      loadingText: "Carregando...",
+      loadingMessage: "Atualizando suas graduações.",
+      successMessage: "Graduações atualizadas.",
+      errorMessage: "Não foi possível carregar suas graduações. Tente novamente.",
+      afterSuccess: () => { screenContent.innerHTML = renderRealStudentGraduationsScreen(); }
+    }, async () => {
+      await loadRealStudentGraduations(false);
+      if (realStudentGraduationsState === "error") return { errorMessage: realStudentGraduationsNotice };
+    });
+    return;
+  }
+
+  const retryStudentPayments = target.closest("[data-real-student-payments-retry]");
+  if (retryStudentPayments) {
+    runButtonAction(retryStudentPayments, {
+      feedback: document.querySelector("#real-student-retry-error"),
+      announcement: document.querySelector("#real-student-retry-status"),
+      buttons: [retryStudentPayments],
+      loadingText: "Carregando...",
+      loadingMessage: "Atualizando suas cobranças e pagamentos.",
+      successMessage: "Informações atualizadas.",
+      errorMessage: "Não foi possível carregar seus pagamentos. Tente novamente.",
+      afterSuccess: () => { screenContent.innerHTML = renderRealStudentPaymentsScreen(); }
+    }, async () => {
+      await loadRealStudentPayments(false);
+      if (realStudentPaymentsState === "error") return { errorMessage: realStudentPaymentsNotice };
+    });
+    return;
+  }
+
+  const retryProfessorPayments = target.closest("[data-real-professor-payments-retry]");
+  if (retryProfessorPayments) {
+    runButtonAction(retryProfessorPayments, {
+      feedback: document.querySelector("#real-professor-retry-error"),
+      announcement: document.querySelector("#real-professor-retry-status"),
+      buttons: [retryProfessorPayments],
+      loadingText: "Carregando...",
+      loadingMessage: "Atualizando pagamentos e cobranças.",
+      successMessage: "Informações atualizadas.",
+      errorMessage: "Não foi possível carregar os pagamentos. Tente novamente.",
+      afterSuccess: () => { screenContent.innerHTML = renderRealProfessorPaymentsScreen(); }
+    }, async () => {
+      await Promise.all([
+        loadRealBillingStudents("payment-review", false),
+        loadRealProfessorPaymentsData(false)
+      ]);
+      if (realProfessorPaymentsState === "error" || realBillingStudentsState === "error") {
+        return { errorMessage: realProfessorPaymentsNotice || realBillingStudentsNotice };
+      }
+    });
+    return;
+  }
+
+  const realPaymentAction = target.closest("[data-real-payment-action]");
+  if (realPaymentAction) {
+    const action = realPaymentAction.dataset.realPaymentAction;
+    const paymentId = realPaymentAction.dataset.realPaymentId;
+    const row = realPaymentAction.closest("[data-real-payment-row]");
+    const confirmation = action === "rejeitar"
+      ? "Rejeitar este aviso de pagamento?"
+      : action === "estornar" ? "Estornar este pagamento confirmado?" : "";
+    if (confirmation && !window.confirm(confirmation)) return;
+    const isUndo = action === "desfazer";
+    const failureMessage = action === "confirmar"
+      ? "Não foi possível confirmar. Confira o saldo da cobrança."
+      : action === "rejeitar"
+        ? "Não foi possível rejeitar este aviso. Atualize os pagamentos e tente novamente."
+        : action === "estornar"
+          ? "Não foi possível estornar este pagamento. Atualize os pagamentos e tente novamente."
+          : "Não foi possível desfazer este lançamento. O prazo pode ter terminado.";
+    runButtonAction(realPaymentAction, {
+      feedback: row.querySelector("[role='alert']"),
+      announcement: row.querySelector("[role='status']"),
+      buttons: Array.from(row.querySelectorAll("button")),
+      loadingText: action === "desfazer" ? "Desfazendo..." : action === "estornar" ? "Estornando..." : action === "rejeitar" ? "Rejeitando..." : "Confirmando...",
+      loadingMessage: "Atualizando o pagamento.",
+      successMessage: action === "desfazer" ? "Lançamento desfeito." : action === "estornar" ? "Pagamento estornado." : action === "rejeitar" ? "Aviso rejeitado." : "Pagamento confirmado.",
+      errorMessage: failureMessage,
+      afterSuccess: () => loadRealProfessorPaymentsData()
+    }, async () => {
+      const result = await callRealPaymentRpc(
+        isUndo ? "desfazer_lancamento_professor" : "decidir_pagamento",
+        isUndo ? { p_pagamento_id: paymentId } : { p_pagamento_id: paymentId, p_acao: action },
+        "professor",
+        failureMessage
+      );
+      if (result.errorMessage) return result;
+      if (result.data !== true) return { errorMessage: failureMessage };
+    });
+    return;
+  }
+
+  const editRuleButton = target.closest("[data-real-billing-edit-rule]");
+  if (editRuleButton) {
+    const rule = realBillingRules.find((item) => item.id === editRuleButton.dataset.realBillingEditRule);
+    const form = document.querySelector("[data-real-billing-rule-form]");
+    if (!rule || !form || !realBillingStudentNames.has(rule.aluno_id)) return;
+    form.querySelector("#real-billing-student-id").value = rule.aluno_id;
+    form.querySelector("#real-billing-start-month").value = rule.mes_inicio.slice(0, 7);
+    form.querySelector("#real-billing-base").value = realBillingCentsInput(rule.valor_base_centavos);
+    form.querySelector("#real-billing-due-day").value = rule.dia_vencimento;
+    form.querySelector("#real-billing-discount-type").value = rule.tipo_desconto;
+    form.querySelector("#real-billing-discount-value").value = rule.desconto_centavos === null
+      ? "" : realBillingCentsInput(rule.desconto_centavos);
+    form.querySelector("#real-billing-discount-percent").value = rule.desconto_percentual === null
+      ? "" : String(rule.desconto_percentual).replace(".", ",");
+    form.querySelector("#real-billing-duration").value = rule.duracao_tipo;
+    form.querySelector("#real-billing-duration-months").value = rule.duracao_meses || "";
+    form.querySelector("#real-billing-reason").value = rule.motivo_isencao || "";
+    form.querySelector("#real-billing-student-id").focus();
+    return;
+  }
+
+  const removeRuleButton = target.closest("[data-real-billing-remove-rule]");
+  if (removeRuleButton) {
+    const row = removeRuleButton.closest("[data-real-billing-rule]");
+    const ruleId = removeRuleButton.dataset.realBillingRemoveRule;
+    runButtonAction(removeRuleButton, {
+      feedback: row.querySelector("[role='alert']"),
+      announcement: row.querySelector("[role='status']"),
+      buttons: Array.from(row.querySelectorAll("button")),
+      loadingText: "Removendo...",
+      loadingMessage: "Desativando a regra de cobrança.",
+      successMessage: "Regra removida.",
+      errorMessage: "Não foi possível remover a regra. Atualize a tela e tente novamente.",
+      afterSuccess: () => loadRealBillingData()
+    }, async () => {
+      const result = await callRealBillingRpc("remover_regra_cobranca", { p_regra_id: ruleId },
+        "Não foi possível remover a regra. Atualize a tela e tente novamente.");
+      if (result.errorMessage) return result;
+      if (result.data !== true) return { errorMessage: "A regra não está mais ativa ou não pode ser removida por esta conta." };
+    });
+    return;
+  }
+
+  const generateButton = target.closest("[data-real-billing-generate]");
+  if (generateButton) {
+    runButtonAction(generateButton, {
+      feedback: document.querySelector("#real-billing-generate-error"),
+      announcement: document.querySelector("#real-billing-generate-status"),
+      buttons: [generateButton],
+      loadingText: "Gerando...",
+      loadingMessage: "Gerando as cobranças do mês.",
+      successMessage: "Cobranças geradas.",
+      errorMessage: "Não foi possível gerar as cobranças. Confira as regras e tente novamente.",
+      afterSuccess: () => loadRealBillingData()
+    }, async () => {
+      const result = await callRealBillingRpc("gerar_cobrancas_mensais", {
+        p_mes: `${realBillingSelectedMonth}-01`
+      }, "Não foi possível gerar as cobranças. Confira as regras e tente novamente.");
+      if (result.errorMessage) return result;
+      if (!Number.isInteger(result.data) || result.data < 1) {
+        return { errorMessage: "Nenhuma cobrança nova foi gerada. Confira as regras ativas e se o mês já foi gerado." };
+      }
+    });
+    return;
+  }
+
+  const sendButton = target.closest("[data-real-billing-send]");
+  if (sendButton) {
+    const row = sendButton.closest("[data-real-monthly-charge]");
+    const chargeId = sendButton.dataset.realBillingSend;
+    runButtonAction(sendButton, {
+      feedback: row.querySelector('[id^="real-send-error-"]'),
+      announcement: row.querySelector('[id^="real-send-status-"]'),
+      buttons: Array.from(row.querySelectorAll("button")),
+      loadingText: "Enviando...",
+      loadingMessage: "Registrando o envio da cobrança.",
+      successMessage: "Cobrança disponibilizada ao aluno.",
+      errorMessage: "Não foi possível enviar a cobrança. Atualize a tela e tente novamente.",
+      afterSuccess: () => loadRealBillingData()
+    }, async () => {
+      const result = await callRealBillingRpc("enviar_cobranca", { p_cobranca_id: chargeId },
+        "Não foi possível enviar a cobrança. Atualize a tela e tente novamente.");
+      if (result.errorMessage) return result;
+      const messages = {
+        sem_permissao: "Sua conta não tem permissão para enviar esta cobrança.",
+        cobranca_indisponivel: "A cobrança não está disponível nesta conta. Atualize a tela.",
+        cobranca_fechada: "Somente cobranças abertas podem ser enviadas."
+      };
+      if (result.data !== "ok") {
+        return { errorMessage: messages[result.data] || "Não foi possível enviar a cobrança. Atualize a tela e tente novamente." };
+      }
+    });
+    return;
+  }
+
+  const cancelButton = target.closest("[data-real-billing-cancel]");
+  if (!cancelButton) return;
+  const row = cancelButton.closest("[data-real-monthly-charge]");
+  const charge = realBillingCharges.find((item) => item.id === cancelButton.dataset.realBillingCancel);
+  if (!charge || charge.status !== "aberta" ||
+      !window.confirm("Cancelar esta cobrança aberta? Ela continuará no histórico do Professor.")) return;
+  runButtonAction(cancelButton, {
+    feedback: row.querySelector('[id^="real-cancel-error-"]'),
+    announcement: row.querySelector('[id^="real-cancel-status-"]'),
+    buttons: Array.from(row.querySelectorAll("button")),
+    loadingText: "Cancelando...",
+    loadingMessage: "Cancelando a cobrança.",
+    successMessage: "Cobrança cancelada.",
+    errorMessage: "Não foi possível cancelar a cobrança. Ela pode ter pagamentos ativos ou já estar fechada.",
+    afterSuccess: () => loadRealBillingData()
+  }, async () => {
+    const result = await callRealBillingRpc("cancelar_cobranca", { p_cobranca_id: charge.id },
+      "Não foi possível cancelar a cobrança. Ela pode ter pagamentos ativos ou já estar fechada.");
+    if (result.errorMessage) return result;
+    if (result.data !== true) {
+      return { errorMessage: "Não foi possível cancelar a cobrança. Ela pode ter pagamentos ativos ou já estar fechada." };
+    }
+  });
 });
 
 document.addEventListener("submit", (event) => {
@@ -8495,6 +11251,40 @@ document.addEventListener("submit", (event) => {
 document.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
+  const actionButton = target.closest("[data-send-monthly-charge], [data-copy-monthly-charge]");
+  if (actionButton) {
+    const row = actionButton.closest("[data-monthly-charge]");
+    const isSend = actionButton.hasAttribute("data-send-monthly-charge");
+    const chargeId = isSend ? actionButton.dataset.sendMonthlyCharge : actionButton.dataset.copyMonthlyCharge;
+    const charge = monthlyCharges.find((item) => item.id === chargeId && item.professorAccount === activeDemoAccount);
+    const actionName = isSend ? "send" : "copy";
+    runButtonAction(actionButton, {
+      feedback: row.querySelector(`[data-${actionName}-charge-error]`),
+      announcement: row.querySelector(`[data-${actionName}-charge-status]`),
+      buttons: Array.from(row.querySelectorAll("button")),
+      loadingText: isSend ? "Enviando..." : "Copiando...",
+      loadingMessage: isSend ? "Disponibilizando cobrança nesta demonstração." : "Copiando mensagem.",
+      successMessage: isSend ? "Cobrança disponibilizada nesta demonstração." : "Mensagem copiada.",
+      errorMessage: isSend ? "Não foi possível enviar a cobrança. Tente novamente." : "Não foi possível copiar. Confira a permissão da área de transferência e tente novamente.",
+      afterSuccess: isSend ? () => renderScreen("monthly-charges") : undefined
+    }, async () => {
+      if (activeRole !== "professor" || !charge || charge.professorAccount !== activeDemoAccount || charge.status !== "aberta") {
+        return { errorMessage: "Esta cobrança não está mais disponível. Atualize a tela e tente novamente." };
+      }
+      if (isSend) {
+        updateDemoPayments(() => {
+          if (charge.sentOn) charge.resentOn = demoTodayIsoDate();
+          else charge.sentOn = demoTodayIsoDate();
+        });
+      } else {
+        if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+          return { errorMessage: "A área de transferência não está disponível. Tente novamente em um navegador compatível." };
+        }
+        await navigator.clipboard.writeText(monthlyChargeMessage(charge));
+      }
+    });
+    return;
+  }
   const generateButton = target.closest("[data-generate-monthly-charges]");
   if (generateButton) {
     const form = generateButton.closest("[data-billing-form]");

@@ -81,7 +81,7 @@ textarea:focus-visible {
 }
 
 .prototype-banner {
-  display: flex;
+  display: none;
   min-height: calc(34px + env(safe-area-inset-top));
   align-items: center;
   justify-content: space-between;
@@ -94,6 +94,20 @@ textarea:focus-visible {
   letter-spacing: .02em;
 }
 
+body[data-app-mode="demo"] .prototype-banner {
+  display: flex;
+}
+
+body[data-app-mode="real"] .app-frame {
+  min-height: 100dvh;
+}
+
+[data-demo-only][hidden],
+[data-real-only][hidden],
+[data-demo-entry-link][hidden] {
+  display: none !important;
+}
+
 .prototype-banner strong {
   color: var(--accent-text);
   font-size: 10px;
@@ -103,10 +117,6 @@ textarea:focus-visible {
 .banner-separator {
   margin: 0 8px;
   color: #55585f;
-}
-
-.fictional-note {
-  white-space: nowrap;
 }
 
 .app-frame {
@@ -482,6 +492,10 @@ button.text-link {
   align-items: start;
 }
 
+body[data-app-mode="real"] #screen-content .auth-form-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .stack {
   display: grid;
   gap: 14px;
@@ -726,6 +740,19 @@ body[data-theme="light"] .button--google:focus-visible {
 .login-action-error:empty::before {
   content: "Falha na simulação. Tente novamente.";
   visibility: hidden;
+}
+
+body[data-app-mode="real"] #screen-content :is(
+  .auth-card .login-action-error,
+  .auth-form-layout .login-action-error,
+  .real-instructor-invite-action .login-action-error
+) {
+  min-height: 5.6em;
+}
+
+body[data-app-mode="real"] #screen-content .auth-form-layout [role="status"]:not(.visually-hidden),
+body[data-app-mode="real"] #screen-content .real-instructor-invite-action [role="status"]:not(.visually-hidden) {
+  min-height: 4.2em;
 }
 
 .register-action-control,
@@ -1149,6 +1176,10 @@ form[data-accept-demo-invite] .register-action-error {
   border-top: 1px solid var(--line);
 }
 
+.student-entry[hidden] {
+  display: none;
+}
+
 .student-entry:first-of-type {
   border-top: 0;
 }
@@ -1566,6 +1597,15 @@ form[data-accept-demo-invite] .register-action-error {
   margin-top: 10px;
 }
 
+body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .button {
+  width: 100%;
+}
+
 .auth-divider {
   display: flex;
   align-items: center;
@@ -1723,6 +1763,20 @@ form[data-accept-demo-invite] .register-action-error {
   font-size: 9px;
 }
 
+.real-graduation-history::before {
+  background: var(--line);
+}
+
+.real-graduation-history .timeline-item > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.real-graduation-form textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
 .tab-list {
   display: flex;
   overflow-x: auto;
@@ -1750,6 +1804,66 @@ form[data-accept-demo-invite] .register-action-error {
 
 .tab-panel[hidden] {
   display: none;
+}
+
+.private-notes,
+.private-note-form,
+.private-note-list {
+  display: grid;
+  gap: 12px;
+}
+
+.private-note-form textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.private-note-counter {
+  display: block;
+  text-align: right;
+}
+
+.private-note-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.private-note-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-raised);
+}
+
+.private-note-entry time {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.private-note-text {
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.private-note-actions {
+  align-content: start;
+}
+
+@media (max-width: 480px) {
+  .private-note-entry {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .private-note-actions .button {
+    width: 100%;
+  }
 }
 
 .quick-action-grid {
@@ -1986,6 +2100,21 @@ form[data-accept-demo-invite] .register-action-error {
 
 .profile-photo-copy small {
   color: var(--muted);
+}
+
+.profile-avatar-choice {
+  max-width: 22rem;
+  margin: 0 0 16px;
+}
+
+.profile-avatar-choice [role="alert"]:empty,
+.profile-avatar-choice [role="status"]:empty {
+  display: none;
+}
+
+.profile-avatar-choice [role="alert"]:not(:empty) {
+  margin-top: 6px;
+  color: var(--alert);
 }
 
 .profile-photo-actions {
@@ -2870,6 +2999,7 @@ body[data-theme="light"] {
   --green-text: var(--green);
   --amber: #855600;
   --amber-text: var(--amber);
+  --brand-red: #b63a32;
   --alert: #b51c2d;
   --blue: #005e9a;
   --shadow: 0 12px 32px rgb(20 30 40 / 8%);
@@ -3134,10 +3264,6 @@ body[data-theme="light"] .button--primary {
     font-size: 12px;
   }
 
-  .fictional-note {
-    display: none;
-  }
-
   .app-main {
     padding-right: max(16px, env(safe-area-inset-right));
     padding-left: max(16px, env(safe-area-inset-left));
@@ -3374,6 +3500,12 @@ body[data-theme="light"] .button--primary {
 
   .panel-card {
     padding: 13px;
+  }
+}
+
+@media (min-width: 681px) {
+  body[data-app-mode="real"] #screen-content :is(.button:not(.button--small):not(.button--google), .filter-chip, .tab-button) {
+    min-height: 44px;
   }
 }
 

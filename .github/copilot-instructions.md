@@ -51,7 +51,7 @@ Projeto: PWA de gestão de academia de jiu-jitsu (nome Tatame). Interface e comm
 
 ## Regras acrescentadas em 08/11/2026
 
-1. **`js/config.js`:** nunca ler, exibir ou commitar; manter no `.gitignore` e fora do índice Git.
+1. **`js/config.js`:** versionado e publicado pelo Pages; só pode conter a URL do projeto e a chave publicável (sb_publishable_), NUNCA sb_secret_, service_role, JWT, senha, token ou Client Secret. O Copilot continua proibido de ler, exibir ou abrir o conteúdo desse arquivo; a conferência antes de cada commit é feita pelo Aylton, em comando local que só mostra verdadeiro/falso. O config.js.bak fica fora do repositório.
 2. **Comandos:** é proibido executar comandos vazios ou em loop.
 3. **Execução:** não fazer perguntas interativas ao usuário, salvo se o prompt pedir; sem teste com conta real; o navegador pode ser aberto para conferir a demonstração.
 4. **Dúvidas:** se houver dúvida sobre o escopo, parar e reportar em vez de decidir.
