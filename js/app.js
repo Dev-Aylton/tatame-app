@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "5.24";
+const APP_VERSION = "5.25";
 const DEFAULT_PERSON_AVATAR_SRC = "assets/avatars/avatar-masculino.jpg";
 const FEMALE_PERSON_AVATAR_SRC = "assets/avatars/avatar-feminino.jpg";
 const REAL_PERSON_AVATARS = {
@@ -688,7 +688,8 @@ async function maybeOpenRealProfileOnboarding() {
     }
     return;
   }
-  if (role === "professor") {
+  const hasDeclaredAge = realProfile && ["adulto", "menor"].includes(realProfile.idade_declarada);
+  if (role === "professor" || (["aluno", "instrutor"].includes(role) && hasDeclaredAge)) {
     realOnboardingHandledSessionUserId = userId;
     if (await checkRealConsentAccepted()) return;
     if (!realUser || realUser.id !== userId) return;
@@ -1071,13 +1072,11 @@ const screens = {
             <h2>Treino, gestão e evolução no mesmo lugar.</h2>
             <p>Entre para acompanhar suas aulas, graduações e pagamentos.</p>
           </div>
-          <span class="auth-visual-foot">Acesso protegido · permissões vêm do banco</span>
         </section>
         <section class="auth-card">
           <img class="auth-mobile-mark" src="assets/logos/tatame-icone-escudo.svg" alt="">
           <p class="eyebrow">BEM-VINDO AO TATAME</p>
           <h2>Continuar</h2>
-          <p>Entre com sua conta real. O papel e as permissões são definidos pelo banco.</p>
           <div class="visually-hidden" id="login-action-status" role="status" aria-live="polite" aria-atomic="true"></div>
           <button class="button button--google button--action" type="button" data-login-action aria-describedby="google-login-error">
             <img class="google-icon" src="assets/logos/google-g.svg" alt="" aria-hidden="true">
@@ -1564,8 +1563,6 @@ function renderRealUserSettingsScreen() {
         ${panel("Tutorial", renderRealTutorial(realProfile.papel))}
         ${panel("Perguntas frequentes", `
           <div class="real-help-faq">
-            <details><summary>Quais telas estão disponíveis?</summary><p>As telas disponíveis dependem do papel definido no perfil da conta.</p></details>
-            <details><summary>As preferências desta tela são gravadas no banco?</summary><p>Esta tela não grava preferências no banco.</p></details>
             <details><summary>Quem pode consultar pagamentos?</summary><p>O Professor consulta pagamentos dos alunos vinculados e cada Aluno consulta somente os próprios pagamentos. Adm e Instrutor não têm acesso a essas telas.</p></details>
           </div>
         `)}
@@ -2678,14 +2675,15 @@ function renderRealHomeScreen() {
       : lateCharges
         ? button("Ver cobranças atrasadas", "monthly-charges", "button button--primary")
         : button("Ver alunos", "students", "button button--primary");
-    return `${title}${profileHeader}
+    return `${title}${profileHeader}<div class="stack">
       <div class="summary-grid">
         ${metric("PAGAMENTOS A CONFIRMAR", String(pendingPayments), "Avisos aguardando decisão", "amber")}
         ${metric("COBRANÇAS ATRASADAS", String(lateCharges), "Mês selecionado", lateCharges ? "red" : "green")}
       </div>
       ${pendingPayments || lateCharges ? "" : emptyState("Tudo em dia", "Não há pagamentos aguardando decisão nem cobranças atrasadas.")}
       ${panel("Próxima ação", nextAction)}
-      ${panel("Atalhos", renderRealHomeShortcuts(shortcuts))}`;
+      ${panel("Atalhos", renderRealHomeShortcuts(shortcuts))}
+    </div>`;
   }
   if (isStudent) {
     const counts = data.monthCounts || { pending: 0, paid: 0, late: 0, exempt: 0 };
@@ -2694,7 +2692,7 @@ function renderRealHomeScreen() {
         ${panel("Próxima ação", `<p>Vincule seu perfil a um Professor para consultar os dados da academia.</p>${button("Vincular a um Professor", "link-teacher", "button button--primary")}`)}`;
     }
     const hasPending = counts.pending > 0 || counts.late > 0;
-    return `${title}${profileHeader}
+    return `${title}${profileHeader}<div class="stack">
       ${data.monthChargeCount
         ? `<div class="summary-grid">
             ${metric("PENDENTES", String(counts.pending), "Cobranças dentro do prazo", "amber")}
@@ -2703,7 +2701,8 @@ function renderRealHomeScreen() {
         : emptyState("Nenhuma cobrança neste mês", "As cobranças enviadas pelo Professor aparecerão aqui.")}
       ${panel(hasPending ? "Próxima ação" : "Tudo em dia", hasPending
         ? button("Ver pagamentos", "student-payments", "button button--primary")
-        : `<p>Não há pagamentos pendentes neste mês.</p>${button("Ver graduações", "student-grades", "button button--quiet")}`)}`;
+        : `<p>Não há pagamentos pendentes neste mês.</p>${button("Ver graduações", "student-grades", "button button--quiet")}`)}
+    </div>`;
   }
   return `${title}${profileHeader}
     ${panel("Próxima ação", `<p>Confira a aula delegada e o plano compartilhado pelo Professor.</p>${renderRealHomeShortcuts([

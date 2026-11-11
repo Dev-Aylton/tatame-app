@@ -514,6 +514,12 @@ button.text-link {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 16px;
+}
+
 .content-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(250px, .85fr);
@@ -2105,6 +2111,7 @@ body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .bu
   align-items: center;
   gap: 8px;
   margin-top: 17px;
+  margin-bottom: 16px;
 }
 
 .link-simples-modal {
@@ -3409,6 +3416,15 @@ body[data-theme="light"] .button--primary {
     max-width: 100%;
     text-align: center;
     overflow-wrap: anywhere;
+  }
+
+  .mobile-navigation :is(
+    [data-screen-target="payment-review"],
+    [data-screen-target="student-payments"],
+    [data-screen-target="student-grades"]
+  ) .mobile-nav-label {
+    font-size: clamp(10px, 2.8vw, 12px);
+    overflow-wrap: normal;
   }
 
   .mobile-navigation button[aria-current="page"] {

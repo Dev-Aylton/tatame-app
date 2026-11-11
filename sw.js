@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "tatame-app-static-";
-const APP_VERSION = "5.24";
+const APP_VERSION = "5.25";
 const CACHE_NAME = `${CACHE_PREFIX}${APP_VERSION}`;
 const SHELL_URL = new URL("./index.html", self.registration.scope);
 const CONFIG_PATH = new URL("./js/config.js", self.registration.scope).pathname;
