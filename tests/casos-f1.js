@@ -42,6 +42,16 @@ window.CASOS_ACEITE_F1 = [
     esperado: "O retorno usa a página atual, a sessão é recuperada e nenhum perfil é criado. Falhas são informadas sem confundi-las com perfil ausente; a saída encerra a sessão local e a demonstração continua independente. O caso permanece pendente de execução e validação."
   },
   {
+    id: "F1-DEMO-01",
+    area: "Demonstração",
+    titulo: "Acesso de revisão percorre os perfis sem iniciar operações reais",
+    perfil: "Visitante",
+    regras: "Demonstração isolada e em memória",
+    precondicoes: "Aplicativo aberto na tela de acesso.",
+    passos: ["Abrir “Demonstração interativa” pelo rodapé.", "Trocar entre Adm, Professor, Instrutor e Aluno e navegar pelas telas de cada perfil.", "Experimentar tema, filtro e controles locais.", "Recarregar a página."],
+    esperado: "As prévias mostram apenas dados fictícios; nenhuma autenticação, chamada de API ou gravação local ocorre. Recarregar descarta as escolhas da demonstração."
+  },
+  {
     id: "F1-ACC-01",
     area: "Acesso e convites",
     titulo: "Professor convidado consegue entrar",
@@ -557,7 +567,7 @@ window.CASOS_ACEITE_F1 = [
     esperado: "O Instrutor pode consultar apenas suas próprias cobranças; pagamentos de alunos da turma não aparecem nem podem ser acessados."
   },
   {
-    id: "F1-PAG-10",
+    id: "F1-PAG-12",
     area: "Pagamentos",
     titulo: "Comprovante é apagado após confirmação do Professor",
     perfil: "Professor",

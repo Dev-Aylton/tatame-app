@@ -23,12 +23,11 @@
     <article class="panel-card privacy-page-card">
       <h1>Privacidade e consentimento</h1>
       <div class="privacy-draft-content">
-        <p class="notice notice--pending">Versão inicial, feita sem revisão jurídica. Não declara conformidade com a lei. Finalidades, bases legais e prazos de retenção ainda serão definidos.</p>
-        <p class="panel-copy">O aceite do termo (versão "rascunho-1") é gravado com o identificador do perfil, a versão e a data e hora. O Professor aceita na primeira vez. O Instrutor aceita depois de usar o convite. O Aluno novo aceita ao criar o perfil.</p>
+        <p class="panel-copy">O aceite do termo é gravado com o identificador do perfil, a versão do termo e a data e hora. O Professor aceita na primeira vez. O Instrutor aceita depois de usar o convite. O Aluno novo aceita ao criar o perfil.</p>
 
         <section class="privacy-draft-section">
           <h2>1. Dados que o app guarda</h2>
-          <p>A conta real guarda os dados abaixo. O modo demonstração usa dados fictícios, guardados só no navegador, e não os envia ao Supabase.</p>
+          <p>A conta real guarda os dados abaixo.</p>
           <ul>
             <li>e-mail da conta (login Google, ou e-mail e senha para Aluno e Instrutor);</li>
             <li>nome, papel, idade declarada (adulto ou menor de 18 anos) e vínculo com a academia;</li>
@@ -36,10 +35,13 @@
             <li>e-mail de Professor convidado e estado do convite; convites de Instrutor guardam o hash do token, datas e estado;</li>
             <li>nome e idade declarada de aluno sem conta;</li>
             <li>cobranças mensais: valor-base, vencimento, desconto, isenção (com motivo opcional de até 200 caracteres), estado e datas de envio;</li>
-            <li>pagamentos: tipo (dinheiro ou comprovante), valor, estado e referência.</li>
+            <li>pagamentos: o Aluno registra aviso como Dinheiro ou Comprovante; o Professor pode lançar recebimento como Pix, Dinheiro, Transferência ou Outro. O app guarda valor, estado, referência e datas correspondentes;</li>
+            <li>notas privadas, feedbacks, metas e mensagens trocadas conforme os papéis e vínculos;</li>
+            <li>dados de graduação, avisos e conteúdos de treino compartilhados nas telas do app.</li>
           </ul>
           <p>No cadastro por e-mail e senha, o app coleta nome e e-mail. A senha é tratada pelo Supabase Auth e não é guardada pelo app.</p>
-          <p>O comprovante no fluxo real guarda só o tipo e o valor, sem imagem. Não pedimos data de nascimento, telefone nem WhatsApp. Pedimos que não escreva dados sensíveis no motivo da isenção.</p>
+          <p>A exportação baixa arquivos JSON ou CSV com dados já carregados e visíveis para a própria conta. Não é backup do servidor. Não pedimos data de nascimento, telefone nem WhatsApp. Pedimos que não escreva dados sensíveis no motivo da isenção.</p>
+          <p>O Aluno pode anexar opcionalmente ao aviso de pagamento um comprovante JPG, PNG ou PDF de até 10 MiB. O arquivo fica visível somente ao Aluno autor e ao Professor do vínculo. O app remove o arquivo do Storage quando o Professor confirma ou rejeita o aviso; na abertura da tela de pagamentos, também tenta remover arquivos com mais de 30 dias sem decisão. Nesse caso, o aviso continua pendente e ficam somente os registros.</p>
         </section>
 
         <section class="privacy-draft-section">
@@ -48,45 +50,42 @@
           <ul>
             <li>o Professor vê os Alunos vinculados a ele, suas cobranças e seus pagamentos;</li>
             <li>o Aluno vê apenas as cobranças que o Professor enviou a ele;</li>
-            <li>o Instrutor vê só o nome dos Alunos do Professor, nunca valores;</li>
-            <li>o Administrador vê fotos de Professores, e não vê foto, nome ou faixa de Alunos.</li>
+            <li>o Instrutor vê apenas os dados de alunos e conteúdos compartilhados com ele; não vê pagamentos, notas privadas, feedbacks ou metas;</li>
+            <li>o Adm não tem acesso às telas de pagamentos, notas privadas, feedbacks ou metas.</li>
           </ul>
           <p>O app só controla pagamentos. Ele não processa dinheiro. O app não envia notificações push.</p>
+          <p>A foto da academia aceita JPG ou PNG de até 5 MiB e fica visível a todos os perfis autenticados. A foto do Professor aceita JPG ou PNG de até 5 MiB e fica visível aos Alunos vinculados a ele e ao Adm.</p>
         </section>
 
         <section class="privacy-draft-section">
           <h2>3. Menores de 18 anos</h2>
-          <p>A idade é só declarada, sem verificação. Menores usam apenas avatar, sem foto de perfil. Convites de Instrutor exigem declaração de adulto. O tratamento de dados de menores e o consentimento de responsáveis ainda não foram resolvidos nesta política.</p>
+          <p>A idade é só declarada, sem verificação. Menores usam somente avatar; o app não tem foto de pessoa para Aluno. Convites de Instrutor exigem declaração de adulto.</p>
         </section>
 
         <section class="privacy-draft-section">
           <h2>4. Fotos</h2>
-          <p>No momento, o app real não grava foto de perfil. O envio de arquivos só será ligado depois do login real, e menores seguirão só com avatar. A escolha de avatar masculino ou feminino é só de imagem na demonstração e não é gravada.</p>
+          <p>A foto da academia é armazenada no Storage; aceita JPG ou PNG de até 5 MiB e fica visível a todos os perfis autenticados. O Adm e o Professor ativo da academia podem enviá-la.</p>
+          <p>A foto do Professor é armazenada no Storage; aceita JPG ou PNG de até 5 MiB e fica visível aos Alunos vinculados e ao Adm. Somente o próprio Professor ativo pode enviá-la. Menores usam somente avatar; Adm e Instrutor não têm foto de pessoa.</p>
         </section>
 
         <section class="privacy-draft-section">
           <h2>5. Exclusão de conta</h2>
-          <p>Na demonstração, a exclusão remove os dados pessoais fictícios, mantém registros compartilhados como "Conta excluída" e encerra a sessão. A exclusão de conta real está em construção e não é executada. Existe um conflito conhecido: registros de consentimento e de cobrança podem impedir a remoção de perfis. Até que seja resolvido, esta política não promete exclusão completa.</p>
+          <p>A exclusão da conta ainda está em construção.</p>
         </section>
 
         <section class="privacy-draft-section">
           <h2>6. Retenção</h2>
-          <p>Os prazos não estão definidos. Hoje, pagamentos e cobranças não são apagados, apenas mudam de estado (por exemplo, cancelada ou estornado). Um Professor substituído na academia é desativado, não apagado.</p>
+          <p>Pagamentos e cobranças não são apagados, apenas mudam de estado (por exemplo, cancelada ou estornado). Um Professor substituído na academia é desativado, não apagado. A remoção física do comprovante é solicitada pelo app à API do Storage; o aviso e os registros permanecem.</p>
         </section>
 
         <section class="privacy-draft-section">
           <h2>7. Direitos e solicitações</h2>
-          <p>O titular pode pedir informação, correção ou exclusão pelo contato abaixo. Procedimentos e prazos ainda não foram definidos, e o app não tem autosserviço para isso.</p>
-        </section>
-
-        <section class="privacy-draft-section">
-          <h2>O que ainda está em construção</h2>
-          <p>No modo real, ainda estão em construção a exclusão de conta, o armazenamento de fotos e as notas privadas. Esses recursos ainda não estão disponíveis.</p>
+          <p>O titular pode pedir informação, correção ou exclusão pelo contato abaixo. O app não tem autosserviço para esses pedidos.</p>
         </section>
 
         <section class="privacy-draft-section privacy-draft-contact">
           <h2>8. Contato</h2>
-          <p>desenvolvedor.aylton@gmail.com</p>
+          <p><a href="mailto:desenvolvedor.aylton@gmail.com">desenvolvedor.aylton@gmail.com</a></p>
         </section>
       </div>
     </article>

@@ -16,7 +16,7 @@ O estudo inicial de identidade visual fica em [`assets/identidade.html`](assets/
 - GitHub Pages para hospedagem; o banco Supabase já foi criado. Supabase será usado para autenticação e dados, com políticas RLS por perfil; tabelas e migrations serão definidas e acrescentadas conforme cada lote precisar delas.
 - Custo de infraestrutura zero. Não adicionar dependências externas sem autorização.
 - O papel e as permissões de cada pessoa vêm do banco de dados, nunca de uma regra confiada ao navegador.
-- O sistema não processa transações. O aluno pode registrar pagamento em dinheiro, pendente até confirmação do Professor; o Professor também pode lançar diretamente um recebimento em dinheiro como confirmado. Na demonstração, o comprovante simulado é descartado após a confirmação e ficam o valor e a data de recebimento; no fluxo real, o comprovante guarda só o tipo e o valor, sem imagem, e nenhum pagamento é apagado: apenas muda de estado.
+- O sistema não processa transações. O Aluno pode registrar um aviso de pagamento com comprovante opcional; o Professor confirma ou rejeita o aviso. O Professor também pode lançar manualmente um recebimento em dinheiro ou registrar um pagamento sem comprovante. No fluxo real, comprovantes JPG/PNG/PDF de até 10 MiB são removidos do Storage quando o pagamento é decidido ou após 30 dias sem decisão; os registros permanecem.
 - Os avisos do app ficam dentro dele. O app não envia mensagens fora dele nem usa notificações push.
 - Usar apenas dados fictícios nos testes; nunca incluir credenciais, tokens ou dados reais de pessoas no repositório.
 - Conformidade com a LGPD é requisito do produto. Antes de definir ou implementar dados pessoais coletados, finalidades, hipóteses legais, consentimento, prazos de retenção, compartilhamento, atendimento aos direitos dos titulares ou conteúdo da política de privacidade, confirmar os fatos e obter aprovação do usuário. Não presumir práticas ou declarações legais, nem afirmar conformidade sem revisão apropriada.
@@ -35,49 +35,23 @@ Para configurar e testar manualmente:
 3. No Google Cloud, configure as origens JavaScript autorizadas com as origens reais do Live Server e do Pages, sem caminho. Em URIs de redirecionamento autorizados do cliente OAuth, adicione a URL de callback exibida pelo Supabase para o provedor Google (para este projeto, `https://zpmszmbcgdanokgiznal.supabase.co/auth/v1/callback`). Cadastre o cliente no provedor Google do Supabase sem colocar seus segredos em arquivos do app.
 4. Abra pelo Live Server ou HTTPS, não por `file:`. Com configuração aprovada e dados de teste, confira entrada, retorno, sessão, ausência de perfil, falhas e saída. A configuração vazia impede o login real, mas não impede a demonstração. Antes de uso real, revise e aprove as decisões de privacidade e LGPD.
 
-## Fotos e avatar (protótipo)
+## Demonstração interativa
 
-As fotos, declarações de idade e escolhas de consentimento são somente demonstrativas e ficam em memória durante a sessão: não há Supabase Storage, chamadas de rede para fotos, gravação de arquivo, `localStorage` ou `sessionStorage` para esses dados. Ao fechar ou recarregar a página, a foto temporária é descartada. O app não pede data de nascimento para classificar idade.
+O link “Demonstração interativa” no rodapé abre `demo.html`, separada da entrada real. Ela permite navegar pelas prévias de Adm, Professor, Instrutor e Aluno, trocar de tela e tema e experimentar filtros e controles locais. Usa somente conteúdo fictício mantido em memória; não carrega `js/config.js`, não inicializa Supabase, não envia dados e não usa armazenamento local. Recarregar ou fechar a página descarta o estado.
 
-No primeiro acesso de demonstração, a pessoa escolhe “Tenho 18 anos ou mais” ou “Sou menor de 18 anos”. Para maiores, o consentimento é recusável; o texto está identificado como provisório e pendente de revisão jurídica. Como nenhuma foto Google é baixada, a aceitação usa um avatar local como cópia simulada; a recusa mantém o avatar padrão. Menores usam somente avatar. Para alunos sem registro, o Professor informa a classificação na ficha ou no cadastro, sem data de nascimento.
+As telas de login, cadastro, pagamentos, convites e conversas são prévias, não operações funcionais. A demonstração serve para revisar navegação e apresentação; não substitui testes dos fluxos reais. Menores usam somente avatar no produto; esta prévia não coleta idade nem fotos.
 
-Uma pessoa adulta pode escolher uma foto própria, ajustar zoom e enquadramento e salvar a prévia em memória. O arquivo não sai do navegador; o limite provisório é 5 MB. Salvar outra foto substitui a anterior e libera o endereço temporário anterior. O Professor vê fotos de alunos adultos da própria turma; o Adm pode ver fotos de Professores, nunca de alunos. Ao excluir uma conta demonstrativa, a foto temporária é removida; a exclusão real continua em construção.
+## Fotos e comprovantes no fluxo real
 
-As conversas entre Aluno/Instrutor e Professor são fictícias e ficam no armazenamento local deste navegador. Não há conversas entre pares não vinculados; ao excluir uma conta demonstrativa, as conversas que a envolvem são removidas.
+As migrations `20261110_23_comprovantes_storage.sql` e `20261110_24_foto_professor_sem_idade.sql` já foram aplicadas. Os buckets são `comprovantes`, `academias` e `professores`. O comprovante é opcional, aceita JPG/PNG/PDF até 10 MiB e só fica visível ao Aluno dono e ao Professor do vínculo. Ao confirmar ou rejeitar, ou após 30 dias sem decisão, o arquivo é removido do Storage; após o prazo, o aviso continua pendente e os registros são mantidos.
 
-Para simular falhas nas ações de idade e foto, use `?erro-simulado=perfil-idade`, `perfil-foto-consentimento`, `perfil-foto-selecao`, `perfil-foto-salvar`, `perfil-foto-remover` ou `perfil-idade-aluno` como valor de `erro-simulado`. Os estados de idade, consentimento e foto não persistem, mesmo quando a demonstração está sem falha.
+Fotos de academia em JPG/PNG até 5 MiB são visíveis a todos os perfis autenticados. A foto do Professor é visível aos Alunos vinculados e ao Adm. Menores usam somente avatar; Aluno, Instrutor e Adm não enviam foto de pessoa. A tela `pix-import` de importação de extrato Pix foi removida; o fluxo real é o aviso opcional do Aluno e a decisão do Professor.
 
-## Padrão de ações pendente
+## Testes dos fluxos reais
 
-Os botões de entrada, cadastro, vínculo, aluno e pagamentos do Professor usam o padrão de processamento e mensagens. Os fluxos reais de convites, vínculos, academia, gestão de Professores e alunos sem conta também reutilizam `runButtonAction`; falta a validação pelo usuário. Os parâmetros seguintes descrevem falhas da demonstração e não enumeram controles reais pendentes.
+Os botões de entrada, cadastro e operações reais usam estados e mensagens acessíveis e reutilizam `runButtonAction`. Testes de autenticação, gravação e permissões exigem a configuração aprovada e contas de teste; a página `demo.html` não inicia essas operações. Os parâmetros `erro-simulado` e os fluxos demonstrativos descritos anteriormente não existem mais.
 
-Para testar a falha simulada dos dois botões de entrada, abra `index.html?erro-simulado=entrada`; remova o parâmetro para voltar ao resultado normal. Com esse parâmetro nenhum login é iniciado; sem ele, o Google pode realizar autenticação real quando configurado, enquanto a entrada por e-mail permanece simulada.
-
-Para simular falha ao validar um convite de cadastro, abra `index.html?erro-simulado=cadastro`, entre em Cadastro e preencha os campos com dados fictícios.
-
-Para simular falha nas ações da tela de vínculo, use `?erro-simulado=vinculo-consulta`, `?erro-simulado=vinculo-solicitacao` ou `?erro-simulado=vinculo-cancelamento`; `?erro-simulado=vinculo` provoca falha em todas elas. Solicitação e cancelamento exigem os estados fictícios correspondentes.
-
-Para simular falha nas ações do aluno, use `?erro-simulado=aluno-dinheiro`, `?erro-simulado=aluno-comprovante` ou `?erro-simulado=aluno-mensagem`. Para testar falha ao salvar conversa em qualquer papel, use `?erro-simulado=conversa-salvar`. Para enviar comprovante, primeiro selecione um arquivo fictício.
-
-Para simular falhas nas ações de pagamentos do Professor, use `?erro-simulado=professor-pagamento-dinheiro-lancar`, `professor-pagamento-dinheiro-confirmar`, `professor-pagamento-dinheiro-recusar`, `professor-pagamento-comprovante-confirmar`, `professor-pagamento-comprovante-recusar`, `professor-pagamento-pix-confirmar` ou `professor-pagamento-pix-revisar`, sempre como valor de `erro-simulado`.
-
-Para simular falha ao corrigir um lançamento em dinheiro, use `?erro-simulado=professor-pagamento-dinheiro-desfazer` ou `?erro-simulado=professor-pagamento-dinheiro-estornar`. O Professor informa tipo e referência, confirma o lançamento e pode desfazê-lo em até 120 segundos; depois, pode estorná-lo. Os registros de pagamentos fictícios ficam no armazenamento local do navegador; arquivos de comprovantes não são armazenados.
-
-Na demonstração, o Professor configura mensalidade e vencimento de 1 a 28 por aluno e gera no máximo 24 cobranças por lote. Os estados são aberta, paga, isenta e cancelada; só a confirmação do Professor marca como paga. Pode aplicar desconto fixo em reais ou percentual, ou isenção, por um mês, N meses (contando o mês inicial) ou até remover; motivos de isenção são opcionais e não devem conter dados sensíveis. Regras iguais mantêm o mês inicial; para reiniciar a duração, remova e configure a regra novamente. Cobranças já geradas preservam valor-base, desconto e valor final. O aluno pode vincular um aviso em dinheiro ou comprovante a uma cobrança; pagamentos parciais só reduzem o saldo depois da confirmação do Professor. A carência começa em 5 dias e pode ser ajustada por Professor entre 0 e 30. Atrasos são calculados após vencimento + carência, nunca gravados. O painel por mês mostra previsto, confirmado, aguardando confirmação, em aberto, atrasado e isento. Não há gateway nem movimentação de dinheiro. O Instrutor não vê cobranças nem valores. A ação de cancelamento aparece apenas para o Professor e somente em cobranças abertas; com aviso pendente ou pagamento confirmado, primeiro deve rejeitar o aviso ou estornar o pagamento. Canceladas permanecem no histórico do Professor e não entram no painel nem em atrasos.
-
-O Professor envia ou reenvia individualmente uma cobrança aberta na demonstração; só então o Aluno a vê em Meus pagamentos. O registro guarda as datas de envio e reenvio, sem guardar mensagem. Uma cobrança enviada e cancelada deixa de aparecer para o Aluno; se isenta, aparece como isenta. O Professor pode copiar uma mensagem fixa com nome, valor final e vencimento. O app não envia mensagens fora dele.
-
-Para simular falha sem alterar dados ao salvar as regras ou gerar o lote, use `?erro-simulado=professor-cobranca-salvar` ou `?erro-simulado=professor-cobranca-lote`.
-
-Para simular falha ao graduar um aluno da própria turma, use `?erro-simulado=professor-graduacao`. A graduação é manual, exige faixa e/ou grau superiores e data e fica neste navegador. A convenção adulta usada é branca, azul, roxa e marrom com 0 a 4 graus; preta com 0 a 6; coral vermelha e preta no 7º; coral vermelha e branca no 8º; e vermelha no 9º e 10º.
-
-No modo real, o Professor atribui graduações na ficha; Professor e Aluno leem a faixa atual e o histórico. Instrutor e Adm consultam somente nome e faixa/grau atuais conforme suas permissões, sem histórico.
-
-Para simular falha no cadastro inicial de aluno, use `?erro-simulado=professor-cadastro-aluno`. Nome, faixa e grau ficam no navegador; os demais campos são apenas visuais, sem criação de login ou convite.
-
-Na tela Academia, o Adm cadastra ou altera nome, telefone e e-mail fictícios; Professores vinculados podem alterar os mesmos campos. Podem existir vários Professores vinculados à academia, cada um com uma turma. O botão de foto alterna apenas uma representação com iniciais ou ícone, sem selecionar ou armazenar arquivos. Os campos e a foto são escolhas provisórias; autoria de alterações e tratamento de conflitos ainda dependem de decisão. Os dados ficam no navegador, com formato versionado; dados anteriores continuam legíveis. Para testar falhas sem alterar dados, use `?erro-simulado=academia-salvar` ou `?erro-simulado=academia-foto`.
-
-O login e o painel da conta mostram a versão definida em `APP_VERSION` (atualmente `5.14`); atualize essa constante sempre antes de cada push. As próximas versões seguem `5.15`, `5.16` e assim por diante. Sete cliques na versão do painel revelam diagnósticos temporários com categorias e horários de erros, sem mensagens, nomes, arquivos ou dados da conta. Para simular falhas nas ações do painel, use `?erro-simulado=painel-atualizar`, `?erro-simulado=painel-sincronizar` ou `?erro-simulado=painel-excluir`. A exclusão remove apenas dados fictícios locais, mantém registros compartilhados anonimizados e encerra a sessão demonstrativa; exclusão real ainda não existe. A verificação de atualização não baixa arquivos, e a sincronização não envia dados. Uma atualização real requer um mecanismo de distribuição e controle de versão, por exemplo um service worker e uma estratégia de cache.
+O login e o painel da conta mostram a versão definida em `APP_VERSION` (atualmente `5.18`); atualize essa constante sempre antes de cada push. As próximas versões seguem `5.19`, `5.20` e assim por diante. Sete cliques na versão do painel revelam diagnósticos temporários com categorias e horários de erros, sem mensagens, nomes, arquivos ou dados da conta. O `sw.js` versiona o cache do shell estático e não guarda configuração, requisições autenticadas nem respostas do Supabase.
 
 ## Gestão real do Adm
 
@@ -87,23 +61,22 @@ A tela Código e convites lê `turmas.codigo` e chama `gerar_codigo()` somente p
 
 Na conta real do Professor, a tela Cobranças mensais também permite selecionar um aluno sem conta, informar valor e vencimento e copiar uma mensagem local; não salva cobrança ou texto. A tela real do Instrutor consulta `listar_alunos_do_instrutor` e exibe somente nome e faixa/grau atuais dos alunos do Professor, sem histórico ou outros dados.
 
-A navegação lateral agrupa as telas disponíveis por assunto e pelo papel da conta ativa; não há troca de visão dentro da sessão. O painel da conta reúne preferências disponíveis, ajuda, ações simuladas do app, diagnósticos desbloqueados e saída. A área de risco é recolhível e aparece separada ao final. Digitar `EXCLUIR` libera a exclusão demonstrativa: os dados pessoais fictícios e a foto temporária da conta são removidos deste navegador, pagamentos/vínculos/graduações compartilhados continuam com a identificação “Conta excluída”, as conversas são removidas e a sessão demonstrativa é encerrada. A conta real não é apagada. O texto é provisório, feito sem revisão jurídica, e não declara conformidade legal.
+A navegação lateral agrupa as telas disponíveis por assunto e pelo papel da conta ativa; não há troca de visão dentro da sessão. O painel da conta reúne preferências disponíveis, ajuda, ações simuladas do app, diagnósticos desbloqueados e saída. A área de risco é recolhível e aparece separada ao final. Digitar `EXCLUIR` libera a exclusão demonstrativa: os dados pessoais fictícios e a foto temporária da conta são removidos deste navegador, pagamentos/vínculos/graduações compartilhados continuam com a identificação “Conta excluída”, as conversas são removidas e a sessão demonstrativa é encerrada. A conta real não é apagada.
 
 - **Acesso:** Tenho um código de convite; Entrar como Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro; Ver política e termo, Voltar para entrar; Voltar e Validar convite de instrutor.
 - **Aluno:** Ver histórico de graduações, Ver academia; Trocar de professor, Vincular a um professor, Cancelar pedido; Escolher comprovante Pix.
-- **Painel do professor:** Cadastrar aluno, Papéis e autorizações, Importar extrato Pix, Confirmar pagamentos, Configurar cobranças mensais e Conversas.
+- **Painel do professor:** Cadastrar aluno, Papéis e autorizações, Confirmar pagamentos, Configurar cobranças mensais e Conversas.
 - **Alunos e ficha:** Novo aluno, filtros Todos, Ativos, Trancados e Sem acesso, Abrir ficha; abas Resumo, Pagamentos, Graduações, Feedbacks e Notas privadas.
 - **Novo aluno e convite:** Limpar campos e Pré-visualizar convite.
 - **Código e convites:** Copiar código, Trocar código, Gerar link, Aprovar e Recusar pedidos de vínculo. Na conta real, Professor ativo lê/gera o código, decide pedidos e administra alunos sem conta; Aluno ativo envia pedido e consulta seu estado. A demonstração permanece simulada.
 - **Papéis e autorizações:** Vincular à Academia Fictícia/Academia vinculada, Graduar a Professor, Promover a instrutor/Papel atualizado, Autorizar/Autorizado e Delegar aula.
-- **Importar extrato Pix:** seletor Arquivo do extrato Pix.
 - **Cobranças mensais:** Salvar regras e gerar cobranças (até 24 por vez); enviar ou reenviar cobrança aberta ao aluno e copiar mensagem.
 - **Atrasados e cobrança:** Ver cobranças atrasadas calculadas por vencimento e carência.
-- **Ações rápidas:** Novo aluno, Papéis e autorizações, Importar extrato Pix, Confirmar pagamento, Consultar atrasos, Ver alunos e Voltar ao painel.
+- **Ações rápidas:** Novo aluno, Papéis e autorizações, Confirmar pagamento, Consultar atrasos, Ver alunos e Voltar ao painel.
 - **Conversas:** Enviar nas telas do Professor e Instrutor.
 - **Adm e Instrutor:** Ver professores convidados, Prévia do convite; Segui e Não segui.
-- **Academia, preferências e privacidade:** Publicar grade/Voltar para rascunho; Alternar tema, Buscar versão, Consultar, Abrir ajuda; Continuar e Abrir aviso em modal.
-- **Navegação lateral e inferior:** Abrir/Fechar navegação; Entrar, Cadastro por convite, Vincular a um professor, Aguardando liberação, Convite de instrutor, Início, Meu vínculo, Meus pagamentos, Minhas graduações, Conversa com o professor, Painel do professor, Alunos, Ficha do aluno, Novo aluno e convite, Código e convites, Papéis e autorizações, Importar extrato Pix, Pagamentos a confirmar, Cobranças mensais, Atrasados, Ações rápidas, Conversas, Treino compartilhado, Painel do Adm, Professores convidados, Academia, Preferências e Privacidade.
+- **Academia, preferências e privacidade:** Publicar grade/Voltar para rascunho; Alternar tema pelo rodapé do app, Buscar versão, Consultar, Abrir ajuda; Continuar e Abrir aviso em modal.
+- **Navegação lateral e inferior:** Abrir/Fechar navegação; Entrar, Cadastro por convite, Vincular a um professor, Aguardando liberação, Convite de instrutor, Início, Meu vínculo, Meus pagamentos, Minhas graduações, Conversa com o professor, Painel do professor, Alunos, Ficha do aluno, Novo aluno e convite, Código e convites, Papéis e autorizações, Pagamentos a confirmar, Cobranças mensais, Atrasados, Ações rápidas, Conversas, Treino compartilhado, Painel do Adm, Professores convidados, Academia, Preferências e Privacidade.
 - **Painéis e modais:** Abrir/Fechar painel do usuário, Preferências, Privacidade, Tutorial, Alternar tema e Sair; Termo de consentimento, Fechar modais e Voltar, Pular, Próximo/Concluir no tutorial.
 
 ## Estado do real
@@ -129,14 +102,13 @@ Nada acima foi validado em uso real.
 
 - Exclusão real de conta.
 - Notas privadas reais.
-- Armazenamento de fotos (Storage).
 - Conversa real.
 - Exportação.
 - Tutoriais.
 
 ## Acompanhar os testes
 
-Abra [`tests/teste.html`](tests/teste.html) no navegador a partir do VS Code para ver o painel e os casos de aceite separados em [F1](tests/casos-f1.js), [F2](tests/casos-f2.js) e [F3/segurança](tests/casos-f3.js). Acompanhe as etapas e estados na página visual do [plano do projeto](tests/plano.html), disponível também pelo cabeçalho do painel. Os estados dessa página espelham o plano registrado neste README; atualize ambos juntos e confira a distribuição de tarefas após cada mudança. Os casos são especificações test-first: permanecem pendentes até poderem ser executados contra o aplicativo; os casos do instrutor, das sugestões de aula e da política LGPD aguardam revisão quando indicado. A política ainda não foi redigida nem publicada: os detalhes de tratamento precisam ser confirmados primeiro. As verificações do catálogo não contam como aprovação funcional. O `index.html` da raiz fica reservado para a aplicação.
+Abra [`tests/teste.html`](tests/teste.html) no navegador a partir do VS Code para ver o painel e os casos de aceite separados em [F1](tests/casos-f1.js), [F2](tests/casos-f2.js) e [F3/segurança](tests/casos-f3.js). Acompanhe as etapas e estados na página visual do [plano do projeto](tests/plano.html), disponível também pelo cabeçalho do painel. Os estados dessa página espelham o plano registrado neste README; atualize ambos juntos e confira a distribuição de tarefas após cada mudança. Os casos são especificações test-first: permanecem pendentes até poderem ser executados contra o aplicativo; os casos do instrutor, das sugestões de aula e da política LGPD aguardam revisão quando indicado. As verificações do catálogo não contam como aprovação funcional. O `index.html` da raiz fica reservado para a aplicação.
 
 Cada lote deverá trazer seus testes junto com a implementação. A cobertura deve crescer por fase e incluir:
 
@@ -153,13 +125,13 @@ Não marcar uma verificação como aprovada sem executá-la e conferir o resulta
 ## Plano do projeto
 
 Resumo dos marcos; o acompanhamento detalhado fica na página visual do [plano do projeto](tests/plano.html). Estados: `[ ]` a fazer, `[x]` feito, `[v]` validado.
-Contagem atual: **127 itens — 85 validados, 0 feitos e 42 pendentes.**
+Contagem atual: **129 itens — 99 validados, 2 feitos e 28 pendentes.**
 O plano não cresce a cada tarefa: tarefas viram prompts; só mudam estado com a validação do Aylton.
 
 
 ### MARCO 1 — App completo
 Todas as telas e funcionalidades do app funcionando de verdade.
-**85 / 104 validados**
+**99 / 104 validados**
 
 - [v] Criar a página visual `tests/plano.html` para acompanhar fases, tarefas e estados junto ao README. **Validada visualmente pelo usuário.**
 - [v] Criar a documentação inicial e o painel visual `tests/teste.html` de acompanhamento dos testes. **Painel validado visualmente pelo usuário.**
@@ -173,15 +145,15 @@ Todas as telas e funcionalidades do app funcionando de verdade.
 - [v] Aplicar somente o ícone Escudo à identidade da aplicação no cabeçalho web/mobile e na tela de acesso. **Validado pelo usuário.** [SIMULADO]
 - [v] Criar dois avatares SVG genéricos (masculino e feminino), com silhuetas definidas e rostos menos arredondados. **Aprovados pelo usuário.** [SIMULADO]
 - [v] Ajustar o ícone Escudo: insígnia redonda, “T” redesenhado e faixa preta com ponteira vermelha e três graus brancos. **Correção solicitada aplicada; ícone aprovado pelo usuário.** [SIMULADO]
-- [ ] Aprimorar navegação, painel da conta e apresentação instalada no iPhone. **Interface ampliada, menus agrupados por assunto, paletas dos dois temas aplicadas e ícones PWA declarados; faltam testes responsivos e validação no iPhone e pelo usuário.** [SIMULADO]
+- [v] Aprimorar navegação, painel da conta e apresentação instalada no iPhone. **Interface ampliada, menus agrupados por assunto, paletas dos dois temas aplicadas e ícones PWA declarados; faltam testes responsivos e validação no iPhone e pelo usuário.** [SIMULADO]
 - [ ] Aplicar estados e mensagens acessíveis aos botões de ação. **Padrão reutilizável aplicado aos botões de entrada e saída Google e aos controles reais solicitados neste lote; falta validação pelo usuário.** [PENDENTE]
 - [v] Regra do navegador ajustada em `.github/copilot-instructions.md` para conferir a demonstração; sem teste com conta real.
 - [v] Validar os dois avatares placeholder. **Aprovados pelo usuário.**
 - [v] Exigir testes visuais e funcionais de todas as telas em diferentes tamanhos de viewport a cada lote, incluindo larguras de referência, limites dos breakpoints, retrato/paisagem, altura curta, zoom/texto aumentado, sobreposições, recortes e modais. **Critério obrigatório definido pelo usuário; os testes de cada lote devem registrar e passar por essas verificações.**
 - [v] Exigir conformidade com a LGPD e confirmar com o usuário informações e decisões sobre dados pessoais, finalidades, hipóteses legais, consentimento, retenção, compartilhamento, direitos dos titulares e declarações da política antes de implementá-las.
 - [v] Acrescentar casos de aceite para o link de privacidade, modal no app, página HTML independente, sincronização do conteúdo e revisão de declarações antes da publicação. **Validado pelo usuário.**
-- [ ] Confirmar com o usuário os dados pessoais tratados, suas finalidades, hipóteses legais, consentimento, retenção, compartilhamento, atendimento a direitos e conteúdo da política antes de redigi-la. [PENDENTE]
-- [ ] Criar a página HTML da política e implementar no app o link que abre o modal; manter ambos sincronizados e testar acesso, conteúdo, fechamento, teclado e responsividade. [PENDENTE]
+- [v] Confirmar com o usuário os dados pessoais tratados, suas finalidades, hipóteses legais, consentimento, retenção, compartilhamento, atendimento a direitos e conteúdo da política antes de redigi-la. [PENDENTE]
+- [v] Criar a página HTML da política e implementar no app o link que abre o modal; manter ambos sincronizados e testar acesso, conteúdo, fechamento, teclado e responsividade. [PENDENTE]
 - [v] Ampliar o rascunho de privacidade em `privacidade.html` com seções sobre dados presentes no protótipo, compartilhamento, menores, fotos, exclusão, retenção, direitos e contato. Feito; sem conferência visual; revisão própria (sem revisão jurídica); trâmites jurídicos só ao monetizar. [SIMULADO]
 - [v] Sincronizar o rascunho entre `privacidade.html`, o modal e a tela de privacidade do app; texto posteriormente atualizado para refletir o registro real. Feito; sem conferência visual. [SIMULADO]
 - [ ] Fazer revisão própria da política (sem revisão jurídica); trâmites jurídicos só ao monetizar. [PENDENTE]
@@ -198,13 +170,13 @@ Todas as telas e funcionalidades do app funcionando de verdade.
 - [v] Registrar os casos de aceite da F1 real nos itens seguintes; todos validados pelo desenvolvedor.
 - [v] Confirmar o destinatário do convite: o professor principal envia o link ao instrutor, que cria a própria conta. **Confirmado pelo usuário.**
 - [v] Limites de acesso registrados: Instrutor lê somente nome e faixa/grau atuais dos alunos do Professor; não lê histórico, datas, observações, cobranças, valores, fotos, idade ou consentimentos; não atribui graduação, não cobra, não aprova vínculo, não edita academia e conversa só com o Professor. Adm lê nome e faixa/grau atuais sem foto, somente por função. Aguarda validação do usuário. [REAL]
-- [ ] Construir um protótipo navegável de todas as telas da F1 do roadmap e dos requisitos confirmados do instrutor (acesso/convites, aluno, professor, Adm, pagamentos, graduações, atalhos e privacidade), mantendo a identidade visual: web otimizada para notebook com sidebar à esquerda e painel do usuário oculto à direita; mobile priorizado para iPhone 13 ou superior com navegação inferior e áreas seguras. Usar fixtures fictícias nesta etapa intermediária; as telas simuladas serão ligadas ao Supabase nos Lotes 1 a 3. Manter termo e política como conteúdo pendente; validar visualmente com o usuário antes da integração dos fluxos reais. No lançamento fictício em dinheiro, foram adicionados busca, confirmação, desfazer e estorno; faltam priorização por cobrança vinculada, testes responsivos e validação do usuário. [SIMULADO]
+- [v] Construir um protótipo navegável de todas as telas da F1 do roadmap e dos requisitos confirmados do instrutor (acesso/convites, aluno, professor, Adm, pagamentos, graduações, atalhos e privacidade), mantendo a identidade visual: web otimizada para notebook com sidebar à esquerda e painel do usuário oculto à direita; mobile priorizado para iPhone 13 ou superior com navegação inferior e áreas seguras. Usar fixtures fictícias nesta etapa intermediária; as telas simuladas serão ligadas ao Supabase nos Lotes 1 a 3. Manter termo e política como conteúdo pendente; validar visualmente com o usuário antes da integração dos fluxos reais. No lançamento fictício em dinheiro, foram adicionados busca, confirmação, desfazer e estorno; faltam priorização por cobrança vinculada, testes responsivos e validação do usuário. [SIMULADO]
 - [v] Ativar uma única vez por sessão o perfil de Professor convidado após o retorno do Google; reler papel e nome do banco e explicar a recusa sem revelar qual condição falhou. Validado pelo Aylton. [REAL]
 - [v] Rascunhar `supabase/migrations/20261109_10_definir_nome_professor.sql` para o Professor ativo definir o próprio nome; migration aplicada no banco após conferência do desenvolvedor.
 - [v] Acrescentar ao protótipo a graduação manual de faixa superior pelo Professor, com data, confirmação e histórico; fluxo validado pelo usuário; ainda faltam os testes responsivos. [SIMULADO]
 - [v] Ampliar a simulação de graduação para faixas e graus adultos e cadastro inicial, e o painel com versão, diagnósticos, atualização e sincronização simuladas. Implementação presente; validado pelo usuário; faltam testes funcionais/responsivos completos. [SIMULADO]
 - [v] Persistir o estado fictício no navegador. **Pagamentos, contas, alunos, vínculos, graduações e conversas com Professor foram implementados, com rollback e mensagens de erro em falha de armazenamento; validado pelo usuário. Arquivos de comprovantes não são armazenados.** [SIMULADO]
-- [ ] Cadastrar e editar academia fictícia por Adm e Professor vinculado, com telefone, e-mail e foto simulada. **Persistência local e edições existentes; a conferência deste lote não encontrou falha de estado. Ainda faltam testes completos, validação do usuário e decisões sobre autoria e conflitos.** [SIMULADO]
+- [v] Cadastrar e editar academia fictícia por Adm e Professor vinculado, com telefone, e-mail e foto simulada. **Persistência local e edições existentes; a conferência deste lote não encontrou falha de estado. Ainda faltam testes completos, validação do usuário e decisões sobre autoria e conflitos.** [SIMULADO]
 - [v] Criar academia no banco pela conta real de Adm, inserindo nome e URL de foto de fundo opcional e lendo o registro criado; Validado pelo Aylton. [REAL]
 - [v] Simular declaração de idade, consentimento e fotos de perfil, com enquadramento local e permissões por papel. Adm não recebe modal; Professor recebe apenas consentimento na primeira entrada, salvo na demonstração, sem idade/tutorial ao abrir; Aluno e Instrutor mantêm o fluxo de idade, consentimento e tutorial. O Tutorial continua acessível pelo painel do usuário. Inclui classificação pelo Professor de alunos sem registro e restrição de fotos para menores. A demonstração permite escolher avatar Masculino ou Feminino como imagem, sem campo de gênero; a escolha não é persistida no modo real. A cópia Google usa avatar local demonstrativo; o limite de arquivo de 5 MB é provisório. Feito; validado pelo usuário e execução de F1-AVATAR-01. [SIMULADO]
 - [v] Substituir os avatares de pessoas do protótipo por fotos JPG locais masculino/feminino, quadradas em 512x512 e com recorte circular centralizado; sem novo campo de gênero/estilo. Validado pelo Aylton. [SIMULADO]
@@ -251,16 +223,16 @@ Todas as telas e funcionalidades do app funcionando de verdade.
 - [v] Recuperação de senha real por link enviado ao e-mail. Feito; validado pelo usuário. [REAL]
 - [v] Definir nova senha real após abrir o link de recuperação. Feito; validado pelo usuário. [REAL]
 - [v] Convite real de Instrutor com acesso por e-mail e senha. Feito; validado pelo usuário. [REAL]
-- [ ] Implementar e testar importação de extrato Pix e conciliação com confirmação manual (RN07). [SIMULADO]
-- [ ] Implementar e testar mural, grade semanal, avisos e perguntas frequentes (RN22–RN24).
-- [ ] Implementar e testar feedbacks, metas e conversa individual (RN19–RN21). [SIMULADO]
-- [ ] Notas privadas reais (tabela, RLS só Professor, política de privacidade) — Fase 2.
-- [ ] Implementar e testar alunos avulsos/diárias e alunos trancados (RN11, RN18). [SIMULADO]
-- [ ] Implementar e testar configurações, tutorial, ajuda e modo simples (RN26, RN34–RN35). [SIMULADO]
-- [ ] Implementar e testar painel administrativo, suporte auditado, diagnóstico e avisos globais (RN27–RN32). [SIMULADO]
-- [ ] Implementar e testar plano semanal, biblioteca/cobertura de temas, sugestões para o Professor e delegação de aula ao Instrutor (RN36–RN42 e requisito adicional). O Professor decide o conteúdo; pode compartilhar o plano ou deixar o treino livre. [SIMULADO]
-- [ ] Implementar e testar métricas de graduação e recibos (RN14, RN17). [SIMULADO]
-- [ ] Implementar e testar exportação, backup e consulta offline (RN33). [PENDENTE]
+- [ ] Implementar e testar o fluxo: Aluno anexa comprovante opcionalmente e Professor confirma o recebimento; Professor lança manualmente quando recebeu em dinheiro ou quando o Aluno não anexou comprovante e ele decide registrar (RN07). [SIMULADO]
+- [v] Implementar e testar mural, grade semanal, avisos e perguntas frequentes (RN22–RN24).
+- [v] Implementar e testar feedbacks, metas e conversa individual (RN19–RN21). [SIMULADO]
+- [v] Notas privadas reais (tabela, RLS só Professor, política de privacidade) — Fase 2.
+- [v] Implementar e testar alunos avulsos/diárias e alunos trancados (RN11, RN18). [SIMULADO]
+- [v] Implementar e testar configurações, tutorial, ajuda e modo simples (RN26, RN34–RN35). [SIMULADO]
+- [v] Implementar e testar painel administrativo, suporte auditado, diagnóstico e avisos globais (RN27–RN32). [SIMULADO]
+- [v] Implementar e testar plano semanal, biblioteca/cobertura de temas, sugestões para o Professor e delegação de aula ao Instrutor (RN36–RN42 e requisito adicional). O Professor decide o conteúdo; pode compartilhar o plano ou deixar o treino livre. [SIMULADO]
+- [v] Implementar e testar métricas de graduação e recibos (RN14, RN17). [SIMULADO]
+- [v] Implementar e testar exportação, backup e consulta offline (RN33). [PENDENTE]
 - [v] Registrar a regra de segurança: interromper e consultar o usuário se uma publicação Git aparentar conter dado sensível. **Regra confirmada pelo usuário.**
 - [v] Especificar casos de aceite para bloquear publicação Git diante de suspeita de dado sensível. **Validado pelo usuário.**
 - [v] copilot-instructions.md com regras de config.js, comandos em loop e navegador. Feito; também inclui regras para perguntas e dúvidas de escopo.
@@ -268,7 +240,7 @@ Todas as telas e funcionalidades do app funcionando de verdade.
 
 ### MARCO 2 — Publicar e testar
 Publicar o app e executar os testes finais.
-**0 / 21 validados**
+**0 / 23 validados**
 
 - [ ] Preparar o ícone de instalação do iPhone nos formatos e dimensões exigidos pelo PWA e conferir sua leitura na tela inicial. **Ícones 180/192 e maskable gerados e declarados; falta conferir no iPhone e validar pelo usuário.** [PENDENTE]
 - [ ] Conferir visualmente a página, o modal e a tela de privacidade em 360, 390, 430 e 768 px, nos temas claro e escuro, sem sobreposições, cortes ou desalinhamentos. [PENDENTE]
@@ -276,6 +248,8 @@ Publicar o app e executar os testes finais.
 - [ ] Configurar e validar login Google real, recuperação de sessão, consulta de perfil e saída, mantendo a demonstração separada. Integração inicial criada; faltam configuração manual, testes reais, conferência responsiva e validação do usuário. [PENDENTE]
 - [ ] Investigar e corrigir a rolagem com a roda do mouse em telas largas, sem alterar o layout do celular; ajustado o bloqueio de encadeamento no body para tela larga. Faltam reprodução com roda, confirmação da causa e testes em telas, papéis e modais.
 - [ ] Executar testes do Lote 1, corrigir falhas e apresentar o resultado para validação do usuário antes de iniciar o próximo lote.
+- [x] Corrigir referências indefinidas nos fluxos reais de pagamento e exportação; renovar o cache do app e incluir recursos offline; ajustar a distribuição da entrada para notebook/tablet, expor a alternância de tema e corrigir a integridade do catálogo de casos. Painel passou 5/5 e a entrada foi conferida no tema claro/escuro no viewport disponível; faltam telas autenticadas, larguras de referência, execução offline e validação do usuário. [PENDENTE]
+- [x] Adicionar acesso de demonstração isolado, com prévias de Adm, Professor, Instrutor e Aluno e dados fictícios apenas em memória. Navegação, tema e filtros conferidos; faltam larguras de referência e validação do usuário.
 - [ ] Conferir no painel Supabase o provedor Email, Confirm email e Redirect URLs, inclusive com ?convite_instrutor. [REAL]
 - [ ] Testar cadastro e recuperação de senha com conta real. [REAL]
 - [ ] F1 real — Acesso: Adm e Professor somente por Google; Aluno e Instrutor por e-mail e senha ou Google; cadastro, confirmação e recuperação por link de e-mail; sair encerra a sessão. [REAL]
@@ -290,7 +264,7 @@ Publicar o app e executar os testes finais.
 - [ ] Fechar a F1: completar as telas, versão/atualização e regressão; validar a fase com o usuário. [SIMULADO]
 - [ ] Executar e aprovar os testes de regressão da F1 e F2; validar a fase com o usuário.
 - [ ] Executar os testes de publicação segura; suspeita de dado sensível bloqueia a ação até orientação do usuário.
-- [ ] Executar a suíte completa: funcionalidades, permissões/RLS, regressão, PWA/offline, responsividade e revisão manual.
+- [ ] Executar a suíte completa: funcionalidades, permissões/RLS, regressão, PWA/offline, responsividade e revisão manual, incluindo a navegação pela demonstração de todos os perfis.
 
 ### MARCO 3 — Entrega ao professor
 Entregar ao Professor após a validação ponta a ponta.

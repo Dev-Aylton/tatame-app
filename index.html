@@ -14,13 +14,23 @@
   <link rel="stylesheet" href="css/app.css">
   <script src="js/vendor/supabase-2.49.8.js" defer></script>
   <script src="js/config.js" defer></script>
+  <script src="js/exportar.js" defer></script>
   <script src="js/app.js" defer></script>
+  <script src="js/offline.js" defer></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch((error) => {
+          console.warn("Não foi possível registrar o service worker.", error);
+        });
+      }, { once: true });
+    }
+  </script>
 </head>
 <body class="tatame-app" data-theme="dark">
-  <div class="prototype-banner" role="note" aria-label="Modo demonstração">
-    <span><strong>Modo demonstração</strong><span class="banner-separator">·</span> dados fictícios isolados</span>
+  <div class="notice notice--info" id="offline-notice" role="status" aria-live="polite" hidden>
+    Você está offline. Algumas funções podem não estar disponíveis.
   </div>
-
   <div class="app-frame">
     <aside class="app-sidebar" id="app-sidebar" aria-label="Navegação do Tatame">
       <div class="sidebar-heading">
@@ -36,8 +46,6 @@
       </div>
       <nav class="screen-navigation" id="screen-navigation" aria-label="Telas por perfil"></nav>
       <div class="sidebar-footer">
-        <span class="demo-dot" aria-hidden="true" data-demo-only hidden></span>
-        <span data-demo-only hidden>Dados de demonstração</span>
       </div>
     </aside>
 
@@ -69,9 +77,10 @@
       <footer class="app-footer">
         <span>Tatame · Gestão de academia</span>
         <span class="app-footer-links">
-          <a class="demo-entry-link" href="index.html?demo=1" data-demo-entry-link hidden>Ver demonstração</a>
+          <button class="text-link" type="button" data-theme-toggle aria-pressed="false">Tema: escuro</button>
+          <a class="text-link" href="demo.html">Demonstração interativa</a>
+          <a class="text-link" href="privacidade.html">Política de privacidade</a>
           <button class="text-link" type="button" data-open-terms>Termo de consentimento</button>
-          <a href="tests/plano.html" data-demo-only hidden>Plano da F1 <span aria-hidden="true">↗</span></a>
         </span>
       </footer>
     </main>
@@ -89,41 +98,28 @@
     </div>
     <div class="user-panel-profile">
       <span class="user-panel-avatar" id="user-panel-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>
-      <span><strong id="user-panel-profile-name">Sem sessão ativa</strong><small id="user-panel-profile-role">Perfil</small><small id="user-panel-profile-academy">Sem academia vinculada</small></span>
+      <div class="user-panel-profile-copy">
+        <strong id="user-panel-profile-name">Sem sessão ativa</strong>
+        <small id="user-panel-profile-role">Perfil</small>
+        <small id="user-panel-profile-academy">Sem academia vinculada</small>
+        <div class="user-panel-profile-media">
+          <div class="user-panel-profile-media-item" id="user-panel-academy-media" hidden>
+            <img id="user-panel-academy-photo" alt="" hidden>
+            <small>Foto da academia</small>
+          </div>
+          <div class="user-panel-profile-media-item" id="user-panel-professor-media" hidden>
+            <img id="user-panel-professor-photo" alt="" hidden>
+            <small>Foto do Professor</small>
+          </div>
+        </div>
+      </div>
     </div>
-    <nav class="user-panel-links" aria-label="Navegação da conta" data-demo-only hidden>
-      <h3 class="user-panel-group-title">Conta e preferências</h3>
-      <button class="user-panel-link" type="button" data-screen-target="user-settings">
-        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg></span><span><strong>Preferências</strong><small>Conta e visualização</small></span><span aria-hidden="true">›</span>
-      </button>
-      <button class="user-panel-link" type="button" data-screen-target="privacy">
-        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 19 6v5c0 4.5-2.7 7.7-7 10-4.3-2.3-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span><span><strong>Privacidade</strong><small>Conteúdo pendente de revisão</small></span><span aria-hidden="true">›</span>
-      </button>
-      <button class="user-panel-link" type="button" data-theme-toggle>
-        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v16M12 4a8 8 0 0 1 0 16"/></svg></span><span><strong>Alternar tema</strong><small>Apenas para visualização</small></span><span aria-hidden="true">›</span>
-      </button>
-    </nav>
-    <div class="user-panel-links" aria-label="Ajuda" role="group" data-demo-only hidden>
-      <h3 class="user-panel-group-title">Ajuda</h3>
+    <div class="user-panel-links" aria-label="Ajuda" role="group">
+      <h3 class="user-panel-group-title">Ajuda e suporte</h3>
       <button class="user-panel-link" type="button" data-open-tutorial>
-        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 17h.01"/></svg></span><span><strong>Tutorial</strong><small>Ajuda para esta conta</small></span><span aria-hidden="true">›</span>
+        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 17h.01"/></svg></span><span><strong>Ajuda e tutorial</strong><small>Tutorial e perguntas frequentes</small></span><span aria-hidden="true">›</span>
       </button>
-    </div>
-    <div class="user-panel-links" aria-label="App" role="group" data-demo-only hidden>
-      <h3 class="user-panel-group-title">App</h3>
-      <div class="user-panel-version"><span>Versão do app</span><button type="button" class="version-trigger version-badge" id="app-version"></button></div>
-      <div class="user-panel-action">
-        <p>Verificação simulada, sem baixar atualizações.</p>
-        <button class="button button--quiet button--action" type="button" data-panel-action="atualizar"><span aria-hidden="true">↻</span><span data-action-label>Atualizar o app</span></button>
-        <p class="login-action-error" role="alert"></p>
-        <p class="field-help" role="status" aria-live="polite"></p>
-      </div>
-      <div class="user-panel-action">
-        <p>Simulação: nenhum dado é enviado à nuvem.</p>
-        <button class="button button--quiet button--action" type="button" data-panel-action="sincronizar"><span aria-hidden="true">⇅</span><span data-action-label>Sincronizar dados com a nuvem</span></button>
-        <p class="login-action-error" role="alert"></p>
-        <p class="field-help" role="status" aria-live="polite"></p>
-      </div>
+      <p><a class="text-link" href="privacidade.html">Política de privacidade</a></p>
     </div>
     <details class="user-panel-diagnostics" id="user-diagnostics" hidden>
       <summary><span class="diagnostics-chevron" aria-hidden="true">▸</span> Diagnósticos</summary>
@@ -139,26 +135,11 @@
         <p class="login-action-error" id="real-signout-error" role="alert"></p>
         <p class="field-help" id="real-signout-status" role="status" aria-live="polite"></p>
       </div>
-      <button class="user-panel-link" type="button" data-logout-role data-demo-only hidden>
-        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H5v16h5M13 8l4 4-4 4M8 12h9"/></svg></span><span><strong>Sair</strong><small>Encerrar a sessão de demonstração</small></span><span aria-hidden="true">›</span>
-      </button>
     </div>
     <p class="user-panel-note">O perfil e as permissões são definidos pelo banco.</p>
     <details class="user-panel-risk">
       <summary><span aria-hidden="true">⚠</span> Área de risco</summary>
-      <p data-demo-only hidden>Esta ação exclui somente os dados pessoais fictícios desta conta neste navegador, anonimiza os registros compartilhados e encerra a sessão demonstrativa.</p>
       <p data-real-only hidden>A exclusão de conta real ainda não está disponível.</p>
-      <div class="user-panel-action" data-demo-only hidden>
-        <p><span aria-hidden="true">⚠</span> Excluir minha conta: remove o perfil, os contatos fictícios e a foto demonstrativa. Pagamentos, vínculos e graduações compartilhados permanecem com o nome “Conta excluída”.</p>
-        <div class="field risk-confirmation">
-          <label for="delete-account-confirmation">Digite EXCLUIR para liberar a exclusão demonstrativa</label>
-          <input id="delete-account-confirmation" type="text" autocomplete="off" aria-describedby="delete-account-notice">
-        </div>
-        <button class="button button--danger button--action" type="button" data-delete-account disabled aria-describedby="delete-account-notice delete-account-error"><span data-action-label>Excluir minha conta</span></button>
-        <p class="login-action-error" id="delete-account-error" role="alert"></p>
-        <p class="field-help" id="delete-account-notice" role="status" aria-live="polite"></p>
-      </div>
-      <p data-demo-only hidden>Texto provisório; precisa de revisão por alguém com conhecimento em LGPD.</p>
     </details>
   </dialog>
 
