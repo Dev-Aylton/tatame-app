@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0b0c">
+  <title>Demonstração | Tatame</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body class="tatame-app" data-theme="dark" data-app-mode="demo">
+  <div class="app-frame">
+    <aside class="app-sidebar" id="app-sidebar" aria-label="Navegação da demonstração">
+      <div class="sidebar-heading">
+        <a class="brand-mark" href="index.html" aria-label="Tatame — acesso real">
+          <img src="assets/logos/tatame-icone-escudo.svg" alt="">
+          <span class="brand-caption">TATAME</span>
+        </a>
+        <button class="icon-button sidebar-close" type="button" data-close-sidebar data-demo-close-sidebar aria-label="Fechar navegação">×</button>
+      </div>
+      <div class="sidebar-intro">
+        <span class="eyebrow">DEMONSTRAÇÃO</span>
+        <p>Dados fictícios, locais e temporários. Nenhuma ação é enviada ao servidor.</p>
+      </div>
+      <nav class="screen-navigation" id="screen-navigation" aria-label="Telas demonstrativas"></nav>
+    </aside>
+    <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Fechar navegação"></button>
+    <main class="app-main">
+      <header class="app-header">
+        <div class="header-context">
+          <button class="icon-button mobile-menu-button" id="mobile-menu-button" type="button" aria-label="Abrir navegação" aria-expanded="false" aria-controls="app-sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+          <img class="mobile-header-logo" src="assets/logos/tatame-icone-escudo.svg" alt="">
+          <div class="header-titles">
+            <span class="eyebrow">MODO DEMONSTRAÇÃO</span>
+            <h1 id="current-screen-title">Início</h1>
+          </div>
+        </div>
+      </header>
+      <section class="screen-content" id="screen-content" aria-live="polite"></section>
+      <footer class="app-footer">
+        <span>Tatame · Demonstração fictícia</span>
+        <span class="app-footer-links">
+          <button class="text-link" type="button" data-demo-theme aria-pressed="false">Tema: escuro</button>
+          <a class="text-link" href="index.html">Acesso real</a>
+          <a class="text-link" href="privacidade.html">Política de privacidade</a>
+        </span>
+      </footer>
+    </main>
+  </div>
+  <nav class="mobile-navigation" id="mobile-navigation" aria-label="Atalhos demonstrativos"></nav>
+  <div class="toast-region" id="demo-status" role="status" aria-live="polite"></div>
+  <script src="js/demo.js" defer></script>
+</body>
+</html>
