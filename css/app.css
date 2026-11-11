@@ -1940,6 +1940,41 @@ body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .bu
   color: var(--muted);
 }
 
+.profile-onboarding-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 17px;
+}
+
+.link-simples-modal {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--amber-text);
+  cursor: pointer;
+  font-size: .85rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.link-simples-modal:hover,
+.link-simples-modal:focus-visible {
+  border: 0;
+  background: none;
+  color: var(--amber-text);
+  text-decoration: underline;
+}
+
+.link-simples-modal:active {
+  transform: none;
+}
+
 .profile-onboarding-options {
   display: grid;
   gap: 10px;
@@ -2054,46 +2089,6 @@ body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .bu
   margin: 16px 0;
 }
 
-.photo-crop-preview {
-  width: min(260px, 75vw);
-  aspect-ratio: 1;
-  margin: 18px auto;
-  overflow: hidden;
-  border: 2px solid var(--accent-text);
-  border-radius: 50%;
-  background: var(--surface-raised);
-}
-
-.photo-crop-preview img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform-origin: center;
-}
-
-.photo-editor-controls {
-  display: grid;
-  gap: 12px;
-}
-
-.photo-editor-controls input[type="range"] {
-  min-height: 30px;
-  padding: 0;
-  accent-color: var(--accent);
-}
-
-.photo-editor-actions {
-  display: grid;
-  gap: 6px;
-  margin-top: 18px;
-}
-
-.photo-editor-actions .button {
-  width: 100%;
-  min-height: 48px;
-}
-
 .tutorial-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2162,7 +2157,7 @@ body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .bu
 .user-panel-profile {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -2176,7 +2171,7 @@ body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .bu
   flex: 0 0 72px;
   overflow: hidden;
   place-items: center;
-  padding: 11px;
+  padding: 0;
   border: 1px solid var(--accent-text);
   border-radius: 50%;
   background: var(--accent-soft);
@@ -2184,39 +2179,27 @@ body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .bu
 }
 
 .user-panel-profile-copy {
+  display: grid;
+  gap: 6px;
   min-width: 0;
 }
 
-.user-panel-profile-media {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.user-panel-profile-media-item {
+.user-panel-profile small.user-panel-profile-academy {
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-
-.user-panel-profile-media-item img {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  object-fit: cover;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .real-media-preview {
   display: block;
-  width: min(100%, 20rem);
-  max-height: 16rem;
+  width: min(100%, 160px);
+  aspect-ratio: 1 / 1;
   margin: 0 0 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
   object-fit: cover;
+  object-position: center;
 }
 
 .real-media-avatar {
@@ -2233,11 +2216,6 @@ body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .bu
   align-items: center;
   gap: 10px;
   padding: 8px 0;
-}
-
-.user-panel-profile-media-item small {
-  margin: 0;
-  font-size: 11px;
 }
 
 .user-panel-profile strong,
@@ -2337,9 +2315,23 @@ body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .bu
 }
 
 .user-panel-profile small {
-  margin-top: 4px;
+  margin-top: 0;
   color: var(--muted);
   font-size: 14px;
+}
+
+.user-panel-profile-academy {
+  overflow-wrap: anywhere;
+}
+
+.user-panel-academy-photo {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  object-fit: cover;
+  object-position: center;
 }
 
 .user-panel-links {
@@ -2349,7 +2341,17 @@ body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .bu
 }
 
 .user-panel-avatar img {
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.user-panel-avatar svg[hidden],
+.user-panel-avatar img[hidden],
+.user-panel-academy-photo[hidden] {
+  display: none;
 }
 
 .user-panel-links[hidden] {

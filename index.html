@@ -78,7 +78,6 @@
         <span>Tatame · Gestão de academia</span>
         <span class="app-footer-links">
           <button class="text-link" type="button" data-theme-toggle aria-pressed="false">Tema: escuro</button>
-          <a class="text-link" href="demo.html">Demonstração interativa</a>
           <a class="text-link" href="privacidade.html">Política de privacidade</a>
           <button class="text-link" type="button" data-open-terms>Termo de consentimento</button>
         </span>
@@ -97,21 +96,11 @@
       <button class="icon-button" type="button" data-close-user-panel aria-label="Fechar painel do usuário">×</button>
     </div>
     <div class="user-panel-profile">
-      <span class="user-panel-avatar" id="user-panel-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>
+      <span class="user-panel-avatar" id="user-panel-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg><img id="user-panel-profile-photo" alt="" hidden></span>
       <div class="user-panel-profile-copy">
         <strong id="user-panel-profile-name">Sem sessão ativa</strong>
         <small id="user-panel-profile-role">Perfil</small>
-        <small id="user-panel-profile-academy">Sem academia vinculada</small>
-        <div class="user-panel-profile-media">
-          <div class="user-panel-profile-media-item" id="user-panel-academy-media" hidden>
-            <img id="user-panel-academy-photo" alt="" hidden>
-            <small>Foto da academia</small>
-          </div>
-          <div class="user-panel-profile-media-item" id="user-panel-professor-media" hidden>
-            <img id="user-panel-professor-photo" alt="" hidden>
-            <small>Foto do Professor</small>
-          </div>
-        </div>
+        <small class="user-panel-profile-academy" id="user-panel-profile-academy">Sem academia vinculada<img class="user-panel-academy-photo" id="user-panel-academy-photo" alt="" hidden></small>
       </div>
     </div>
     <div class="user-panel-links" aria-label="Ajuda" role="group">
@@ -151,37 +140,6 @@
       </div>
     </div>
     <div id="profile-onboarding-content"></div>
-  </dialog>
-
-  <dialog class="photo-dialog photo-editor-dialog" id="photo-editor" aria-labelledby="photo-editor-title" aria-describedby="photo-editor-copy">
-    <div class="dialog-heading">
-      <div>
-        <span class="eyebrow">FOTO PRÓPRIA</span>
-        <h2 id="photo-editor-title">Ajustar foto</h2>
-      </div>
-      <button class="icon-button" type="button" data-cancel-photo-editor aria-label="Cancelar edição da foto">×</button>
-    </div>
-    <p id="photo-editor-copy" class="field-help">Ajuste zoom e enquadramento. O arquivo fica somente nesta sessão do navegador.</p>
-    <div class="photo-crop-preview"><img id="photo-editor-image" alt="Prévia da foto enquadrada"></div>
-    <div class="photo-editor-controls">
-      <div class="field">
-        <label for="photo-editor-zoom">Zoom</label>
-        <input id="photo-editor-zoom" type="range" min="1" max="3" step="0.05" value="1" aria-valuetext="Zoom 1x">
-      </div>
-      <div class="field">
-        <label for="photo-editor-x">Enquadramento horizontal</label>
-        <input id="photo-editor-x" type="range" min="0" max="100" step="1" value="50">
-      </div>
-      <div class="field">
-        <label for="photo-editor-y">Enquadramento vertical</label>
-        <input id="photo-editor-y" type="range" min="0" max="100" step="1" value="50">
-      </div>
-    </div>
-    <div class="photo-editor-actions">
-      <button class="button button--primary button--action" type="button" data-save-profile-photo><span data-action-label>Salvar foto</span></button>
-      <p class="login-action-error" id="photo-editor-error" role="alert"></p>
-      <p class="field-help" id="photo-editor-status" role="status" aria-live="polite"></p>
-    </div>
   </dialog>
 
   <dialog class="privacy-dialog" id="privacy-modal" aria-labelledby="privacy-modal-title">

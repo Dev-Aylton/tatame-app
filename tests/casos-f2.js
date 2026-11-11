@@ -32,7 +32,7 @@ window.CASOS_ACEITE_F2 = [
     perfil: "Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro",
     regras: "RN26 e tutorial contextual",
     precondicoes: "Cada tipo de conta possui um tutorial com passos, ilustrações SVG inline e controles acessíveis.",
-    passos: ["Acessar cada conta de demonstração pela primeira vez.", "Avançar, voltar e pular os passos.", "Reabrir o tutorial pelo painel do usuário."],
+    passos: ["Acessar cada tipo de conta pela primeira vez.", "Avançar, voltar e pular os passos.", "Reabrir o tutorial pelo painel do usuário."],
     esperado: "Cada tutorial cobre as telas e funcionalidades de roleScreens daquele tipo de conta; o do Professor explica o papel e os limites do Instrutor. O modal funciona por toque e teclado, mantém foco, fecha com Escape e não corta conteúdo."
   }
 ];

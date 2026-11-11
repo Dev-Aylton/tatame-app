@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "5.18";
+const APP_VERSION = "5.23";
 const REAL_PAYMENT_PROOF_MAX_BYTES = 10 * 1024 * 1024;
 const REAL_PAYMENT_PROOF_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 document.body.dataset.appMode = "real";
@@ -258,6 +258,9 @@ let realProfessorGraduationsState = "idle";
 let realProfessorGraduationsNotice = "";
 let realProfessorGraduationsRequestSequence = 0;
 let realSelectedGraduationStudentId = "";
+const REAL_PROFILE_PHOTO_MAX_CONCURRENT = 20;
+const realLinkedProfilePhotoQueue = [];
+let realLinkedProfilePhotoRequestsInFlight = 0;
 let realStudentGraduations = [];
 let realStudentGraduationsState = "idle";
 let realStudentGraduationsNotice = "";
@@ -493,9 +496,9 @@ function renderRealProfileOnboarding(stage) {
         : "Se você aceitar um convite de Instrutor, o registro ocorrerá após o convite ser consumido. Leia a política de privacidade antes de continuar.";
     content.innerHTML = `
       <p id="profile-onboarding-copy" class="profile-onboarding-copy">${consentCopy}</p>
-      <div class="form-actions">
-        <button class="button button--quiet" type="button" data-open-privacy>Ler política no modal</button>
-        <a class="button button--quiet" href="privacidade.html" target="_blank" rel="noopener">Abrir página da política</a>
+      <div class="profile-onboarding-links">
+        <button class="link-simples-modal" type="button" data-open-privacy>Ler política no modal</button>
+        <a class="link-simples-modal" href="privacidade.html" target="_blank" rel="noopener">Abrir página da política</a>
       </div>
       <div class="profile-onboarding-actions">
         <button class="button button--primary button--action" type="button" data-real-onboarding-action="continue"><span data-action-label>Aceitar e continuar</span></button>
@@ -509,8 +512,26 @@ function renderRealProfileOnboarding(stage) {
   if (firstControl) firstControl.focus();
 }
 
-function maybeOpenRealProfileOnboarding() {
+async function checkRealConsentAccepted() {
+  if (!authClient || !realUser) return false;
+  try {
+    const { data, error } = await authClient.rpc("consentimento_atual_aceito", {
+      p_versao: CONSENT_TERM_VERSION
+    });
+    if (error) {
+      recordDiagnostic("Erro ao consultar consentimento");
+      return false;
+    }
+    return data === true;
+  } catch {
+    recordDiagnostic("Erro ao consultar consentimento");
+    return false;
+  }
+}
+
+async function maybeOpenRealProfileOnboarding() {
   if (!realUser) return;
+  const userId = realUser.id;
   const role = realProfileState === "found" && realProfile ? realProfile.papel : null;
   if (role === "adm") {
     if (realOnboardingStage && profileOnboardingDialog.open) profileOnboardingDialog.close();
@@ -527,7 +548,13 @@ function maybeOpenRealProfileOnboarding() {
     }
     return;
   }
-  realOnboardingHandledSessionUserId = realUser.id;
+  if (role === "professor") {
+    realOnboardingHandledSessionUserId = userId;
+    if (await checkRealConsentAccepted()) return;
+    if (!realUser || realUser.id !== userId) return;
+  } else {
+    realOnboardingHandledSessionUserId = userId;
+  }
   realOnboardingAge = null;
   realOnboardingName = getPendingRealSignupName();
   renderRealProfileOnboarding(role === "professor" ? "consent" : "age");
@@ -1082,6 +1109,167 @@ async function loadRealProfessorPhotoSettings() {
   }
 }
 
+function canShowRealProfilePhotoForm(profile) {
+  return Boolean(profile && (
+    profile.papel === "adm" ||
+    profile.papel === "instrutor" ||
+    (profile.papel === "aluno" && profile.idade_declarada === "adulto")
+  ));
+}
+
+function canEditRealProfilePhoto(profile) {
+  return Boolean(profile && profile.ativo && canShowRealProfilePhotoForm(profile));
+}
+
+async function loadRealProfilePhotoPreview(userId) {
+  const sessionGeneration = realSessionCacheGeneration;
+  if (!authClient || !userId) return;
+  try {
+    const { data: photos, error } = await authClient.rpc("obter_foto_perfil", {
+      p_perfil_id: userId
+    });
+    if (sessionGeneration !== realSessionCacheGeneration || !realUser || realUser.id !== userId || currentScreen !== "user-settings") return;
+    if (error) {
+      logRealProfileSupabaseError("consultar foto de perfil", error);
+      return;
+    }
+    const photo = Array.isArray(photos) ? photos[0] : null;
+    if (!photo || typeof photo.caminho_storage !== "string") return;
+
+    const { data: signedPhoto, error: signedError } = await authClient.storage
+      .from("perfis")
+      .createSignedUrl(photo.caminho_storage, 300);
+    if (sessionGeneration !== realSessionCacheGeneration || !realUser || realUser.id !== userId || currentScreen !== "user-settings") return;
+    if (signedError) {
+      logRealProfileSupabaseError("criar URL temporária da foto de perfil", signedError);
+      return;
+    }
+    if (!signedPhoto || typeof signedPhoto.signedUrl !== "string") {
+      console.error("Não foi possível criar a URL temporária da foto de perfil.");
+      return;
+    }
+
+    const avatar = screenContent.querySelector("#real-profile-photo-avatar");
+    if (!avatar) return;
+    const image = new Image();
+    image.alt = "Foto de perfil";
+    image.addEventListener("load", () => {
+      if (sessionGeneration !== realSessionCacheGeneration || !realUser || realUser.id !== userId || currentScreen !== "user-settings" || !avatar.isConnected) return;
+      avatar.replaceChildren(image);
+      avatar.classList.remove("avatar--initials");
+      avatar.removeAttribute("aria-hidden");
+    }, { once: true });
+    image.addEventListener("error", () => {
+      console.error("Não foi possível carregar a foto de perfil; mantendo o avatar.");
+    }, { once: true });
+    image.src = signedPhoto.signedUrl;
+  } catch (error) {
+    if (sessionGeneration !== realSessionCacheGeneration || !realUser || realUser.id !== userId) return;
+    logRealProfileSupabaseError("carregar foto de perfil", error);
+  }
+}
+
+function renderRealLinkedProfileAvatar(profile) {
+  const name = typeof profile.nome === "string" ? profile.nome.trim() : "";
+  const initial = name ? Array.from(name)[0].toLocaleUpperCase("pt-BR") : "?";
+  return `<span class="avatar avatar--small avatar--initials" data-real-linked-profile-avatar="${escapeHtml(profile.id)}" aria-hidden="true">${escapeHtml(initial)}</span>`;
+}
+
+function pumpRealLinkedProfilePhotoQueue() {
+  while (realLinkedProfilePhotoRequestsInFlight < REAL_PROFILE_PHOTO_MAX_CONCURRENT &&
+         realLinkedProfilePhotoQueue.length) {
+    const { task, resolve } = realLinkedProfilePhotoQueue.shift();
+    realLinkedProfilePhotoRequestsInFlight += 1;
+    void (async () => {
+      try {
+        await task();
+      } catch (error) {
+        logRealProfileSupabaseError("carregar foto de perfil vinculada", error);
+      } finally {
+        realLinkedProfilePhotoRequestsInFlight -= 1;
+        resolve();
+        pumpRealLinkedProfilePhotoQueue();
+      }
+    })();
+  }
+}
+
+function queueRealLinkedProfilePhotoTask(task) {
+  return new Promise((resolve) => {
+    realLinkedProfilePhotoQueue.push({ task, resolve });
+    pumpRealLinkedProfilePhotoQueue();
+  });
+}
+
+async function loadRealLinkedProfilePhotoAvatars(profiles, screenId) {
+  if (!Array.isArray(profiles) || !authClient || !realUser || !isRealActiveProfessor() ||
+      !["students", "student-detail"].includes(screenId) || currentScreen !== screenId) return;
+  const professorId = realUser.id;
+  const sessionGeneration = realSessionCacheGeneration;
+  const linkedProfilesById = new Map(
+    profiles
+      .filter((profile) => profile && typeof profile.id === "string")
+      .map((profile) => [profile.id, profile])
+  );
+  const avatars = Array.from(screenContent.querySelectorAll("[data-real-linked-profile-avatar]"));
+  const tasks = Array.from(linkedProfilesById.values()).map((profile) => {
+    const avatar = avatars.find((element) => element.dataset.realLinkedProfileAvatar === profile.id);
+    if (!avatar) return Promise.resolve();
+    const isCurrent = () =>
+      sessionGeneration === realSessionCacheGeneration &&
+      Boolean(realUser && realUser.id === professorId) &&
+      isRealActiveProfessor() &&
+      currentScreen === screenId &&
+      avatar.isConnected &&
+      (screenId !== "student-detail" || realSelectedGraduationStudentId === profile.id);
+    return queueRealLinkedProfilePhotoTask(async () => {
+      if (!isCurrent()) return;
+      try {
+        const { data: photos, error } = await authClient.rpc("obter_foto_perfil", {
+          p_perfil_id: profile.id
+        });
+        if (!isCurrent()) return;
+        if (error) {
+          logRealProfileSupabaseError("consultar foto de perfil vinculada", error);
+          return;
+        }
+        const photo = Array.isArray(photos) ? photos[0] : null;
+        if (!photo || typeof photo.caminho_storage !== "string") return;
+
+        const { data: signedPhoto, error: signedError } = await authClient.storage
+          .from("perfis")
+          .createSignedUrl(photo.caminho_storage, 300);
+        if (!isCurrent()) return;
+        if (signedError) {
+          logRealProfileSupabaseError("criar URL temporária da foto de perfil vinculada", signedError);
+          return;
+        }
+        if (!signedPhoto || typeof signedPhoto.signedUrl !== "string") {
+          console.error("Não foi possível criar a URL temporária da foto de perfil vinculada.");
+          return;
+        }
+
+        const image = new Image();
+        image.alt = `Foto de perfil de ${profile.nome || "aluno vinculado"}`;
+        image.addEventListener("load", () => {
+          if (!isCurrent()) return;
+          avatar.replaceChildren(image);
+          avatar.classList.remove("avatar--initials");
+          avatar.removeAttribute("aria-hidden");
+        }, { once: true });
+        image.addEventListener("error", () => {
+          if (isCurrent()) console.error("Não foi possível carregar a foto de perfil vinculada; mantendo o avatar.");
+        }, { once: true });
+        image.src = signedPhoto.signedUrl;
+      } catch (error) {
+        if (!isCurrent()) return;
+        logRealProfileSupabaseError("carregar foto de perfil vinculada", error);
+      }
+    });
+  });
+  await Promise.all(tasks);
+}
+
 function renderRealUserSettingsScreen() {
   const title = heading("CONTA REAL", "Configurações, tutorial e ajuda", "Informações da conta e orientações disponíveis para seu papel.");
   if (realProfileState === "checking") {
@@ -1110,7 +1298,15 @@ function renderRealUserSettingsScreen() {
     role ? listRow("Papel", "", escapeHtml(role)) : "",
     email ? listRow("E-mail", "", escapeHtml(email)) : ""
   ].filter(Boolean).join("");
-  const professorPhotoPanel = realProfile.papel === "professor"
+  const showProfilePhotoForm = canShowRealProfilePhotoForm(realProfile);
+  const profilePhotoVisibility = realProfile.papel === "adm"
+    ? "A foto fica visível somente para você."
+    : "A foto fica visível somente para você e para o Professor vinculado.";
+  const avatarInitial = name ? Array.from(name.trim())[0].toLocaleUpperCase("pt-BR") : "?";
+  if (showProfilePhotoForm && realUser) {
+    void loadRealProfilePhotoPreview(realUser.id);
+  }
+  const profilePhotoPanel = realProfile.papel === "professor"
     ? isRealActiveProfessorAccount()
       ? panel("Foto do Professor", `
           <p class="field-help">JPG ou PNG, até 5 MiB. A foto fica visível aos Alunos vinculados ao Professor e ao Adm.</p>
@@ -1132,12 +1328,31 @@ function renderRealUserSettingsScreen() {
           </form>
         `)
       : panel("Foto do Professor", '<div class="notice notice--info">Somente Professor ativo pode enviar foto pessoal.</div>')
-    : panel("Foto pessoal", '<div class="notice notice--info">Este perfil usa somente avatar e não envia foto de pessoa.</div>');
+    : showProfilePhotoForm
+      ? panel("Foto de perfil", `
+          <div class="person-row">
+            <div class="avatar avatar--initials" id="real-profile-photo-avatar" aria-hidden="true">${escapeHtml(avatarInitial)}</div>
+            <div class="person-copy"><small>${profilePhotoVisibility}</small></div>
+          </div>
+          <form data-real-profile-photo-form>
+            <div class="field">
+              <label for="real-profile-photo-file">Escolher foto</label>
+              <input id="real-profile-photo-file" name="foto" type="file" accept="image/jpeg,image/png" aria-describedby="real-profile-photo-help">
+              <small class="field-help" id="real-profile-photo-help">JPG ou PNG, até 5 MiB.</small>
+            </div>
+            <div class="student-action-control">
+              <button class="button button--primary button--action" type="submit" data-real-profile-photo-save aria-describedby="real-profile-photo-error real-profile-photo-status"><span data-action-label>Enviar foto</span></button>
+              <p class="login-action-error student-action-error" id="real-profile-photo-error" role="alert"></p>
+              <p class="field-help" id="real-profile-photo-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        `)
+      : panel("Foto pessoal", '<div class="notice notice--info">Menores de idade usam somente avatar.</div>');
   return `${title}
     <div class="content-grid">
       <div class="stack">
         ${panel("Dados da conta", accountRows || emptyState("Dados da conta indisponíveis", "Não há dados de perfil para exibir."))}
-        ${professorPhotoPanel}
+        ${profilePhotoPanel}
         ${panel("Tutorial", renderRealTutorial(realProfile.papel))}
         ${panel("Perguntas frequentes", `
           <div class="real-help-faq">
@@ -1633,6 +1848,9 @@ async function loadRealFeatureScreen(screenId, updateView = true) {
   }
   if (isCurrentRequest() && updateView) {
     screenContent.innerHTML = renderRealFeatureScreenById(screenId);
+    if (screenId === "students" && realFeatureData.state === "found") {
+      void loadRealLinkedProfilePhotoAvatars(realFeatureData.linkedStudents, screenId);
+    }
   }
 }
 
@@ -1691,11 +1909,14 @@ function renderRealProfessorGraduationsScreen() {
     ${heading("VISÃO DO PROFESSOR", "Ficha do aluno", "Consulte a faixa atual e o histórico; novas graduações ficam registradas sem alterar as anteriores.")}
     <div class="content-grid">
       ${panel("Aluno vinculado", `
-        <div class="field">
-          <label for="real-graduation-student">Aluno</label>
-          <select id="real-graduation-student">
-            ${realProfessorGraduationStudents.map((student) => `<option value="${escapeHtml(student.id)}"${student.id === selectedStudent.id ? " selected" : ""}>${escapeHtml(student.nome)}</option>`).join("")}
-          </select>
+        <div class="real-academy-list-item">
+          ${renderRealLinkedProfileAvatar(selectedStudent)}
+          <div class="field user-panel-profile-copy">
+            <label for="real-graduation-student">Aluno</label>
+            <select id="real-graduation-student">
+              ${realProfessorGraduationStudents.map((student) => `<option value="${escapeHtml(student.id)}"${student.id === selectedStudent.id ? " selected" : ""}>${escapeHtml(student.nome)}</option>`).join("")}
+            </select>
+          </div>
         </div>
       `)}
       ${panel("Graduação atual", renderRealGraduationCurrent(graduations), "panel-card--highlight")}
@@ -1827,6 +2048,9 @@ async function loadRealProfessorGraduations(renderScreen = true) {
 
   if (renderScreen && sequence === realProfessorGraduationsRequestSequence && currentScreen === screenId) {
     screenContent.innerHTML = renderRealProfessorGraduationsScreen();
+    void loadRealLinkedProfilePhotoAvatars([realProfessorGraduationStudents.find((student) =>
+      student.id === realSelectedGraduationStudentId
+    )].filter(Boolean), screenId);
   }
 }
 
@@ -1918,6 +2142,9 @@ async function loadRealStudentDetailData(updateView = true) {
   }
   if (isCurrentRequest() && updateView) {
     screenContent.innerHTML = renderRealProfessorGraduationsScreen();
+    void loadRealLinkedProfilePhotoAvatars([realProfessorGraduationStudents.find((student) =>
+      student.id === realSelectedGraduationStudentId
+    )].filter(Boolean), "student-detail");
   }
 }
 
@@ -1986,7 +2213,12 @@ function renderRealFeatureStudents() {
     ${renderRealExportButton("professor-students", "Exportar dados")}
     <div class="content-grid">
       ${panel("Alunos vinculados", registered.length ? registered.map((student) => `<article class="panel-card">
-        <strong>${escapeHtml(student.nome)}</strong><small>${student.status === "locked" ? "Trancado" : "Ativo"}</small>
+        <div class="real-academy-list-item">
+          ${renderRealLinkedProfileAvatar(student)}
+          <div class="user-panel-profile-copy">
+            <strong>${escapeHtml(student.nome)}</strong><small>${student.status === "locked" ? "Trancado" : "Ativo"}</small>
+          </div>
+        </div>
         ${featureActionButton("toggle-linked-lock", student.id, student.status === "locked" ? "Destrancar" : "Trancar")}
       </article>`).join("") : emptyState("Nenhum aluno vinculado", "Alunos vinculados aparecerão aqui."))}
       ${panel("Alunos sem conta", unregistered.length ? unregistered.map((student) => `<article class="panel-card">
@@ -3798,7 +4030,7 @@ function renderRealStudentLinkScreen() {
     : "";
 
   return `
-    ${heading("CONTA · ALUNO", "Vincular a um Professor", "Envie seu código para solicitar um vínculo. A demonstração continua separada.") }
+    ${heading("CONTA · ALUNO", "Vincular a um Professor", "Envie seu código para solicitar um vínculo.") }
     <div class="content-grid">
       ${panel("Pedido de vínculo", `${requestState}${cancelAction}${form}`, "panel-card--highlight")}
     </div>
@@ -4157,23 +4389,33 @@ function updateUserPanelProfile() {
     realUser && realProfile && realProfile.nome || realUser && realUser.email || "Sem sessão ativa";
   document.querySelector("#user-panel-profile-role").textContent =
     realProfile && roleLabels[realProfile.papel] || (realUser ? "Conta real" : "Perfil");
-  document.querySelector("#user-panel-profile-academy").textContent =
-    realProfile && realProfile.academia_id ? "Academia vinculada" : "Sem academia vinculada";
+  setUserPanelAcademyText(realProfile && realProfile.academia_id ? "Academia: carregando..." : "Sem academia vinculada");
   if (realUser) void loadRealUserPanelMedia();
   else clearRealUserPanelMedia();
 }
 
+function setUserPanelAcademyText(text) {
+  const line = document.querySelector("#user-panel-profile-academy");
+  const image = document.querySelector("#user-panel-academy-photo");
+  if (!line) return;
+  if (image) image.remove();
+  line.textContent = text;
+  if (image) line.append(image);
+}
+
 function clearRealUserPanelMedia() {
-  ["#user-panel-academy-photo", "#user-panel-professor-photo"].forEach((selector) => {
+  ["#user-panel-profile-photo", "#user-panel-academy-photo"].forEach((selector) => {
     const image = document.querySelector(selector);
     if (!image) return;
     image.removeAttribute("src");
+    image.alt = "";
     image.hidden = true;
   });
-  const academyMedia = document.querySelector("#user-panel-academy-media");
-  const professorMedia = document.querySelector("#user-panel-professor-media");
-  if (academyMedia) academyMedia.hidden = true;
-  if (professorMedia) professorMedia.hidden = true;
+  const avatar = document.querySelector("#user-panel-avatar");
+  const icon = avatar && avatar.querySelector("svg");
+  if (icon) icon.hidden = false;
+  if (avatar) avatar.setAttribute("aria-hidden", "true");
+  setUserPanelAcademyText("Sem academia vinculada");
 }
 
 async function loadRealUserPanelMedia() {
@@ -4183,98 +4425,140 @@ async function loadRealUserPanelMedia() {
   const sessionGeneration = realSessionCacheGeneration;
   const isCurrentSession = () =>
     sessionGeneration === realSessionCacheGeneration && Boolean(realUser && realUser.id === userId);
-  const showSignedImage = async (table, key, bucket, imageSelector, containerSelector, label) => {
-    const { data: row, error } = await authClient.from(table).select("caminho_storage").eq(key, userId).maybeSingle();
-    if (!isCurrentSession()) return;
-    if (error) {
-      logRealProfileSupabaseError(`consultar foto de ${label}`, error);
-      return;
+  const profileAvatar = document.querySelector("#user-panel-avatar");
+  const profileIcon = profileAvatar && profileAvatar.querySelector("svg");
+  const profileImage = document.querySelector("#user-panel-profile-photo");
+  const academyImage = document.querySelector("#user-panel-academy-photo");
+
+  const showSignedProfilePhoto = async (path, bucket, expiresIn) => {
+    try {
+      const { data: signed, error } = await authClient.storage.from(bucket).createSignedUrl(path, expiresIn);
+      if (!isCurrentSession()) return;
+      if (error || !signed || typeof signed.signedUrl !== "string") {
+        if (error) logRealProfileSupabaseError("abrir foto do perfil no painel", error);
+        else console.error("Não foi possível criar a URL temporária da foto de perfil no painel.");
+        return;
+      }
+      if (!profileAvatar || !profileIcon || !profileImage) return;
+      profileImage.alt = "Foto de perfil";
+      profileImage.onload = () => {
+        profileImage.onload = null;
+        profileImage.onerror = null;
+        if (!isCurrentSession()) {
+          profileImage.removeAttribute("src");
+          return;
+        }
+        profileImage.hidden = false;
+        profileIcon.hidden = true;
+        profileAvatar.removeAttribute("aria-hidden");
+      };
+      profileImage.onerror = () => {
+        profileImage.onload = null;
+        profileImage.onerror = null;
+        if (!isCurrentSession()) return;
+        profileImage.removeAttribute("src");
+        profileImage.hidden = true;
+        profileIcon.hidden = false;
+        profileAvatar.setAttribute("aria-hidden", "true");
+        console.error("Não foi possível carregar a foto de perfil no painel; o avatar foi mantido.");
+      };
+      profileImage.src = signed.signedUrl;
+    } catch (error) {
+      if (isCurrentSession()) logRealProfileSupabaseError("abrir foto do perfil no painel", error);
     }
-    if (!row || typeof row.caminho_storage !== "string") return;
-    const { data: signed, error: signedError } = await authClient.storage.from(bucket)
-      .createSignedUrl(row.caminho_storage, 60);
-    if (!isCurrentSession()) return;
-    if (signedError || !signed || typeof signed.signedUrl !== "string") {
-      if (signedError) logRealProfileSupabaseError(`abrir foto de ${label}`, signedError);
-      return;
-    }
-    const image = document.querySelector(imageSelector);
-    const container = document.querySelector(containerSelector);
-    if (!image || !container) return;
-    image.src = signed.signedUrl;
-    image.alt = label;
-    image.hidden = false;
-    container.hidden = false;
   };
 
   if (realProfile.academia_id) {
-    const { data: academyPhoto, error: academyError } = await authClient.from("academias_fotos")
-      .select("caminho_storage").eq("academia_id", realProfile.academia_id).maybeSingle();
-    if (!isCurrentSession()) return;
-    if (academyError) {
-      logRealProfileSupabaseError("consultar foto da academia", academyError);
-    } else if (academyPhoto && typeof academyPhoto.caminho_storage === "string") {
-      const { data: signed, error: signedError } = await authClient.storage.from("academias")
-        .createSignedUrl(academyPhoto.caminho_storage, 60);
+    setUserPanelAcademyText("Academia: carregando...");
+    try {
+      const { data: academy, error } = await authClient.from("academias").select("nome")
+        .eq("id", realProfile.academia_id).maybeSingle();
       if (!isCurrentSession()) return;
-      if (signedError || !signed || typeof signed.signedUrl !== "string") {
-        if (signedError) logRealProfileSupabaseError("abrir foto da academia", signedError);
+      if (error) {
+        logRealProfileSupabaseError("consultar nome da academia no painel", error);
+        setUserPanelAcademyText("Academia: indisponível");
       } else {
-        const image = document.querySelector("#user-panel-academy-photo");
-        const container = document.querySelector("#user-panel-academy-media");
-        if (image && container) {
-          image.src = signed.signedUrl;
-          image.alt = "Foto da academia";
-          image.hidden = false;
-          container.hidden = false;
+        const academyName = academy && typeof academy.nome === "string" ? academy.nome.trim() : "";
+        setUserPanelAcademyText(academyName ? `Academia: ${academyName}` : "Academia: indisponível");
+      }
+    } catch (error) {
+      if (!isCurrentSession()) return;
+      logRealProfileSupabaseError("consultar nome da academia no painel", error);
+      setUserPanelAcademyText("Academia: indisponível");
+    }
+    try {
+      const { data: academyPhoto, error } = await authClient.from("academias_fotos")
+        .select("caminho_storage").eq("academia_id", realProfile.academia_id).maybeSingle();
+      if (!isCurrentSession()) return;
+      if (error) {
+        logRealProfileSupabaseError("consultar foto da academia", error);
+      } else if (academyPhoto && typeof academyPhoto.caminho_storage === "string") {
+        const { data: signed, error: signedError } = await authClient.storage.from("academias")
+          .createSignedUrl(academyPhoto.caminho_storage, 60);
+        if (!isCurrentSession()) return;
+        if (signedError || !signed || typeof signed.signedUrl !== "string") {
+          if (signedError) logRealProfileSupabaseError("abrir foto da academia", signedError);
+          else console.error("Não foi possível criar a URL temporária da foto da academia no painel.");
+        } else if (academyImage) {
+          academyImage.onload = () => {
+            academyImage.onload = null;
+            academyImage.onerror = null;
+            if (!isCurrentSession()) {
+              academyImage.removeAttribute("src");
+              return;
+            }
+            academyImage.hidden = false;
+          };
+          academyImage.onerror = () => {
+            academyImage.onload = null;
+            academyImage.onerror = null;
+            if (!isCurrentSession()) return;
+            academyImage.removeAttribute("src");
+            academyImage.hidden = true;
+            console.error("Não foi possível carregar a foto da academia no painel.");
+          };
+          academyImage.src = signed.signedUrl;
         }
       }
+    } catch (error) {
+      if (!isCurrentSession()) return;
+      logRealProfileSupabaseError("consultar foto da academia", error);
     }
   }
 
   if (realProfile.papel === "professor") {
-    await showSignedImage("professores_fotos", "professor_id", "professores",
-      "#user-panel-professor-photo", "#user-panel-professor-media", "Foto do Professor");
+    try {
+      const { data: photo, error } = await authClient.from("professores_fotos")
+        .select("caminho_storage").eq("professor_id", userId).maybeSingle();
+      if (!isCurrentSession()) return;
+      if (error) {
+        logRealProfileSupabaseError("consultar foto do Professor no painel", error);
+      } else if (photo && typeof photo.caminho_storage === "string") {
+        await showSignedProfilePhoto(photo.caminho_storage, "professores", 60);
+      }
+    } catch (error) {
+      if (isCurrentSession()) logRealProfileSupabaseError("consultar foto do Professor no painel", error);
+    }
     return;
   }
-  if (realProfile.papel !== "aluno") return;
-  const { data: link, error: linkError } = await authClient.from("vinculos")
-    .select("professor_id").eq("aluno_id", userId).maybeSingle();
-  if (!isCurrentSession()) return;
-  if (linkError) {
-    logRealProfileSupabaseError("consultar Professor vinculado para foto", linkError);
-    return;
-  }
-  if (!link || typeof link.professor_id !== "string") return;
-  const { data: teacher, error: teacherError } = await authClient.from("perfis")
-    .select("id,nome").eq("id", link.professor_id).maybeSingle();
-  if (!isCurrentSession()) return;
-  if (teacherError) {
-    logRealProfileSupabaseError("consultar nome do Professor vinculado", teacherError);
-    return;
-  }
-  const { data: photo, error: photoError } = await authClient.from("professores_fotos")
-    .select("caminho_storage").eq("professor_id", link.professor_id).maybeSingle();
-  if (!isCurrentSession()) return;
-  if (photoError) {
-    logRealProfileSupabaseError("consultar foto do Professor vinculado", photoError);
-    return;
-  }
-  if (!photo || typeof photo.caminho_storage !== "string") return;
-  const { data: signed, error: signedError } = await authClient.storage.from("professores")
-    .createSignedUrl(photo.caminho_storage, 60);
-  if (!isCurrentSession()) return;
-  if (signedError || !signed || typeof signed.signedUrl !== "string") {
-    if (signedError) logRealProfileSupabaseError("abrir foto do Professor vinculado", signedError);
-    return;
-  }
-  const image = document.querySelector("#user-panel-professor-photo");
-  const container = document.querySelector("#user-panel-professor-media");
-  if (image && container) {
-    image.src = signed.signedUrl;
-    image.alt = teacher && teacher.nome ? `Foto de ${teacher.nome}` : "Foto do Professor vinculado";
-    image.hidden = false;
-    container.hidden = false;
+  if (realProfile.papel === "adm" || realProfile.papel === "instrutor" ||
+      (realProfile.papel === "aluno" && realProfile.idade_declarada === "adulto")) {
+    try {
+      const { data: photos, error } = await authClient.rpc("obter_foto_perfil", {
+        p_perfil_id: userId
+      });
+      if (!isCurrentSession()) return;
+      if (error) {
+        logRealProfileSupabaseError("consultar foto de perfil no painel", error);
+        return;
+      }
+      const photo = Array.isArray(photos) ? photos[0] : null;
+      if (photo && typeof photo.caminho_storage === "string") {
+        await showSignedProfilePhoto(photo.caminho_storage, "perfis", 300);
+      }
+    } catch (error) {
+      if (isCurrentSession()) logRealProfileSupabaseError("consultar foto de perfil no painel", error);
+    }
   }
 }
 
@@ -4306,19 +4590,44 @@ async function createStorageSignedUrl(bucket, path, purpose) {
 
 async function uploadRegisteredPhoto(bucket, path, file, functionName, parameters, purpose) {
   try {
-    const { error: uploadError } = await authClient.storage.from(bucket).upload(path, file, {
+    const storage = authClient.storage.from(bucket);
+    let { error: uploadError } = await storage.upload(path, file, {
       cacheControl: "0",
       contentType: file.type,
-      upsert: true
+      upsert: false
     });
     if (uploadError) {
       logRealProfileSupabaseError(`enviar ${purpose}`, uploadError);
-      return { errorMessage: `Não foi possível enviar ${purpose}. Confira a conexão e tente novamente.` };
+      const alreadyExists = Number(uploadError.statusCode) === 409 ||
+        /already exists|duplicate/i.test(`${uploadError.message || ""} ${uploadError.error || ""}`);
+      if (alreadyExists) {
+        const { error: updateError } = await storage.update(path, file, {
+          cacheControl: "0",
+          contentType: file.type
+        });
+        if (updateError) {
+          uploadError = updateError;
+          logRealProfileSupabaseError(`atualizar ${purpose}`, updateError);
+        } else {
+          uploadError = null;
+        }
+      }
+    }
+    if (uploadError) {
+      return {
+        errorMessage: Number(uploadError.statusCode) === 403
+          ? "Você não tem permissão para enviar esta foto."
+          : `Não foi possível enviar ${purpose}. Confira a conexão e tente novamente.`
+      };
     }
     const { data, error } = await authClient.rpc(functionName, parameters);
     if (error) {
       logRealProfileSupabaseError(`registrar ${purpose}`, error);
-      return { errorMessage: `O arquivo foi enviado, mas não foi possível registrar ${purpose}. Tente novamente.` };
+      return {
+        errorMessage: Number(error.statusCode) === 403
+          ? "Você não tem permissão para enviar esta foto."
+          : `O arquivo foi enviado, mas não foi possível registrar ${purpose}. Tente novamente.`
+      };
     }
     if (data !== true) {
       return { errorMessage: `O arquivo foi enviado, mas não foi possível registrar ${purpose}. Tente novamente.` };
@@ -4326,7 +4635,11 @@ async function uploadRegisteredPhoto(bucket, path, file, functionName, parameter
     return {};
   } catch (error) {
     logRealProfileSupabaseError(`enviar ou registrar ${purpose}`, error);
-    return { errorMessage: `Não foi possível enviar ${purpose}. Confira a conexão e tente novamente.` };
+    return {
+      errorMessage: Number(error?.statusCode) === 403
+        ? "Você não tem permissão para enviar esta foto."
+        : `Não foi possível enviar ${purpose}. Confira a conexão e tente novamente.`
+    };
   }
 }
 
@@ -6118,6 +6431,45 @@ function handleRealProfessorPhotoSubmit(form) {
   });
 }
 
+function handleRealProfilePhotoSubmit(form) {
+  const button = form.querySelector("[data-real-profile-photo-save]");
+  const fileInput = form.querySelector("#real-profile-photo-file");
+  const userId = realUser && realUser.id;
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-profile-photo-error"),
+    announcement: form.querySelector("#real-profile-photo-status"),
+    buttons: [button, fileInput],
+    loadingText: "Enviando...",
+    loadingMessage: "Enviando a foto de perfil.",
+    successMessage: "Foto de perfil atualizada.",
+    errorMessage: "Não foi possível enviar a foto de perfil.",
+    successDelay: 0,
+    afterSuccess: () => loadRealProfilePhotoPreview(userId)
+  }, async () => {
+    if (!authClient || !userId || !realProfile || realProfile.id !== userId) {
+      return { errorMessage: "Não foi possível confirmar o perfil. Recarregue a tela e tente novamente." };
+    }
+    if (!canShowRealProfilePhotoForm(realProfile)) {
+      return {
+        errorMessage: realProfile.papel === "aluno"
+          ? "Menores de idade usam somente avatar."
+          : "Este perfil não pode enviar foto de pessoa."
+      };
+    }
+    if (!canEditRealProfilePhoto(realProfile)) {
+      return { errorMessage: "O perfil precisa estar ativo para enviar foto." };
+    }
+    const file = fileInput.files && fileInput.files[0];
+    const validationError = validateStorageFile(file, ["image/jpeg", "image/png"], 5242880, "a foto");
+    if (validationError) return { errorMessage: validationError };
+    const path = `${userId}/foto`;
+    return uploadRegisteredPhoto("perfis", path, file, "registrar_foto_perfil", {
+      p_caminho_storage: path,
+      p_tipo_mime: file.type
+    }, "a foto de perfil");
+  });
+}
+
 function handleRealAdminBindSubmit(form) {
   const button = form.querySelector("[data-real-admin-bind]");
   const professorSelect = form.querySelector("#real-admin-bind-professor");
@@ -7003,7 +7355,7 @@ function realGoogleLogin(button) {
       const redirectTo = redirectUrl.toString();
       const { data, error } = await authClient.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo, skipBrowserRedirect: true }
+        options: { redirectTo, skipBrowserRedirect: true, queryParams: { prompt: "select_account" } }
       });
       if (error || !data.url) return { errorMessage: "Não foi possível iniciar o login. Confira a conexão e tente novamente." };
       window.location.assign(data.url);
@@ -7739,6 +8091,14 @@ document.addEventListener("click", (event) => {
             screenContent.innerHTML = screenId === "student-detail"
               ? renderRealProfessorGraduationsScreen()
               : renderRealFeatureScreenById(screenId);
+            if (screenId === "student-detail") {
+              const selectedStudent = realProfessorGraduationStudents.find((student) =>
+                student.id === realSelectedGraduationStudentId
+              );
+              void loadRealLinkedProfilePhotoAvatars(selectedStudent ? [selectedStudent] : [], screenId);
+            } else if (screenId === "students") {
+              void loadRealLinkedProfilePhotoAvatars(realFeatureData.linkedStudents, screenId);
+            }
           }
         }, async () => {
           if (screenId === "student-detail") await loadRealStudentDetailData(false);
@@ -8218,6 +8578,12 @@ document.addEventListener("submit", (event) => {
   if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-professor-photo-form]")) return;
   event.preventDefault();
   handleRealProfessorPhotoSubmit(event.target);
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-profile-photo-form]")) return;
+  event.preventDefault();
+  handleRealProfilePhotoSubmit(event.target);
 });
 
 document.addEventListener("submit", (event) => {
@@ -9048,7 +9414,13 @@ document.addEventListener("click", (event) => {
       loadingMessage: "Atualizando graduações dos alunos vinculados.",
       successMessage: "Graduações atualizadas.",
       errorMessage: "Não foi possível carregar graduações. Tente novamente.",
-      afterSuccess: () => { screenContent.innerHTML = renderRealProfessorGraduationsScreen(); }
+      afterSuccess: () => {
+        screenContent.innerHTML = renderRealProfessorGraduationsScreen();
+        const selectedStudent = realProfessorGraduationStudents.find((student) =>
+          student.id === realSelectedGraduationStudentId
+        );
+        void loadRealLinkedProfilePhotoAvatars(selectedStudent ? [selectedStudent] : [], "student-detail");
+      }
     }, async () => {
       await loadRealProfessorGraduations(false);
       if (realProfessorGraduationsState === "error") return { errorMessage: realProfessorGraduationsNotice };

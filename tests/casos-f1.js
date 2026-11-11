@@ -38,18 +38,18 @@ window.CASOS_ACEITE_F1 = [
     perfil: "Pessoa de teste sem perfil",
     regras: "RN01–RN03",
     precondicoes: "Ambiente de teste configurado com chave pública e provedor Google, conta de teste autorizada sem perfil e migration de perfis aplicada.",
-    passos: ["Testar chave vazia e erro simulado sem iniciar login.", "Entrar com Google e retornar ao app no Live Server e no Pages configurados.", "Conferir a mensagem de perfil ausente, o e-mail no painel e a persistência após recarregar.", "Sair da conta Google, recarregar e verificar o encerramento.", "Testar cancelamento, falha de rede, falha na consulta de perfil e as contas de demonstração independentes."],
-    esperado: "O retorno usa a página atual, a sessão é recuperada e nenhum perfil é criado. Falhas são informadas sem confundi-las com perfil ausente; a saída encerra a sessão local e a demonstração continua independente. O caso permanece pendente de execução e validação."
+    passos: ["Testar chave vazia e erro simulado sem iniciar login.", "Entrar com Google e retornar ao app no Live Server e no Pages configurados.", "Conferir a mensagem de perfil ausente, o e-mail no painel e a persistência após recarregar.", "Sair da conta Google, recarregar e verificar o encerramento.", "Testar cancelamento, falha de rede e falha na consulta de perfil."],
+    esperado: "O retorno usa a página atual, a sessão é recuperada e nenhum perfil é criado. Falhas são informadas sem confundi-las com perfil ausente; a saída encerra a sessão local. O caso permanece pendente de execução e validação."
   },
   {
     id: "F1-DEMO-01",
-    area: "Demonstração",
-    titulo: "Acesso de revisão percorre os perfis sem iniciar operações reais",
+    area: "",
+    titulo: "",
     perfil: "Visitante",
-    regras: "Demonstração isolada e em memória",
+    regras: "",
     precondicoes: "Aplicativo aberto na tela de acesso.",
-    passos: ["Abrir “Demonstração interativa” pelo rodapé.", "Trocar entre Adm, Professor, Instrutor e Aluno e navegar pelas telas de cada perfil.", "Experimentar tema, filtro e controles locais.", "Recarregar a página."],
-    esperado: "As prévias mostram apenas dados fictícios; nenhuma autenticação, chamada de API ou gravação local ocorre. Recarregar descarta as escolhas da demonstração."
+    passos: [],
+    esperado: ""
   },
   {
     id: "F1-ACC-01",
@@ -473,48 +473,48 @@ window.CASOS_ACEITE_F1 = [
     perfil: "Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro",
     regras: "Decisão do usuário para a simulação: exclusão persistente no navegador e identificação Conta excluída",
     precondicoes: "Há contas fictícias e, quando aplicável, pagamentos, vínculos e graduações compartilhados.",
-    passos: ["Para cada tipo de conta, abrir a área de risco e verificar aviso, descrição e confirmação digitada EXCLUIR.", "Acionar a exclusão, tentar toque duplo e verificar Excluindo..., ✓ Concluído e retorno à entrada.", "Recarregar e conferir que a conta excluída, seus dados pessoais, mensagens e conversas não retornam, inclusive por convite já usado.", "Entrar na conta da outra parte e verificar pagamentos, vínculos e graduações preservados com Conta excluída, inclusive após recarregar.", "Conferir também os dados persistidos e as telas de demonstração que usam nomes e conversas fixos.", "Repetir com erro simulado e verificar Tentar de novo, alerta próximo ao botão e preservação dos dados.", "Simular falha de armazenamento durante a exclusão e verificar que o erro é informado sem indicar sucesso.", "Conferir área de risco e confirmação nos temas claro e escuro, sem corte ou sobreposição."],
+    passos: ["Para cada tipo de conta, abrir a área de risco e verificar aviso, descrição e confirmação digitada EXCLUIR.", "Acionar a exclusão, tentar toque duplo e verificar Excluindo..., ✓ Concluído e retorno à entrada.", "Recarregar e conferir que a conta excluída, seus dados pessoais, mensagens e conversas não retornam, inclusive por convite já usado.", "Entrar na conta da outra parte e verificar pagamentos, vínculos e graduações preservados com Conta excluída, inclusive após recarregar.", "Repetir com erro simulado e verificar Tentar de novo, alerta próximo ao botão e preservação dos dados.", "Simular falha de armazenamento durante a exclusão e verificar que o erro é informado sem indicar sucesso.", "Conferir área de risco e confirmação nos temas claro e escuro, sem corte ou sobreposição."],
     esperado: "A exclusão simulada não acontece sem a confirmação; em sucesso, os dados pessoais deixam de estar disponíveis, os registros compartilhados permanecem anonimizados após recarregar e o usuário retorna à entrada. Em erro, nenhum dado é apagado."
   },
   {
     id: "F1-PRIV-04",
     area: "Privacidade e LGPD",
-    titulo: "Exclusão demonstrativa remove dados pessoais e anonimiza registros",
+    titulo: "",
     perfil: "Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro",
-    regras: "Exclusão somente dos dados fictícios locais; nenhuma conta ou dado real é alterado",
-    precondicoes: "Contas fictícias disponíveis; nenhum serviço externo conectado.",
-    passos: ["Em cada conta, abrir Área de risco e conferir botão desabilitado até digitar exatamente EXCLUIR.", "Acionar e tentar toque duplo; conferir Excluindo..., ✓ Concluído e retorno à entrada.", "Recarregar e confirmar que a conta removida não reaparece; verificar pagamentos, vínculos e graduações preservados com Conta excluída e conversas apagadas.", "Repetir com ?erro-simulado=painel-excluir e conferir Tentar de novo, alerta próximo e dados preservados.", "Bloquear ou preencher o armazenamento e confirmar erro explícito, sem sessão encerrada ou mensagem de sucesso.", "Conferir nos temas claro e escuro, em 360, 390, 430 e 768 px, sem corte ou sobreposição."],
-    esperado: "Apenas os dados pessoais fictícios da conta demonstrativa são removidos; os registros compartilhados permanecem anonimizados, as conversas são removidas e a sessão demonstrativa termina. Dados reais não são tocados; erros não indicam sucesso."
+    regras: "",
+    precondicoes: "",
+    passos: [],
+    esperado: ""
   },
   {
     id: "F1-COM-01",
     area: "Conversas",
-    titulo: "Mensagens fictícias persistem somente entre aluno/instrutor e professor",
+    titulo: "",
     perfil: "Aluno, Instrutor e Professor",
-    regras: "Conversa individual vinculada; persistência local da demonstração",
-    precondicoes: "Contas demonstrativas relacionadas; armazenamento local disponível; sem login real.",
-    passos: ["Como Aluno, enviar uma mensagem ao Professor e recarregar a página; conferir a conversa no perfil de ambos.", "Repetir como Instrutor e Professor, selecionando no painel do Professor somente contas vinculadas.", "Tentar abrir conversa com outro aluno, Instrutor ou Professor não vinculado.", "Usar ?erro-simulado=conversa-salvar e simular armazenamento cheio ou bloqueado; conferir alerta, bloqueio de toque duplo, ausência de mensagem de sucesso e dados anteriores preservados.", "Excluir uma conta demonstrativa relacionada e confirmar que a conversa correspondente não retorna."],
-    esperado: "As mensagens fictícias são persistidas localmente e compartilhadas somente pelo par aluno/instrutor e Professor vinculado; falhas são informadas sem quebrar a tela, e a exclusão demonstrativa remove a conversa."
+    regras: "",
+    precondicoes: "",
+    passos: [],
+    esperado: ""
   },
   {
     id: "F1-ACAD-01",
     area: "Academia",
-    titulo: "Cadastro e edição demonstrativos de academia",
+    titulo: "",
     perfil: "Adm, Professor, Instrutor e Aluno",
     regras: "Adm e Professores vinculados editam; vários Professores por academia e uma turma por Professor",
-    precondicoes: "Dados exclusivamente fictícios, academia inicial e contas de demonstração; sem Supabase.",
-    passos: ["Como Adm, alterar nome, telefone e e-mail fictícios e trocar a representação da foto; recarregar e conferir a persistência sem arquivo.", "Vincular Professor e alterar os mesmos campos; conferir nome na prévia de vínculo e nas demais telas sem modificar sua forma.", "Verificar que Professor sem vínculo não edita e que Instrutor e Aluno não têm controles de edição.", "Verificar mais de um Professor vinculado à academia e que cada um continua com uma turma.", "Testar ?erro-simulado=academia-salvar e ?erro-simulado=academia-foto; conferir alerta, bloqueio de toque duplo e dados inalterados após recarregar.", "Conferir e-mail longo no cadastro, login, convite de Professor e academia, e testar os temas e larguras de referência."],
-    esperado: "Dados fictícios persistem somente após sucesso; permissões da simulação são respeitadas, prévias mantêm a forma, nenhum arquivo é guardado e erros não alteram dados."
+    precondicoes: "",
+    passos: [],
+    esperado: ""
   },
   {
     id: "F1-AVATAR-01",
     area: "Fotos e avatar",
-    titulo: "Consentimento, idade e fotos simuladas respeitam as permissões",
+    titulo: "Consentimento, idade e fotos respeitam as permissões",
     perfil: "Adm, Professor, Instrutor, Aluno e aluno sem registro",
-    regras: "Menores usam avatar; Adm vê Professores, nunca alunos; nenhuma foto sai do navegador",
-    precondicoes: "Contas e alunos fictícios; sem armazenamento, chamadas de rede para fotos ou integração com Supabase Storage.",
-    passos: ["No primeiro acesso, escolher 18 anos ou mais ou menor de 18, sem data de nascimento; para adulto, aceitar ou recusar o consentimento com texto provisório.", "Conferir que recusa mantém avatar e aceite mostra apenas o avatar local demonstrativo como cópia Google simulada; menores não têm controles de foto.", "Como adulto, selecionar imagem própria, ajustar zoom e enquadramento, salvar e substituir uma foto; cancelar a escolha ou edição sem alterar a foto anterior.", "Como Professor, marcar a idade de aluno sem registro na ficha; conferir avatar para menor ou idade desconhecida e foto somente ao Professor responsável.", "Como Adm, conferir fotos de Professores e ausência de fotos de alunos em todas as telas; no painel, confirmar que a exclusão remove a foto fictícia e que a exclusão real continua em construção.", "Testar ?erro-simulado=perfil-idade, perfil-foto-consentimento, perfil-foto-selecao, perfil-foto-salvar, perfil-foto-remover e perfil-idade-aluno; conferir alerta, bloqueio de toque duplo e estado preservado.", "Recarregar e confirmar que idade, consentimento e fotos temporárias não persistem; conferir tema claro/escuro e larguras de referência."],
-    esperado: "Declaração de idade não pede data de nascimento; recusa e menores usam somente avatar. Consentimento e fotos são simulados em memória, sem rede ou armazenamento persistente; a foto própria permite enquadramento e substitui a anterior. O Adm nunca vê fotos de alunos; a exclusão demonstrativa remove a foto local, mas não apaga dados reais."
+    regras: "Foto própria e de vinculados conforme papel e idade; menor ou idade não declarada usa avatar",
+    precondicoes: "Contas e alunos fictícios.",
+    passos: ["No primeiro acesso, declarar adulto, menor de idade ou idade não declarada, sem solicitar data de nascimento; para adulto, aceitar ou recusar o consentimento com texto provisório.", "Conferir que recusa mantém avatar e que menor ou idade não declarada não tem controle para enviar foto.", "Como Aluno adulto, enviar e substituir a foto própria; conferir leitura pelo próprio Aluno e pelo Professor vinculado, e bloqueio para Professor sem vínculo, outro Aluno, Instrutor e Adm.", "Como Instrutor, enviar a foto própria; conferir leitura pelo próprio Instrutor e pelo Professor vinculado, e bloqueio para outros Instrutores e perfis sem vínculo.", "Como Adm, enviar a foto própria e conferir que somente o próprio Adm consegue lê-la.", "Como Professor, enviar a foto própria e conferir leitura pelo próprio, pelo Adm e por Alunos/Instrutores vinculados; bloquear perfis sem vínculo.", "Conferir que menor ou idade não declarada permanece com avatar e que a foto da academia pode ser lida por todos os perfis autenticados."],
+    esperado: "A declaração de idade não solicita data de nascimento. Aluno adulto e Instrutor têm foto visível apenas a si mesmos e ao Professor vinculado; Adm vê somente a própria foto; foto do Professor é visível ao próprio, ao Adm e a perfis vinculados; fotos de academia são visíveis a todos os perfis autenticados. Menores e idade não declarada usam somente avatar."
   },
   {
     id: "F1-ACC-08",

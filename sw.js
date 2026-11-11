@@ -1,14 +1,12 @@
 const CACHE_PREFIX = "tatame-app-static-";
-const APP_VERSION = "5.18";
+const APP_VERSION = "5.23";
 const CACHE_NAME = `${CACHE_PREFIX}${APP_VERSION}`;
 const SHELL_URL = new URL("./index.html", self.registration.scope);
 const CONFIG_PATH = new URL("./js/config.js", self.registration.scope).pathname;
 const STATIC_ASSETS = [
   "./index.html",
-  "./demo.html",
   "./css/app.css",
   "./js/app.js",
-  "./js/demo.js",
   "./js/exportar.js",
   "./js/offline.js",
   "./js/vendor/supabase-2.49.8.js",
