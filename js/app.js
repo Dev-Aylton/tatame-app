@@ -1,6 +1,12 @@
 "use strict";
 
-const APP_VERSION = "5.23";
+const APP_VERSION = "5.24";
+const DEFAULT_PERSON_AVATAR_SRC = "assets/avatars/avatar-masculino.jpg";
+const FEMALE_PERSON_AVATAR_SRC = "assets/avatars/avatar-feminino.jpg";
+const REAL_PERSON_AVATARS = {
+  masculino: DEFAULT_PERSON_AVATAR_SRC,
+  feminino: FEMALE_PERSON_AVATAR_SRC
+};
 const REAL_PAYMENT_PROOF_MAX_BYTES = 10 * 1024 * 1024;
 const REAL_PAYMENT_PROOF_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 document.body.dataset.appMode = "real";
@@ -38,7 +44,7 @@ const navigationGroups = [
     title: "Treino",
     roles: ["instructor"],
     items: [
-      ["instructor-class", "Treino compartilhado", "▣"],
+      ["instructor-class", "Aula delegada", "▣"],
       ["instructor-students", "Alunos vinculados", "♧"]
     ]
   },
@@ -149,14 +155,14 @@ const roleScreens = {
 const beltOrder = ["Branca", "Azul", "Roxa", "Marrom", "Preta", "Coral vermelha e preta", "Coral vermelha e branca", "Vermelha"];
 const tutorialStepsByRole = {
   adm: [
-    ["admin-home", "Painel do Adm", "Consulte os indicadores administrativos disponíveis e acesse a gestão de academias e Professores."],
+    ["admin-home", "Painel do Adm", "Consulte os indicadores e selecione um cartão para abrir academias, Professores, alunos ou convites."],
     ["teacher-invites", "Professores convidados", "Gerencie convites de Professor e acompanhe os convites existentes."],
     ["academy", "Academias", "Consulte e administre academias e os vínculos de Professores conforme sua permissão."]
   ],
   professor: [
     ["home", "Início", "Acompanhe pagamentos a confirmar, cobranças atrasadas e atalhos para as tarefas mais usadas."],
     ["payment-review", "Pagamentos a confirmar", "Revise avisos de pagamento, consulte comprovantes e confirme ou rejeite recebimentos. Também pode lançar manualmente um recebimento."],
-    ["monthly-charges", "Cobranças mensais", "Configure regras de cobrança, acompanhe cobranças e filtre as que estão atrasadas."]
+    ["monthly-charges", "Cobranças mensais", "Configure regras de cobrança; os campos de desconto e duração aparecem conforme a opção escolhida. Acompanhe cobranças e filtre as atrasadas."]
   ],
   instrutor: [
     ["home", "Início", "Confira a aula delegada para hoje, quando houver, e acesse o treino compartilhado e os alunos vinculados."],
@@ -275,9 +281,14 @@ let realCreatedAcademy = null;
 let realAdminAcademies = [];
 let realAcademyPhotoUrls = new Map();
 let realAdminProfessorPhotoUrls = new Map();
+let realAvatarChoiceByProfile = new Map();
+let realAvatarChoiceOwnerId = "";
+let realAvatarChoiceState = "idle";
 let realProfessorAcademy = null;
 let realProfessorAcademyPhotoUrl = "";
 let realOwnProfessorPhotoUrl = "";
+let realOwnProfessorPhotoPath = "";
+let realOwnProfilePhotoPath = "";
 let realProfessorPhotoNotice = "";
 let realProfessorAcademyState = "idle";
 let realProfessorAcademyNotice = "";
@@ -297,6 +308,8 @@ let realHomeState = "idle";
 let realHomeNotice = "";
 let realHomeData = null;
 let realHomeRequestSequence = 0;
+let realHomeProfileContext = { academyName: "", academyPhotoUrl: "", professor: null, ownPhotoUrl: "" };
+let realHomeProfileRequestSequence = 0;
 let authClient = null;
 let authCheckSequence = 0;
 let realSessionCacheGeneration = 0;
@@ -306,12 +319,128 @@ let realPasswordRecoveryPending = false;
 let realEmailAuthRequestInProgress = false;
 let currentScreen = "";
 
+function realPersonAvatarSrc(profileId) {
+  const choice = profileId && realAvatarChoiceByProfile.get(profileId);
+  return REAL_PERSON_AVATARS[choice] || DEFAULT_PERSON_AVATAR_SRC;
+}
+
+function isMissingAvatarChoiceColumn(error) {
+  const code = error && typeof error.code === "string" ? error.code : "";
+  const message = error && typeof error.message === "string" ? error.message : "";
+  return code === "42703" || /avatar_escolhido/i.test(message);
+}
+
+function updateRealAvatarFallbacks(profileId) {
+  if (!profileId) return;
+  const src = realPersonAvatarSrc(profileId);
+  document.querySelectorAll("[data-avatar-choice-profile-id][data-avatar-fallback='true']")
+    .forEach((image) => {
+      if (image.dataset.avatarChoiceProfileId === profileId) image.src = src;
+    });
+}
+
+function renderRealAvatarChoiceControls(profileId) {
+  const state = realAvatarChoiceOwnerId === profileId ? realAvatarChoiceState : "loading";
+  const choice = REAL_PERSON_AVATARS[realAvatarChoiceByProfile.get(profileId)]
+    ? realAvatarChoiceByProfile.get(profileId)
+    : "masculino";
+  const enabled = state === "ready";
+  const disabled = enabled ? "" : " disabled";
+  const statusText = state === "loading"
+    ? "Carregando a preferência de avatar..."
+    : state === "unavailable"
+      ? "A escolha ficará disponível após a atualização do banco. Mantivemos o avatar masculino."
+      : state === "error"
+        ? "Não foi possível carregar a preferência. Mantivemos o avatar masculino; tente novamente mais tarde."
+        : "";
+  return `
+    <fieldset class="avatar-choice-options"${enabled ? "" : " disabled"}>
+      <legend>Avatar quando não houver foto</legend>
+      <label class="avatar-choice-option">
+        <input type="radio" name="real-avatar-choice" value="masculino"${choice === "masculino" ? " checked" : ""}${disabled}>
+        <img src="${DEFAULT_PERSON_AVATAR_SRC}" alt="">
+        <span>Masculino</span>
+      </label>
+      <label class="avatar-choice-option">
+        <input type="radio" name="real-avatar-choice" value="feminino"${choice === "feminino" ? " checked" : ""}${disabled}>
+        <img src="${FEMALE_PERSON_AVATAR_SRC}" alt="">
+        <span>Feminino</span>
+      </label>
+    </fieldset>
+    <div class="student-action-control">
+      <button class="button button--quiet button--action" type="button" data-real-avatar-choice-save${disabled} aria-describedby="real-avatar-choice-error real-avatar-choice-status">
+        <span data-action-label>Salvar avatar</span>
+      </button>
+      <p class="login-action-error student-action-error" id="real-avatar-choice-error" role="alert"></p>
+      <p class="field-help" id="real-avatar-choice-status" role="status" aria-live="polite">${escapeHtml(statusText)}</p>
+    </div>`;
+}
+
+async function loadRealAvatarPreferences(profileIds) {
+  const ids = [...new Set(profileIds.filter((id) => typeof id === "string" && id))];
+  if (!ids.length || !authClient) return "error";
+  const sessionGeneration = realSessionCacheGeneration;
+  try {
+    const { data, error } = await authClient.from("perfis")
+      .select("id,avatar_escolhido").in("id", ids);
+    if (sessionGeneration !== realSessionCacheGeneration) return "error";
+    if (error) {
+      ids.forEach((id) => {
+        realAvatarChoiceByProfile.set(id, "masculino");
+        updateRealAvatarFallbacks(id);
+      });
+      if (isMissingAvatarChoiceColumn(error)) return "unavailable";
+      logRealProfileSupabaseError("consultar preferência de avatar", error);
+      return "error";
+    }
+    ids.forEach((id) => {
+      realAvatarChoiceByProfile.set(id, "masculino");
+      updateRealAvatarFallbacks(id);
+    });
+    (Array.isArray(data) ? data : []).forEach((profile) => {
+      if (profile && ids.includes(profile.id) &&
+          Object.prototype.hasOwnProperty.call(REAL_PERSON_AVATARS, profile.avatar_escolhido)) {
+        realAvatarChoiceByProfile.set(profile.id, profile.avatar_escolhido);
+        updateRealAvatarFallbacks(profile.id);
+      }
+    });
+    return "ready";
+  } catch (error) {
+    if (sessionGeneration === realSessionCacheGeneration) {
+      ids.forEach((id) => realAvatarChoiceByProfile.set(id, "masculino"));
+      logRealProfileSupabaseError("consultar preferência de avatar", error);
+    }
+    return "error";
+  }
+}
+
+function ensureRealAvatarChoiceLoaded() {
+  if (!authClient || !realUser || !realProfile || realProfile.id !== realUser.id) return;
+  if (realAvatarChoiceOwnerId === realUser.id && realAvatarChoiceState !== "idle") return;
+  const userId = realUser.id;
+  const sessionGeneration = realSessionCacheGeneration;
+  realAvatarChoiceOwnerId = userId;
+  realAvatarChoiceState = "loading";
+  void loadRealAvatarPreferences([userId]).then((state) => {
+    if (sessionGeneration !== realSessionCacheGeneration ||
+        !realUser || realUser.id !== userId) return;
+    realAvatarChoiceState = state;
+    updateRealAvatarFallbacks(userId);
+    void loadRealUserPanelMedia();
+    const controls = screenContent.querySelector("[data-real-avatar-choice-controls]");
+    if (controls && currentScreen === "user-settings") {
+      controls.innerHTML = renderRealAvatarChoiceControls(userId);
+    }
+  });
+}
+
 const navigation = document.querySelector("#screen-navigation");
 const screenContent = document.querySelector("#screen-content");
 const currentTitle = document.querySelector("#current-screen-title");
 const sidebar = document.querySelector("#app-sidebar");
 const sidebarBackdrop = document.querySelector("#sidebar-backdrop");
 const menuButton = document.querySelector("#mobile-menu-button");
+let mobileSidebarTrigger = menuButton;
 const toastRegion = document.querySelector("#toast-region");
 const privacyDialog = document.querySelector("#privacy-modal");
 const termsDialog = document.querySelector("#terms-modal");
@@ -356,13 +485,15 @@ const navigationIconByScreen = {
 const mobileNavigationLabels = {
   login: "Entrar", home: "Início", "link-teacher": "Vincular",
   "student-payments": "Pagamentos",
-  "student-grades": "Graduações", students: "Alunos",
+  "student-grades": "Graduações", "student-chat": "Conversa", students: "Alunos",
   "student-detail": "Ficha", "teacher-code": "Código", "instructor-class": "Aula",
-  "instructor-students": "Alunos", "training-board": "Mural", "training-plan": "Plano",
+  "instructor-students": "Alunos vinculados", "training-board": "Mural", "training-plan": "Plano semanal",
   "student-progress": "Metas",
-  "admin-home": "Início", "admin-students": "Alunos", "teacher-invites": "Convites", "role-management": "Papéis",
+  "admin-home": "Painel", "admin-students": "Alunos", "teacher-invites": "Convites", "role-management": "Papéis",
+  "monthly-charges": "Cobranças",
   academy: "Academia"
 };
+navigationIconByScreen.more = "actions";
 
 function navigationIcon(id) {
   const path = navigationIconPaths[navigationIconByScreen[id]];
@@ -384,16 +515,22 @@ function renderNavigation() {
     : isRealActiveInstructor()
       ? navigationGroups.filter((group) => group.roles.includes("instructor"))
       : navigationGroups.filter((group) => group.roles.includes("public"));
-  navigation.innerHTML = visibleGroups.map((group) => ({
+  const orderedGroups = [...visibleGroups].sort((left, right) =>
+    Number(right.title === "Início") - Number(left.title === "Início")
+  );
+  navigation.innerHTML = orderedGroups.map((group) => ({
     ...group,
-    items: group.items.filter(([id]) => canViewScreen(id))
+    items: group.items.filter(([id]) =>
+      canViewScreen(id) &&
+      !(id === "link-teacher" && isRealActiveStudent() && realHomeData && realHomeData.hasLink)
+    )
   })).filter((group) => group.items.length > 0).map((group) => `
     <section class="nav-group" aria-label="${group.title}">
       <h2 class="nav-group-title">${isRealStudentInstructor && group.title === "Treino" ? "Instrutor" : group.title}</h2>
       ${group.items.map(([id, title]) => `
         <button class="nav-item" type="button" data-screen-target="${id}">
           <span class="nav-icon">${navigationIcon(id)}</span>
-          <span>${title}</span>
+          <span>${isRealProfessorProfile() && id === "role-management" ? "Aula delegada" : title}</span>
         </button>
       `).join("")}
     </section>
@@ -405,25 +542,29 @@ function renderMobileNavigation() {
   const mobileNavigation = document.querySelector("#mobile-navigation");
   if (!mobileNavigation) return;
   const isRealStudentInstructor = isRealActiveStudent() && isRealActiveInstructor();
+  const isUnlinkedStudent = isRealActiveStudent() && realHomeData && realHomeData.hasLink === false;
   const items = isRealAdmSession()
-      ? ["admin-home", "admin-students", "teacher-invites", "role-management"].filter(canViewScreen)
+      ? ["admin-home", "admin-students", "teacher-invites", "role-management"]
+          .filter(canViewScreen)
       : isRealProfessorProfile()
-        ? ["home", "payment-review", "monthly-charges", "teacher-code"].filter(canViewScreen)
+        ? ["home", "payment-review", "monthly-charges", "students"]
+            .filter(canViewScreen)
       : isRealStudentInstructor
           ? ["home", "link-teacher", "student-payments", "instructor-class"].filter(canViewScreen)
         : isRealActiveStudent()
-          ? ["home", "link-teacher", "student-payments", "student-grades"].filter(canViewScreen)
+          ? ["home", "student-payments", "student-grades", isUnlinkedStudent ? "link-teacher" : "student-chat"]
+              .filter(canViewScreen)
         : isRealActiveInstructor()
-          ? ["home", "instructor-class", "instructor-students"].filter(canViewScreen)
+          ? ["home", "instructor-class", "instructor-students", "training-plan"].filter(canViewScreen)
           : ["login", "instructor-invite"].filter(canViewScreen);
-  mobileNavigation.style.setProperty("--mobile-nav-items", items.length);
-  mobileNavigation.innerHTML = items.map((id) => {
+  mobileNavigation.style.setProperty("--mobile-nav-items", items.length + 1);
+  mobileNavigation.innerHTML = `${items.map((id) => {
     const info = screenInfo[id] || { title: id, group: "" };
     const label = id === "instructor-students" && isRealStudentInstructor
       ? "Instrutor"
       : mobileNavigationLabels[id] || info.title;
     return `<button type="button" data-screen-target="${id}" aria-label="${info.title}"><span class="mobile-nav-icon">${navigationIcon(id)}</span><span class="mobile-nav-label">${label}</span></button>`;
-  }).join("");
+  }).join("")}<button type="button" data-open-sidebar aria-controls="app-sidebar" aria-expanded="false" aria-label="Abrir navegação completa"><span class="mobile-nav-icon">${navigationIcon("more")}</span><span class="mobile-nav-label">Mais</span></button>`;
   updateToastPosition();
 }
 
@@ -497,8 +638,7 @@ function renderRealProfileOnboarding(stage) {
     content.innerHTML = `
       <p id="profile-onboarding-copy" class="profile-onboarding-copy">${consentCopy}</p>
       <div class="profile-onboarding-links">
-        <button class="link-simples-modal" type="button" data-open-privacy>Ler política no modal</button>
-        <a class="link-simples-modal" href="privacidade.html" target="_blank" rel="noopener">Abrir página da política</a>
+        <button class="link-simples-modal" type="button" data-open-privacy>Ler política</button>
       </div>
       <div class="profile-onboarding-actions">
         <button class="button button--primary button--action" type="button" data-real-onboarding-action="continue"><span data-action-label>Aceitar e continuar</span></button>
@@ -663,13 +803,15 @@ function panel(title, body, extraClass = "") {
   `;
 }
 
-function metric(label, value, note, tone = "") {
+function metric(label, value, note, tone = "", target = "") {
+  const tag = target ? "button" : "article";
   return `
-    <article class="metric-card ${tone ? `metric-card--${tone}` : ""}">
+    <${tag} class="metric-card ${tone ? `metric-card--${tone}` : ""}${target ? " metric-card--link" : ""}"${target ? ` type="button" data-screen-target="${target}"` : ""}>
       <span class="metric-label">${label}</span>
       <strong class="metric-value">${value}</strong>
       <span class="metric-note">${note}</span>
-    </article>
+      ${target ? '<span class="metric-note">Ver detalhes →</span>' : ""}
+    </${tag}>
   `;
 }
 
@@ -842,6 +984,7 @@ const privacyPlaceholder = "O aceite do termo é gravado com o identificador do 
 function renderPrivacyDraftContent(headingTag = "h2") {
   return `
     <p class="panel-copy">O aceite do termo é gravado com o identificador do perfil, a versão do termo e a data e hora. O Professor aceita na primeira vez. O Instrutor aceita depois de usar o convite. O Aluno novo aceita ao criar o perfil.</p>
+    <p class="panel-copy">O redesign reorganiza a navegação: barra lateral no computador e barra inferior com menu “Mais” no celular. A mudança visual não altera as permissões nem os dados acessíveis por perfil.</p>
 
     <section class="privacy-draft-section">
       <${headingTag}>1. Dados que o app guarda</${headingTag}>
@@ -849,17 +992,18 @@ function renderPrivacyDraftContent(headingTag = "h2") {
       <ul>
         <li>e-mail da conta (login Google, ou e-mail e senha para Aluno e Instrutor);</li>
         <li>nome, papel, idade declarada (adulto ou menor de 18 anos) e vínculo com a academia;</li>
-        <li>nome da academia, pedidos de vínculo e vínculos entre Aluno e Professor;</li>
+        <li>nome da academia, códigos e pedidos de vínculo, e vínculos entre Aluno e Professor;</li>
         <li>e-mail de Professor convidado e estado do convite; convites de Instrutor guardam o hash do token, datas e estado;</li>
         <li>nome e idade declarada de aluno sem conta;</li>
         <li>cobranças mensais: valor-base, vencimento, desconto, isenção (com motivo opcional de até 200 caracteres), estado e datas de envio;</li>
         <li>pagamentos: o Aluno registra aviso como Dinheiro ou Comprovante; o Professor pode lançar recebimento como Pix, Dinheiro, Transferência ou Outro. O app guarda valor, estado, referência e datas correspondentes;</li>
+        <li>fotos de perfil e da academia enviadas, além de metadados como formato, tamanho e data de atualização; escolha do avatar de perfil;</li>
         <li>notas privadas, feedbacks, metas e mensagens trocadas conforme os papéis e vínculos;</li>
         <li>dados de graduação, avisos e conteúdos de treino compartilhados nas telas do app.</li>
       </ul>
       <p>No cadastro por e-mail e senha, o app coleta nome e e-mail. A senha é tratada pelo Supabase Auth e não é guardada pelo app.</p>
       <p>A exportação baixa arquivos JSON ou CSV com dados já carregados e visíveis para a própria conta. Não é backup do servidor. Não pedimos data de nascimento, telefone nem WhatsApp. Pedimos que não escreva dados sensíveis no motivo da isenção.</p>
-      <p>O Aluno pode anexar opcionalmente ao aviso de pagamento um comprovante JPG, PNG ou PDF de até 10 MiB. O arquivo fica visível somente ao Aluno autor e ao Professor do vínculo. O app remove o arquivo do Storage quando o Professor confirma ou rejeita o aviso; na abertura da tela de pagamentos, também tenta remover arquivos com mais de 30 dias sem decisão. Nesse caso, o aviso continua pendente e ficam somente os registros.</p>
+      <p>O Aluno pode anexar opcionalmente ao aviso de pagamento um comprovante JPG, PNG ou PDF de até 10 MiB. Enquanto o arquivo está ativo e o pagamento aguarda decisão, ele fica acessível somente ao Aluno autor e ao Professor vinculado. Ao confirmar ou rejeitar, o app solicita a remoção do arquivo do Storage. Também tenta remover arquivos após 30 dias sem decisão; o aviso e os registros do pagamento permanecem.</p>
     </section>
 
     <section class="privacy-draft-section">
@@ -871,19 +1015,27 @@ function renderPrivacyDraftContent(headingTag = "h2") {
         <li>o Instrutor vê apenas os dados de alunos e conteúdos compartilhados com ele; não vê pagamentos, notas privadas, feedbacks ou metas;</li>
         <li>o Adm não tem acesso às telas de pagamentos, notas privadas, feedbacks ou metas.</li>
       </ul>
-      <p>O app só controla pagamentos. Ele não processa dinheiro. O app não envia notificações push.</p>
-      <p>A foto da academia aceita JPG ou PNG de até 5 MiB e fica visível a todos os perfis autenticados. A foto do Professor aceita JPG ou PNG de até 5 MiB e fica visível aos Alunos vinculados a ele e ao Adm.</p>
+      <p>O Aluno pode solicitar vínculo usando um código; o vínculo depende da decisão do Professor. Alunos sem conta não entram nas cobranças mensais gravadas no banco real. A mensagem copiada na tela de cobranças não cria nem salva a cobrança e o texto não é armazenado.</p>
+      <p>O app só controla pagamentos: não processa dinheiro, não envia mensagens fora do app e não usa notificações push.</p>
     </section>
 
     <section class="privacy-draft-section">
       <${headingTag}>3. Menores de 18 anos</${headingTag}>
-      <p>A idade é só declarada, sem verificação. Menores usam somente avatar; o app não tem foto de pessoa para Aluno. Convites de Instrutor exigem declaração de adulto.</p>
+      <p>A idade é só declarada, sem verificação. Alunos menores ou sem idade declarada usam somente avatar; não enviam foto de pessoa. Convites de Instrutor exigem declaração de adulto.</p>
     </section>
 
     <section class="privacy-draft-section">
-      <${headingTag}>4. Fotos</${headingTag}>
-      <p>A foto da academia é armazenada no Storage; aceita JPG ou PNG de até 5 MiB e fica visível a todos os perfis autenticados. O Adm e o Professor ativo da academia podem enviá-la.</p>
-      <p>A foto do Professor é armazenada no Storage; aceita JPG ou PNG de até 5 MiB e fica visível aos Alunos vinculados e ao Adm. Somente o próprio Professor ativo pode enviá-la. Menores usam somente avatar; Adm e Instrutor não têm foto de pessoa.</p>
+      <${headingTag}>4. Fotos e avatares</${headingTag}>
+      <p>Fotos de pessoa aceitam JPG ou PNG de até 5 MiB e ficam em armazenamento privado. A exibição é quadrada, com cantos suavemente arredondados e corte centralizado; no painel do usuário, a foto é redonda.</p>
+      <ul>
+        <li>Adm: vê somente a própria foto de perfil; como exceção, pode ver a foto do Professor;</li>
+        <li>Aluno adulto e Instrutor: veem a própria foto e a do Professor vinculado; o Professor vinculado pode ver a foto deles;</li>
+        <li>Professor: vê a própria foto; a foto dele fica visível aos Alunos e Instrutores vinculados e ao Adm;</li>
+        <li>Aluno menor ou sem idade declarada: não tem foto de pessoa e usa avatar; pode ver a foto do Professor vinculado;</li>
+        <li>foto da academia: JPG ou PNG de até 5 MiB, visível a todos os perfis autenticados.</li>
+      </ul>
+      <p>Quando não há uma foto de pessoa visível, o app mostra o avatar escolhido nas Preferências: masculino ou feminino. O padrão é masculino. As imagens dos avatares são arquivos locais; a escolha é guardada no perfil. Um novo envio aceito substitui a foto anterior. Quem pode enviar foto de perfil também pode solicitar sua remoção nas Preferências, após confirmação; o app solicita a remoção do arquivo e do registro e informa se a operação não for concluída.</p>
+      <p>As regras acima são as decisões previstas para o produto. O acesso de Instrutor às fotos do Professor e o acesso do Professor às fotos de Instrutor ainda dependem de a política do banco reconhecer a relação de Instrutor; confirme essa configuração antes de considerar o acesso efetivo.</p>
     </section>
 
     <section class="privacy-draft-section">
@@ -893,7 +1045,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
 
     <section class="privacy-draft-section">
       <${headingTag}>6. Retenção</${headingTag}>
-      <p>Pagamentos e cobranças não são apagados, apenas mudam de estado (por exemplo, cancelada ou estornado). Um Professor substituído na academia é desativado, não apagado. A remoção física do comprovante é solicitada pelo app à API do Storage; o aviso e os registros permanecem.</p>
+      <p>Pagamentos e cobranças não são apagados, apenas mudam de estado (por exemplo, cancelada ou estornado). Um Professor substituído na academia é desativado, não apagado. A remoção física do comprovante é solicitada pelo app à API do Storage; se não for concluída, o app tenta novamente ao abrir pagamentos. O aviso e os registros permanecem.</p>
     </section>
 
     <section class="privacy-draft-section">
@@ -1057,9 +1209,29 @@ function closeMobileMenu() {
   sidebar.classList.remove("is-open");
   sidebarBackdrop.classList.remove("is-visible");
   menuButton.setAttribute("aria-expanded", "false");
+  document.querySelectorAll("#mobile-navigation [data-open-sidebar]").forEach((button) => {
+    button.setAttribute("aria-expanded", "false");
+  });
   sidebar.removeAttribute("role");
   sidebar.removeAttribute("aria-modal");
-  if (wasOpen && menuButton.getClientRects().length) menuButton.focus();
+  const focusTarget = mobileSidebarTrigger || menuButton;
+  if (wasOpen && focusTarget.getClientRects().length) focusTarget.focus();
+  mobileSidebarTrigger = menuButton;
+}
+
+function openMobileMenu(trigger = menuButton) {
+  if (sidebar.classList.contains("is-open")) {
+    closeMobileMenu();
+    return;
+  }
+  mobileSidebarTrigger = trigger;
+  sidebar.classList.add("is-open");
+  sidebarBackdrop.classList.add("is-visible");
+  sidebar.setAttribute("role", "dialog");
+  sidebar.setAttribute("aria-modal", "true");
+  trigger.setAttribute("aria-expanded", "true");
+  sidebar.querySelector("a, button").focus();
+  document.querySelectorAll(".app-main, #mobile-navigation").forEach((element) => { element.inert = true; });
 }
 
 function realTutorialCopy(text) {
@@ -1084,6 +1256,7 @@ async function loadRealProfessorPhotoSettings() {
   const userId = realUser && realUser.id;
   const sessionGeneration = realSessionCacheGeneration;
   realOwnProfessorPhotoUrl = "";
+  realOwnProfessorPhotoPath = "";
   realProfessorPhotoNotice = "";
   if (!authClient || !userId || !isRealActiveProfessorAccount()) return;
   try {
@@ -1094,6 +1267,7 @@ async function loadRealProfessorPhotoSettings() {
       logRealProfileSupabaseError("consultar foto do Professor", error);
       realProfessorPhotoNotice = "Não foi possível carregar a foto atual. Atualize a tela e tente novamente.";
     } else if (photo && typeof photo.caminho_storage === "string") {
+      realOwnProfessorPhotoPath = photo.caminho_storage;
       const signed = await createStorageSignedUrl("professores", photo.caminho_storage, "foto do Professor");
       if (sessionGeneration !== realSessionCacheGeneration || !realUser || realUser.id !== userId) return;
       if (signed.errorMessage) realProfessorPhotoNotice = signed.errorMessage;
@@ -1124,6 +1298,7 @@ function canEditRealProfilePhoto(profile) {
 async function loadRealProfilePhotoPreview(userId) {
   const sessionGeneration = realSessionCacheGeneration;
   if (!authClient || !userId) return;
+  realOwnProfilePhotoPath = "";
   try {
     const { data: photos, error } = await authClient.rpc("obter_foto_perfil", {
       p_perfil_id: userId
@@ -1134,7 +1309,14 @@ async function loadRealProfilePhotoPreview(userId) {
       return;
     }
     const photo = Array.isArray(photos) ? photos[0] : null;
-    if (!photo || typeof photo.caminho_storage !== "string") return;
+    if (!photo || typeof photo.caminho_storage !== "string") {
+      const removeButton = screenContent.querySelector("[data-real-profile-photo-remove]");
+      if (removeButton) removeButton.hidden = true;
+      return;
+    }
+    realOwnProfilePhotoPath = photo.caminho_storage;
+    const removeButton = screenContent.querySelector("[data-real-profile-photo-remove]");
+    if (removeButton) removeButton.hidden = false;
 
     const { data: signedPhoto, error: signedError } = await authClient.storage
       .from("perfis")
@@ -1151,6 +1333,8 @@ async function loadRealProfilePhotoPreview(userId) {
 
     const avatar = screenContent.querySelector("#real-profile-photo-avatar");
     if (!avatar) return;
+    const fallbackImage = avatar.querySelector("img[data-avatar-fallback='true']");
+    if (fallbackImage) fallbackImage.remove();
     const image = new Image();
     image.alt = "Foto de perfil";
     image.addEventListener("load", () => {
@@ -1170,9 +1354,7 @@ async function loadRealProfilePhotoPreview(userId) {
 }
 
 function renderRealLinkedProfileAvatar(profile) {
-  const name = typeof profile.nome === "string" ? profile.nome.trim() : "";
-  const initial = name ? Array.from(name)[0].toLocaleUpperCase("pt-BR") : "?";
-  return `<span class="avatar avatar--small avatar--initials" data-real-linked-profile-avatar="${escapeHtml(profile.id)}" aria-hidden="true">${escapeHtml(initial)}</span>`;
+  return `<span class="avatar avatar--small avatar--initials" data-real-linked-profile-avatar="${escapeHtml(profile.id)}" aria-hidden="true"><img src="${escapeHtml(realPersonAvatarSrc(profile.id))}" alt="" loading="lazy" data-avatar-choice-profile-id="${escapeHtml(profile.id)}" data-avatar-fallback="true"></span>`;
 }
 
 function pumpRealLinkedProfilePhotoQueue() {
@@ -1211,6 +1393,9 @@ async function loadRealLinkedProfilePhotoAvatars(profiles, screenId) {
       .filter((profile) => profile && typeof profile.id === "string")
       .map((profile) => [profile.id, profile])
   );
+  await loadRealAvatarPreferences([...linkedProfilesById.keys()]);
+  if (sessionGeneration !== realSessionCacheGeneration ||
+      !realUser || realUser.id !== professorId || currentScreen !== screenId) return;
   const avatars = Array.from(screenContent.querySelectorAll("[data-real-linked-profile-avatar]"));
   const tasks = Array.from(linkedProfilesById.values()).map((profile) => {
     const avatar = avatars.find((element) => element.dataset.realLinkedProfileAvatar === profile.id);
@@ -1271,7 +1456,7 @@ async function loadRealLinkedProfilePhotoAvatars(profiles, screenId) {
 }
 
 function renderRealUserSettingsScreen() {
-  const title = heading("CONTA REAL", "Configurações, tutorial e ajuda", "Informações da conta e orientações disponíveis para seu papel.");
+  const title = heading("CONTA", "Configurações, tutorial e ajuda", "Informações da conta e orientações disponíveis para seu papel.");
   if (realProfileState === "checking") {
     return `${title}<div class="notice notice--info" role="status">Carregando os dados da conta...</div>`;
   }
@@ -1302,7 +1487,7 @@ function renderRealUserSettingsScreen() {
   const profilePhotoVisibility = realProfile.papel === "adm"
     ? "A foto fica visível somente para você."
     : "A foto fica visível somente para você e para o Professor vinculado.";
-  const avatarInitial = name ? Array.from(name.trim())[0].toLocaleUpperCase("pt-BR") : "?";
+  ensureRealAvatarChoiceLoaded();
   if (showProfilePhotoForm && realUser) {
     void loadRealProfilePhotoPreview(realUser.id);
   }
@@ -1310,9 +1495,9 @@ function renderRealUserSettingsScreen() {
     ? isRealActiveProfessorAccount()
       ? panel("Foto do Professor", `
           <p class="field-help">JPG ou PNG, até 5 MiB. A foto fica visível aos Alunos vinculados ao Professor e ao Adm.</p>
-          ${realOwnProfessorPhotoUrl
-            ? `<img class="real-media-preview" src="${escapeHtml(realOwnProfessorPhotoUrl)}" alt="Foto atual do Professor">`
-            : '<p class="field-help">Nenhuma foto enviada.</p>'}
+          <img class="real-media-preview" src="${escapeHtml(realOwnProfessorPhotoUrl || realPersonAvatarSrc(realProfile.id))}" alt="${realOwnProfessorPhotoUrl ? "Foto atual do Professor" : "Avatar padrão do Professor"}"${realOwnProfessorPhotoUrl ? "" : ` data-avatar-choice-profile-id="${escapeHtml(realProfile.id)}" data-avatar-fallback="true"`}>
+          ${realOwnProfessorPhotoUrl ? "" : '<p class="field-help">Nenhuma foto enviada.</p>'}
+          <div data-real-avatar-choice-controls>${renderRealAvatarChoiceControls(realProfile.id)}</div>
           ${realProfessorPhotoNotice ? `<p class="login-action-error" role="alert">${escapeHtml(realProfessorPhotoNotice)}</p>` : ""}
           <form data-real-professor-photo-form>
             <div class="field">
@@ -1325,15 +1510,27 @@ function renderRealUserSettingsScreen() {
               <p class="login-action-error student-action-error" id="real-professor-photo-error" role="alert"></p>
               <p class="field-help" id="real-professor-photo-status" role="status" aria-live="polite"></p>
             </div>
+            <div class="student-action-control">
+              <button class="button button--danger button--action" type="button" data-real-professor-photo-remove${realOwnProfessorPhotoPath ? "" : " hidden"} aria-describedby="real-professor-photo-remove-error real-professor-photo-remove-status"><span data-action-label>Remover foto</span></button>
+              <p class="login-action-error student-action-error" id="real-professor-photo-remove-error" role="alert"></p>
+              <p class="field-help" id="real-professor-photo-remove-status" role="status" aria-live="polite"></p>
+            </div>
           </form>
         `)
-      : panel("Foto do Professor", '<div class="notice notice--info">Somente Professor ativo pode enviar foto pessoal.</div>')
+      : panel("Foto do Professor", `
+          <div class="person-row">
+            <img class="avatar" src="${realPersonAvatarSrc(realProfile.id)}" alt="" data-avatar-choice-profile-id="${escapeHtml(realProfile.id)}" data-avatar-fallback="true">
+            <div class="person-copy"><div class="notice notice--info">Somente Professor ativo pode enviar foto pessoal.</div></div>
+          </div>
+          <div data-real-avatar-choice-controls>${renderRealAvatarChoiceControls(realProfile.id)}</div>
+        `)
     : showProfilePhotoForm
       ? panel("Foto de perfil", `
           <div class="person-row">
-            <div class="avatar avatar--initials" id="real-profile-photo-avatar" aria-hidden="true">${escapeHtml(avatarInitial)}</div>
+            <div class="avatar avatar--initials" id="real-profile-photo-avatar" aria-hidden="true"><img src="${realPersonAvatarSrc(realProfile.id)}" alt="" data-avatar-choice-profile-id="${escapeHtml(realProfile.id)}" data-avatar-fallback="true"></div>
             <div class="person-copy"><small>${profilePhotoVisibility}</small></div>
           </div>
+          <div data-real-avatar-choice-controls>${renderRealAvatarChoiceControls(realProfile.id)}</div>
           <form data-real-profile-photo-form>
             <div class="field">
               <label for="real-profile-photo-file">Escolher foto</label>
@@ -1345,9 +1542,20 @@ function renderRealUserSettingsScreen() {
               <p class="login-action-error student-action-error" id="real-profile-photo-error" role="alert"></p>
               <p class="field-help" id="real-profile-photo-status" role="status" aria-live="polite"></p>
             </div>
+            <div class="student-action-control">
+              <button class="button button--danger button--action" type="button" data-real-profile-photo-remove${realOwnProfilePhotoPath ? "" : " hidden"} aria-describedby="real-profile-photo-remove-error real-profile-photo-remove-status"><span data-action-label>Remover foto</span></button>
+              <p class="login-action-error student-action-error" id="real-profile-photo-remove-error" role="alert"></p>
+              <p class="field-help" id="real-profile-photo-remove-status" role="status" aria-live="polite"></p>
+            </div>
           </form>
         `)
-      : panel("Foto pessoal", '<div class="notice notice--info">Menores de idade usam somente avatar.</div>');
+      : panel("Foto pessoal", `
+          <div class="person-row">
+            <div class="avatar"><img src="${realPersonAvatarSrc(realProfile.id)}" alt="" data-avatar-choice-profile-id="${escapeHtml(realProfile.id)}" data-avatar-fallback="true"></div>
+            <div class="person-copy"><div class="notice notice--info">Menores de idade ou sem idade declarada usam somente avatar.</div></div>
+          </div>
+          <div data-real-avatar-choice-controls>${renderRealAvatarChoiceControls(realProfile.id)}</div>
+        `);
   return `${title}
     <div class="content-grid">
       <div class="stack">
@@ -1655,9 +1863,9 @@ function renderRealDelegatedLessonScreen() {
       </div>`;
   }
   const lesson = lessons.find((item) => item.instrutor_id === realUser.id && item.compartilhada);
-  if (!lesson) return `${heading("VISÃO DO INSTRUTOR", "Treino compartilhado", "O Professor controla o que fica disponível.")}${emptyState("Nenhuma aula compartilhada", "Aguarde a publicação do Professor.")}`;
+  if (!lesson) return `${heading("VISÃO DO INSTRUTOR", "Aula delegada", "O Professor controla o que fica disponível.")}${emptyState("Nenhuma aula compartilhada", "Aguarde a publicação do Professor.")}`;
   const followed = lesson.seguido;
-  return `${heading("VISÃO DO INSTRUTOR", "Treino compartilhado", "Registre se seguiu a orientação do Professor.")}
+  return `${heading("VISÃO DO INSTRUTOR", "Aula delegada", "Registre se seguiu a orientação do Professor.")}
     ${panel("Aula", `${lesson.modo === "free" ? "Treino livre" : escapeHtml(lesson.plano)}
       ${followed ? `<p>Registro: ${followed === "yes" ? "Segui" : "Não segui"}</p>` : `<div class="form-actions">${featureActionButton("follow-delegated-yes", realUser.id, "Segui")}${featureActionButton("follow-delegated-no", realUser.id, "Não segui")}</div>`}`)}`;
 }
@@ -1931,7 +2139,7 @@ function renderRealProfessorGraduationsScreen() {
                 ${beltOrder.map((belt) => `<option value="${escapeHtml(belt)}">${escapeHtml(belt)}</option>`).join("")}
               </select>
             </div>
-            <div class="field">
+            <div class="field field--wide">
               <label for="real-graduation-degree">Grau</label>
               <select id="real-graduation-degree" required disabled>
                 <option value="">Selecione a faixa</option>
@@ -2248,6 +2456,186 @@ function renderRealHomeShortcuts(items) {
   ).join("")}</div>`;
 }
 
+function renderRealHomeProfileHeader() {
+  if (!realProfile || realProfileState !== "found" || realProfile.papel === "adm") return "";
+  const isStudent = isRealActiveStudent();
+  const isInstructor = isRealActiveInstructor();
+  const isLinkedStudent = isStudent && realHomeData && realHomeData.hasLink === true;
+  const people = [];
+  const academyId = realProfile.academia_id ||
+    (realHomeProfileContext.professor && realHomeProfileContext.professor.academiaId) || "";
+  const academy = academyId && (realHomeProfileContext.academyName || "Academia vinculada");
+  const professor = realHomeProfileContext.professor;
+  const ownName = typeof realProfile.nome === "string" && realProfile.nome.trim()
+    ? realProfile.nome.trim()
+    : "Seu perfil";
+  const ownInitial = Array.from(ownName)[0].toLocaleUpperCase("pt-BR");
+  const ownPhoto = realHomeProfileContext.ownPhotoUrl;
+  const academyInitial = academy ? Array.from(academy)[0].toLocaleUpperCase("pt-BR") : "A";
+  const renderPerson = (label, name, initial, photoUrl = "", isPerson = false, profileId = "") => {
+    const avatarImageUrl = isPerson ? photoUrl || realPersonAvatarSrc(profileId) : photoUrl;
+    const fallbackAttributes = isPerson && !photoUrl && profileId
+      ? ` data-avatar-choice-profile-id="${escapeHtml(profileId)}" data-avatar-fallback="true"`
+      : "";
+    const avatarContent = avatarImageUrl
+      ? `<img src="${escapeHtml(avatarImageUrl)}" alt=""${fallbackAttributes}>`
+      : escapeHtml(initial);
+    return `
+      <article class="home-profile-person">
+        <span class="home-profile-avatar${isPerson ? " home-profile-avatar--person" : ""}" aria-hidden="true">${avatarContent}</span>
+        <span class="home-profile-copy">
+          <small>${escapeHtml(label)}</small>
+          <strong>${escapeHtml(name)}</strong>
+        </span>
+      </article>`;
+  };
+  const academyCard = () => renderPerson("ACADEMIA", academy, academyInitial, realHomeProfileContext.academyPhotoUrl);
+  const professorCard = () => professor
+    ? renderPerson("PROFESSOR", professor.name, professor.initial, professor.photoUrl, true, professor.id)
+    : "";
+  const ownCard = () => renderPerson("VOCÊ", ownName, ownInitial, ownPhoto, true, realProfile.id);
+
+  if (isStudent) {
+    if (isLinkedStudent) {
+      if (academy) people.push(academyCard());
+      if (professor) people.push(professorCard());
+    }
+    people.push(ownCard());
+  } else if (isInstructor) {
+    people.push(ownCard());
+    if (professor) people.push(professorCard());
+    if (academy) people.push(academyCard());
+  } else if (isRealActiveProfessor()) {
+    people.push(ownCard());
+    if (academy) people.push(academyCard());
+  }
+  if (!people.length) return "";
+  return `<section class="home-profile-strip" aria-label="Perfil e vínculos">${people.join("")}</section>`;
+}
+
+async function loadRealHomeProfilePhoto(profile, isCurrentRequest) {
+  if (!profile || !authClient || !isCurrentRequest()) return "";
+  try {
+    let path = "";
+    let bucket = "";
+    if (profile.papel === "professor") {
+      const { data, error } = await authClient.from("professores_fotos")
+        .select("caminho_storage").eq("professor_id", profile.id).maybeSingle();
+      if (!isCurrentRequest()) return "";
+      if (error) {
+        logRealProfileSupabaseError("consultar foto do Professor na tela inicial", error);
+        return "";
+      }
+      path = data && data.caminho_storage;
+      bucket = "professores";
+    } else if (profile.papel === "instrutor" ||
+        (profile.papel === "aluno" && profile.idade_declarada === "adulto")) {
+      const { data, error } = await authClient.rpc("obter_foto_perfil", {
+        p_perfil_id: profile.id
+      });
+      if (!isCurrentRequest()) return "";
+      if (error) {
+        logRealProfileSupabaseError("consultar foto de perfil na tela inicial", error);
+        return "";
+      }
+      const photo = Array.isArray(data) ? data[0] : null;
+      path = photo && photo.caminho_storage;
+      bucket = "perfis";
+    }
+    if (typeof path !== "string" || !path) return "";
+    const signed = await createStorageSignedUrl(bucket, path, "foto do perfil na tela inicial");
+    return isCurrentRequest() ? signed.signedUrl || "" : "";
+  } catch (error) {
+    if (isCurrentRequest()) logRealProfileSupabaseError("carregar foto de perfil na tela inicial", error);
+    return "";
+  }
+}
+
+async function loadRealHomeProfileContext(professorId) {
+  const sequence = ++realHomeProfileRequestSequence;
+  const sessionGeneration = realSessionCacheGeneration;
+  const userId = realUser && realUser.id;
+  const isCurrentRequest = () =>
+    sequence === realHomeProfileRequestSequence &&
+    sessionGeneration === realSessionCacheGeneration &&
+    currentScreen === "home" &&
+    Boolean(realUser && realUser.id === userId);
+  const context = { academyName: "", academyPhotoUrl: "", professor: null, ownPhotoUrl: "" };
+  realHomeProfileContext = context;
+  if (!authClient || !realUser || !realProfile || realProfileState !== "found") return;
+  const academyIds = new Set(
+    [realProfile.academia_id].filter((id) => typeof id === "string" && id)
+  );
+  const loadAcademy = async (academyId) => {
+    try {
+      const { data, error } = await authClient.from("academias").select("nome")
+        .eq("id", academyId).maybeSingle();
+      if (!isCurrentRequest()) return;
+      if (error) {
+        logRealProfileSupabaseError("consultar nome da academia na tela inicial", error);
+        return;
+      }
+      if (data && typeof data.nome === "string") context.academyName = data.nome.trim();
+      context.academyPhotoUrl = await loadRealAcademyPhotoUrl(academyId);
+    } catch (error) {
+      if (isCurrentRequest()) logRealProfileSupabaseError("carregar dados da academia na tela inicial", error);
+    }
+  };
+  const loadProfessor = async () => {
+    if (typeof professorId !== "string" || !professorId) return;
+    try {
+      const { data, error } = await authClient.from("perfis")
+        .select("id,nome,academia_id").eq("id", professorId).maybeSingle();
+      if (!isCurrentRequest()) return;
+      if (error) {
+        logRealProfileSupabaseError("consultar Professor vinculado na tela inicial", error);
+        return;
+      }
+      const name = data && typeof data.nome === "string" ? data.nome.trim() : "";
+      if (!data || !name) return;
+      if (typeof data.academia_id === "string" && data.academia_id) academyIds.add(data.academia_id);
+      const photo = await authClient.from("professores_fotos").select("caminho_storage")
+        .eq("professor_id", professorId).maybeSingle();
+      if (!isCurrentRequest()) return;
+      let photoUrl = "";
+      if (photo.error) {
+        logRealProfileSupabaseError("consultar foto do Professor vinculado", photo.error);
+      } else if (photo.data && typeof photo.data.caminho_storage === "string") {
+        const signed = await createStorageSignedUrl("professores", photo.data.caminho_storage, "foto do Professor vinculado");
+        if (isCurrentRequest()) photoUrl = signed.signedUrl || "";
+      }
+      context.professor = {
+        id: professorId,
+        name,
+        initial: Array.from(name)[0].toLocaleUpperCase("pt-BR"),
+        photoUrl,
+        academiaId: typeof data.academia_id === "string" ? data.academia_id : ""
+      };
+    } catch (error) {
+      if (isCurrentRequest()) logRealProfileSupabaseError("carregar Professor vinculado na tela inicial", error);
+    }
+  };
+
+  const ownPhotoPromise = loadRealHomeProfilePhoto(realProfile, isCurrentRequest)
+    .then((photoUrl) => { if (isCurrentRequest()) context.ownPhotoUrl = photoUrl; });
+  const professorPromise = loadProfessor();
+  await Promise.all([ownPhotoPromise, professorPromise]);
+  if (!isCurrentRequest()) return;
+  const avatarChoiceState = await loadRealAvatarPreferences([
+    userId,
+    context.professor && context.professor.id
+  ]);
+  if (!isCurrentRequest()) return;
+  realAvatarChoiceOwnerId = userId;
+  realAvatarChoiceState = avatarChoiceState;
+  void loadRealUserPanelMedia();
+  const academyId = [...academyIds][0];
+  if (academyId) await loadAcademy(academyId);
+  if (!isCurrentRequest()) return;
+  realHomeProfileContext = context;
+  screenContent.innerHTML = renderRealHomeScreen();
+}
+
 function renderRealHomeScreen() {
   if (!isRealActiveProfessor() && !isRealActiveStudent() && !isRealActiveInstructor()) {
     return featureAccessNotice();
@@ -2255,17 +2643,18 @@ function renderRealHomeScreen() {
   const isProfessor = isRealActiveProfessor();
   const isStudent = isRealActiveStudent();
   const isInstructor = isRealActiveInstructor();
+  const profileHeader = renderRealHomeProfileHeader();
   const title = isProfessor
     ? heading("VISÃO DO PROFESSOR", "Início", "Acompanhe pendências e acesse suas ferramentas.")
     : isStudent
-      ? heading("VISÃO DO ALUNO", "Início", "Consulte suas cobranças e acesse sua conta.")
-      : heading("VISÃO DO INSTRUTOR", "Início", "Acesse o treino compartilhado e os alunos vinculados.");
+      ? heading("VISÃO DO ALUNO", "Início", "Veja o que precisa de atenção e escolha o próximo passo.")
+      : heading("VISÃO DO INSTRUTOR", "Início", "Consulte a aula compartilhada e acesse seus alunos.");
 
   if (realHomeState === "idle" || realHomeState === "checking") {
-    return `${title}<div class="notice notice--info" role="status" aria-live="polite">Carregando seu resumo...</div>`;
+    return `${title}${profileHeader}<div class="notice notice--info" role="status" aria-live="polite">Carregando seu resumo...</div>`;
   }
   if (realHomeState === "error") {
-    return `${title}
+    return `${title}${profileHeader}
       <div class="notice notice--pending" role="alert">${escapeHtml(realHomeNotice)}</div>
       <div class="student-action-control">
         <button class="button button--primary button--action" type="button" data-real-home-retry aria-describedby="real-home-retry-error real-home-retry-status">
@@ -2281,48 +2670,46 @@ function renderRealHomeScreen() {
     const pendingPayments = data.pendingPayments || 0;
     const lateCharges = data.lateCharges || 0;
     const shortcuts = [
-      ["payment-review", "Pagamentos a confirmar"],
-      ["monthly-charges", "Cobranças mensais"],
       ["students", "Alunos"],
       ["teacher-code", "Código e convites"]
     ];
-    return `${title}
+    const nextAction = pendingPayments
+      ? button("Revisar pagamentos", "payment-review", "button button--primary")
+      : lateCharges
+        ? button("Ver cobranças atrasadas", "monthly-charges", "button button--primary")
+        : button("Ver alunos", "students", "button button--primary");
+    return `${title}${profileHeader}
       <div class="summary-grid">
         ${metric("PAGAMENTOS A CONFIRMAR", String(pendingPayments), "Avisos aguardando decisão", "amber")}
         ${metric("COBRANÇAS ATRASADAS", String(lateCharges), "Mês selecionado", lateCharges ? "red" : "green")}
       </div>
       ${pendingPayments || lateCharges ? "" : emptyState("Tudo em dia", "Não há pagamentos aguardando decisão nem cobranças atrasadas.")}
+      ${panel("Próxima ação", nextAction)}
       ${panel("Atalhos", renderRealHomeShortcuts(shortcuts))}`;
   }
   if (isStudent) {
-    const month = data.month || realGraduationToday().slice(0, 7);
     const counts = data.monthCounts || { pending: 0, paid: 0, late: 0, exempt: 0 };
-    const shortcuts = [
-      ["student-payments", "Meus pagamentos"],
-      ["student-grades", "Minhas graduações"],
-      ["student-chat", "Conversa"]
-    ];
-    if (!data.hasLink) shortcuts.push(["link-teacher", "Vincular a um Professor"]);
-    return `${title}
-      ${panel(`Cobranças de ${escapeHtml(month)}`, data.monthChargeCount
+    if (!data.hasLink) {
+      return `${title}${profileHeader}
+        ${panel("Próxima ação", `<p>Vincule seu perfil a um Professor para consultar os dados da academia.</p>${button("Vincular a um Professor", "link-teacher", "button button--primary")}`)}`;
+    }
+    const hasPending = counts.pending > 0 || counts.late > 0;
+    return `${title}${profileHeader}
+      ${data.monthChargeCount
         ? `<div class="summary-grid">
-            ${metric("PENDENTE", String(counts.pending), "Saldo dentro do prazo", "amber")}
-            ${metric("PAGO", String(counts.paid), "Cobranças quitadas", "green")}
-            ${metric("ATRASADA", String(counts.late), "Após vencimento e carência", "red")}
-            ${counts.exempt ? metric("ISENTA", String(counts.exempt), "Cobranças isentas", "blue") : ""}
+            ${metric("PENDENTES", String(counts.pending), "Cobranças dentro do prazo", "amber")}
+            ${metric("ATRASADAS", String(counts.late), "Cobranças que precisam de atenção", "red")}
           </div>`
-        : emptyState("Nenhuma cobrança neste mês", "As cobranças enviadas pelo Professor aparecerão aqui."))}
-      ${!data.hasLink ? panel("Vínculo", '<p class="field-help">Você ainda não tem um Professor vinculado.</p>') : ""}
-      ${panel("Atalhos", renderRealHomeShortcuts(shortcuts))}
-      ${isInstructor ? panel("Atalhos do Instrutor", renderRealHomeShortcuts([
-        ["instructor-class", "Treino compartilhado"],
-        ["instructor-students", "Alunos vinculados"]
-      ])) : ""}`;
+        : emptyState("Nenhuma cobrança neste mês", "As cobranças enviadas pelo Professor aparecerão aqui.")}
+      ${panel(hasPending ? "Próxima ação" : "Tudo em dia", hasPending
+        ? button("Ver pagamentos", "student-payments", "button button--primary")
+        : `<p>Não há pagamentos pendentes neste mês.</p>${button("Ver graduações", "student-grades", "button button--quiet")}`)}`;
   }
-  return `${title}${panel("Atalhos", renderRealHomeShortcuts([
-    ["instructor-class", "Treino compartilhado"],
-    ["instructor-students", "Alunos vinculados"]
-  ]))}`;
+  return `${title}${profileHeader}
+    ${panel("Próxima ação", `<p>Confira a aula delegada e o plano compartilhado pelo Professor.</p>${renderRealHomeShortcuts([
+      ["instructor-class", "Abrir Aula"],
+      ["training-plan", "Ver Plano semanal"]
+    ])}`)}`;
 }
 
 async function loadRealHomeData(renderScreen = true) {
@@ -2338,6 +2725,9 @@ async function loadRealHomeData(renderScreen = true) {
   realHomeState = "checking";
   realHomeNotice = "";
   realHomeData = null;
+  realHomeProfileContext = { academyName: "", academyPhotoUrl: "", professor: null, ownPhotoUrl: "" };
+  realHomeProfileRequestSequence += 1;
+  renderMobileNavigation();
 
   try {
     if (!authClient || !realUser) throw new Error("Entre com sua conta real para carregar o Início.");
@@ -2394,6 +2784,7 @@ async function loadRealHomeData(renderScreen = true) {
         }
         realHomeData = {
           hasLink: true,
+          professorId: link.professor_id,
           month,
           monthChargeCount: monthCharges.length,
           monthCounts
@@ -2417,7 +2808,16 @@ async function loadRealHomeData(renderScreen = true) {
         : "Não foi possível carregar o Início. Tente novamente.";
   }
 
-  if (renderScreen && isCurrentRequest()) screenContent.innerHTML = renderRealHomeScreen();
+  if (isCurrentRequest()) {
+    const professorId = isRealActiveStudent()
+      ? realHomeData && realHomeData.professorId
+      : isRealActiveInstructor() && realInstructorLink
+        ? realInstructorLink.professor_id
+        : "";
+    void loadRealHomeProfileContext(professorId);
+    renderNavigation();
+    if (renderScreen) screenContent.innerHTML = renderRealHomeScreen();
+  }
   return realHomeState === "found";
 }
 
@@ -2539,6 +2939,7 @@ function renderScreen(id) {
   if (isRealAdminHome) {
     realAdminDashboardAcademies = [];
     realAdminDashboardProfessors = [];
+    realAdminProfessorPhotoUrls = new Map();
     realAdminDashboardStudents = 0;
     realAdminDashboardPendingInvites = 0;
     realAdminDashboardState = "checking";
@@ -2613,8 +3014,11 @@ function renderScreen(id) {
   if (isRealProfessorAcademy) loadRealProfessorAcademy();
   if (id === "role-management" && isRealAdmSession()) loadRealAdminManagement();
   screenContent.querySelectorAll('input[type="email"]').forEach(updateEmailPreview);
-  currentTitle.textContent = screenInfo[id].title;
-  document.title = `${screenInfo[id].title} | Tatame`;
+  const screenTitle = id === "role-management" && isRealProfessorProfile()
+    ? "Aula delegada"
+    : screenInfo[id].title;
+  currentTitle.textContent = screenTitle;
+  document.title = `${screenTitle} | Tatame`;
   document.querySelectorAll("#screen-navigation [data-screen-target], #mobile-navigation [data-screen-target]").forEach((item) => {
     if (item.dataset.screenTarget === id) {
       item.setAttribute("aria-current", "page");
@@ -2696,7 +3100,7 @@ function renderRealBillingRuleRow(rule) {
       </div>
       <p class="field-help">${escapeHtml(duration)} · início ${realBillingDate(rule.mes_inicio)}</p>
       <div class="row-actions">
-        <button class="button button--small button--quiet" type="button" data-real-billing-edit-rule="${escapeHtml(rule.id)}"${canEdit ? "" : ` disabled aria-describedby="real-rule-student-unavailable-${escapeHtml(rule.id)}"`}>Editar</button>
+        <button class="button button--small button--quiet button--action" type="button" data-real-billing-edit-rule="${escapeHtml(rule.id)}" aria-describedby="real-rule-error-${escapeHtml(rule.id)} real-rule-status-${escapeHtml(rule.id)}${canEdit ? "" : ` real-rule-student-unavailable-${escapeHtml(rule.id)}`}"${canEdit ? "" : " disabled"}><span data-action-label>Editar</span></button>
         <button class="button button--small button--danger button--action" type="button" data-real-billing-remove-rule="${escapeHtml(rule.id)}" aria-describedby="real-rule-error-${escapeHtml(rule.id)} real-rule-status-${escapeHtml(rule.id)}"><span data-action-label>Remover regra</span></button>
       </div>
       ${canEdit ? "" : `<p class="field-help" id="real-rule-student-unavailable-${escapeHtml(rule.id)}">Edição indisponível: aluno sem vínculo ativo.</p>`}
@@ -2851,8 +3255,7 @@ function renderRealBillingScreen() {
         ? '<p class="field-help" role="status" aria-live="polite">Consultando cobranças e alunos vinculados...</p>'
         : "";
   return `
-    ${heading("VISÃO DO PROFESSOR", "Cobranças mensais", "Configure regras, gere cobranças e acompanhe o mês na sua conta real.")}
-    <div class="notice notice--info">O app só controla pagamentos; não há gateway nem envio de mensagens fora do app. Alunos sem conta não entram nas cobranças do banco real; a mensagem copiada no painel não salva cobrança ou texto.</div>
+    ${heading("VISÃO DO PROFESSOR", "Cobranças mensais", "Configure regras, gere cobranças e acompanhe as cobranças do mês.")}
     ${realBillingNotice ? `<p class="login-action-error" role="alert">${escapeHtml(realBillingNotice)}</p>` : ""}
     ${realBillingStudentsNotice ? `<p class="login-action-error" role="alert">${escapeHtml(realBillingStudentsNotice)}</p>` : ""}
     ${summary ? `
@@ -2895,16 +3298,16 @@ function renderRealBillingScreen() {
                 <option value="percentual">Desconto em %</option>
                 <option value="isencao">Isenção</option>
               </select></div>
-              <div class="field"><label for="real-billing-discount-value">Desconto em R$</label><input id="real-billing-discount-value" type="text" inputmode="decimal"${disabled}></div>
-              <div class="field"><label for="real-billing-discount-percent">Desconto em %</label><input id="real-billing-discount-percent" type="text" inputmode="decimal"${disabled}></div>
+              <div class="field" hidden><label for="real-billing-discount-value">Desconto em R$</label><input id="real-billing-discount-value" type="text" inputmode="decimal"${disabled}></div>
+              <div class="field" hidden><label for="real-billing-discount-percent">Desconto em %</label><input id="real-billing-discount-percent" type="text" inputmode="decimal"${disabled}></div>
               <div class="field"><label for="real-billing-duration">Duração</label><select id="real-billing-duration" required${disabled}>
                 <option value="este_mes">Só este mês</option>
                 <option value="n_meses">N meses</option>
                 <option value="ate_remover">Até remover</option>
               </select></div>
-              <div class="field"><label for="real-billing-duration-months">Número de meses</label><input id="real-billing-duration-months" type="number" min="1" step="1"${disabled}></div>
+              <div class="field" hidden><label for="real-billing-duration-months">Número de meses</label><input id="real-billing-duration-months" type="number" min="1" step="1"${disabled}></div>
             </div>
-            <div class="field"><label for="real-billing-reason">Motivo opcional da isenção</label><textarea id="real-billing-reason" maxlength="400"${disabled}></textarea></div>
+            <div class="field" hidden><label for="real-billing-reason">Motivo opcional da isenção</label><textarea id="real-billing-reason" maxlength="400"${disabled}></textarea></div>
             <div class="student-action-control">
               <button class="button button--primary button--action" type="submit" data-real-billing-save-rule aria-describedby="real-billing-rule-error real-billing-rule-status"${ruleSubmitDisabled ? " disabled" : ""}><span data-action-label>Salvar regra</span></button>
               <p class="login-action-error student-action-error" id="real-billing-rule-error" role="alert"></p>
@@ -3477,7 +3880,7 @@ async function loadRealStudentPayments(renderScreen = true, allowHome = false) {
   realStudentPaymentProofs = new Map();
   if (!authClient || !realUser || !isRealActiveStudent() || !realProfile || !realProfile.academia_id) {
     realStudentPaymentsState = "error";
-    realStudentPaymentsNotice = "Esta tela exige uma conta real de Aluno ativa.";
+    realStudentPaymentsNotice = "Esta tela exige um perfil de Aluno ativo vinculado a uma academia.";
     if (renderScreen && !allowHome && currentScreen === screenId) {
       screenContent.innerHTML = renderRealStudentPaymentsScreen();
     }
@@ -4072,7 +4475,6 @@ function renderRealUnregisteredStudents() {
       ? `<p class="login-action-error" role="alert">${escapeHtml(realUnregisteredStudentsNotice)}</p>`
       : realUnregisteredStudents.length
         ? `<div class="stack">${realUnregisteredStudents.map((student, index) => {
-          const initials = Array.from(student.nome.trim())[0] || "A";
           const ageLabel = student.idade_declarada === "menor" ? "Menor de 18 anos · somente avatar" :
             student.idade_declarada === "adulto" ? "Adulto · somente avatar" : "Idade ainda não declarada · somente avatar";
           const ageSelect = `
@@ -4098,7 +4500,7 @@ function renderRealUnregisteredStudents() {
           return `
             <article class="real-unregistered-student-row">
               <div class="person-row">
-                <span class="avatar avatar--small avatar--initials" aria-hidden="true">${escapeHtml(initials)}</span>
+                <span class="avatar avatar--small avatar--initials" aria-hidden="true"><img src="${DEFAULT_PERSON_AVATAR_SRC}" alt="" loading="lazy"></span>
                 <span class="person-copy"><strong>${escapeHtml(student.nome)}</strong><small>${escapeHtml(ageLabel)}</small></span>
               </div>
               ${ageSelect}
@@ -4385,12 +4787,22 @@ async function loadRealProfessorStudentRecords() {
 
 function updateUserPanelProfile() {
   const roleLabels = { adm: "Adm", professor: "Professor", instrutor: "Instrutor", aluno: "Aluno" };
-  document.querySelector("#user-panel-profile-name").textContent =
-    realUser && realProfile && realProfile.nome || realUser && realUser.email || "Sem sessão ativa";
-  document.querySelector("#user-panel-profile-role").textContent =
-    realProfile && roleLabels[realProfile.papel] || (realUser ? "Conta real" : "Perfil");
+  const name = realUser && realProfile && realProfile.nome || realUser && realUser.email || "Sem sessão ativa";
+  const role = realProfile && roleLabels[realProfile.papel] || (realUser ? "Conta real" : "Perfil");
+  document.querySelector("#user-panel-profile-name").textContent = name;
+  document.querySelector("#user-panel-profile-role").textContent = role;
+  document.querySelector("#sidebar-profile-name").textContent = name;
+  document.querySelector("#sidebar-profile-role").textContent = role;
+  document.querySelector(".sidebar-profile-button").hidden = !realUser;
+  const headerProfileCopy = document.querySelector("#profile-button .profile-button-copy");
+  headerProfileCopy.querySelector("strong").textContent = name;
+  headerProfileCopy.querySelector("small").textContent = role;
+  document.querySelector("#profile-button").setAttribute("aria-label", `Abrir painel do usuário: ${name}`);
   setUserPanelAcademyText(realProfile && realProfile.academia_id ? "Academia: carregando..." : "Sem academia vinculada");
-  if (realUser) void loadRealUserPanelMedia();
+  if (realUser) {
+    ensureRealAvatarChoiceLoaded();
+    void loadRealUserPanelMedia();
+  }
   else clearRealUserPanelMedia();
 }
 
@@ -4404,16 +4816,23 @@ function setUserPanelAcademyText(text) {
 }
 
 function clearRealUserPanelMedia() {
-  ["#user-panel-profile-photo", "#user-panel-academy-photo"].forEach((selector) => {
-    const image = document.querySelector(selector);
-    if (!image) return;
-    image.removeAttribute("src");
+  const avatarSrc = realUser ? realPersonAvatarSrc(realUser.id) : DEFAULT_PERSON_AVATAR_SRC;
+  document.querySelectorAll(
+    "#profile-button-avatar img, .sidebar-profile-avatar img, #user-panel-profile-photo"
+  ).forEach((image) => {
+    image.onload = null;
+    image.onerror = null;
     image.alt = "";
-    image.hidden = true;
+    image.hidden = false;
+    image.src = avatarSrc;
   });
+  const academyImage = document.querySelector("#user-panel-academy-photo");
+  if (academyImage) {
+    academyImage.removeAttribute("src");
+    academyImage.alt = "";
+    academyImage.hidden = true;
+  }
   const avatar = document.querySelector("#user-panel-avatar");
-  const icon = avatar && avatar.querySelector("svg");
-  if (icon) icon.hidden = false;
   if (avatar) avatar.setAttribute("aria-hidden", "true");
   setUserPanelAcademyText("Sem academia vinculada");
 }
@@ -4426,9 +4845,10 @@ async function loadRealUserPanelMedia() {
   const isCurrentSession = () =>
     sessionGeneration === realSessionCacheGeneration && Boolean(realUser && realUser.id === userId);
   const profileAvatar = document.querySelector("#user-panel-avatar");
-  const profileIcon = profileAvatar && profileAvatar.querySelector("svg");
   const profileImage = document.querySelector("#user-panel-profile-photo");
-  const academyImage = document.querySelector("#user-panel-academy-photo");
+  const profileImages = Array.from(document.querySelectorAll(
+    "#profile-button-avatar img, .sidebar-profile-avatar img, #user-panel-profile-photo"
+  ));
 
   const showSignedProfilePhoto = async (path, bucket, expiresIn) => {
     try {
@@ -4439,92 +4859,39 @@ async function loadRealUserPanelMedia() {
         else console.error("Não foi possível criar a URL temporária da foto de perfil no painel.");
         return;
       }
-      if (!profileAvatar || !profileIcon || !profileImage) return;
-      profileImage.alt = "Foto de perfil";
-      profileImage.onload = () => {
-        profileImage.onload = null;
-        profileImage.onerror = null;
-        if (!isCurrentSession()) {
-          profileImage.removeAttribute("src");
-          return;
-        }
-        profileImage.hidden = false;
-        profileIcon.hidden = true;
-        profileAvatar.removeAttribute("aria-hidden");
-      };
-      profileImage.onerror = () => {
-        profileImage.onload = null;
-        profileImage.onerror = null;
-        if (!isCurrentSession()) return;
-        profileImage.removeAttribute("src");
-        profileImage.hidden = true;
-        profileIcon.hidden = false;
-        profileAvatar.setAttribute("aria-hidden", "true");
-        console.error("Não foi possível carregar a foto de perfil no painel; o avatar foi mantido.");
-      };
-      profileImage.src = signed.signedUrl;
+      if (!profileAvatar || !profileImage || !profileImages.length) return;
+      for (const image of profileImages) {
+        const isPanelImage = image === profileImage;
+        image.alt = isPanelImage ? "Foto de perfil" : "";
+        image.onload = () => {
+          image.onload = null;
+          image.onerror = null;
+          if (!isCurrentSession()) {
+            image.alt = "";
+            image.src = realPersonAvatarSrc(userId);
+            return;
+          }
+          image.hidden = false;
+          if (isPanelImage) profileAvatar.removeAttribute("aria-hidden");
+        };
+        image.onerror = () => {
+          image.onload = null;
+          image.onerror = null;
+          if (!isCurrentSession()) return;
+          image.alt = "";
+          image.src = realPersonAvatarSrc(userId);
+          image.hidden = false;
+          if (isPanelImage) {
+            profileAvatar.setAttribute("aria-hidden", "true");
+            console.error("Não foi possível carregar a foto de perfil no painel; o avatar foi mantido.");
+          }
+        };
+        image.src = signed.signedUrl;
+      }
     } catch (error) {
       if (isCurrentSession()) logRealProfileSupabaseError("abrir foto do perfil no painel", error);
     }
   };
-
-  if (realProfile.academia_id) {
-    setUserPanelAcademyText("Academia: carregando...");
-    try {
-      const { data: academy, error } = await authClient.from("academias").select("nome")
-        .eq("id", realProfile.academia_id).maybeSingle();
-      if (!isCurrentSession()) return;
-      if (error) {
-        logRealProfileSupabaseError("consultar nome da academia no painel", error);
-        setUserPanelAcademyText("Academia: indisponível");
-      } else {
-        const academyName = academy && typeof academy.nome === "string" ? academy.nome.trim() : "";
-        setUserPanelAcademyText(academyName ? `Academia: ${academyName}` : "Academia: indisponível");
-      }
-    } catch (error) {
-      if (!isCurrentSession()) return;
-      logRealProfileSupabaseError("consultar nome da academia no painel", error);
-      setUserPanelAcademyText("Academia: indisponível");
-    }
-    try {
-      const { data: academyPhoto, error } = await authClient.from("academias_fotos")
-        .select("caminho_storage").eq("academia_id", realProfile.academia_id).maybeSingle();
-      if (!isCurrentSession()) return;
-      if (error) {
-        logRealProfileSupabaseError("consultar foto da academia", error);
-      } else if (academyPhoto && typeof academyPhoto.caminho_storage === "string") {
-        const { data: signed, error: signedError } = await authClient.storage.from("academias")
-          .createSignedUrl(academyPhoto.caminho_storage, 60);
-        if (!isCurrentSession()) return;
-        if (signedError || !signed || typeof signed.signedUrl !== "string") {
-          if (signedError) logRealProfileSupabaseError("abrir foto da academia", signedError);
-          else console.error("Não foi possível criar a URL temporária da foto da academia no painel.");
-        } else if (academyImage) {
-          academyImage.onload = () => {
-            academyImage.onload = null;
-            academyImage.onerror = null;
-            if (!isCurrentSession()) {
-              academyImage.removeAttribute("src");
-              return;
-            }
-            academyImage.hidden = false;
-          };
-          academyImage.onerror = () => {
-            academyImage.onload = null;
-            academyImage.onerror = null;
-            if (!isCurrentSession()) return;
-            academyImage.removeAttribute("src");
-            academyImage.hidden = true;
-            console.error("Não foi possível carregar a foto da academia no painel.");
-          };
-          academyImage.src = signed.signedUrl;
-        }
-      }
-    } catch (error) {
-      if (!isCurrentSession()) return;
-      logRealProfileSupabaseError("consultar foto da academia", error);
-    }
-  }
 
   if (realProfile.papel === "professor") {
     try {
@@ -5363,7 +5730,7 @@ function renderRealAdminStudentsScreen() {
         }).join("")}</ul>`
         : '<div class="empty-state"><div><strong>Nenhum aluno ativo encontrado</strong></div></div>';
   return `
-    ${heading("CONTA REAL · ADM", "Alunos", "Consulte somente o nome e a faixa/grau atuais dos alunos ativos.")}
+    ${heading("VISÃO DO ADM", "Alunos", "Consulte somente o nome e a faixa/grau atuais dos alunos ativos.")}
     ${panel("Alunos ativos", studentsContent)}
   `;
 }
@@ -5419,6 +5786,39 @@ async function loadRealAdminDashboard(renderScreen = true) {
       realAdminDashboardProfessors = professorsResult.data;
       realAdminDashboardStudents = studentsResult.data.length;
       realAdminDashboardPendingInvites = invitesResult.data.length;
+      await loadRealAvatarPreferences(realAdminDashboardProfessors.map((profile) => profile.id));
+      if (!isCurrentRequest()) return false;
+      await loadRealAcademyPhotoUrls(realAdminDashboardAcademies);
+      if (!isCurrentRequest()) return false;
+      const professorIds = realAdminDashboardProfessors
+        .map((profile) => profile.id)
+        .filter((id) => typeof id === "string");
+      if (professorIds.length) {
+        try {
+          const { data: photos, error: photoError } = await authClient.from("professores_fotos")
+            .select("professor_id,caminho_storage").in("professor_id", professorIds);
+          if (!isCurrentRequest()) return false;
+          if (photoError) {
+            logRealAdminDatabaseError("listar fotos de Professores do painel", photoError);
+          } else {
+            for (const photo of photos || []) {
+              if (!isCurrentRequest()) return false;
+              if (typeof photo.professor_id !== "string" ||
+                  typeof photo.caminho_storage !== "string") continue;
+              const signed = await createStorageSignedUrl(
+                "professores", photo.caminho_storage, "foto do Professor"
+              );
+              if (!isCurrentRequest()) return false;
+              if (signed.signedUrl) {
+                realAdminProfessorPhotoUrls.set(photo.professor_id, signed.signedUrl);
+              }
+            }
+          }
+        } catch (error) {
+          if (!isCurrentRequest()) return false;
+          logRealAdminDatabaseError("listar fotos de Professores do painel", error);
+        }
+      }
       realAdminDashboardState = "found";
     } catch (error) {
       if (!isCurrentRequest()) return false;
@@ -5435,7 +5835,7 @@ async function loadRealAdminDashboard(renderScreen = true) {
 }
 
 function renderRealAdminDashboardScreen() {
-  const title = heading("CONTA REAL · ADM", "Painel do Adm", "Resumo das academias, Professores ativos, alunos e convites pendentes.");
+  const title = heading("VISÃO DO ADM", "Painel do Adm", "Resumo das academias, Professores ativos, alunos e convites pendentes.");
   if (realAdminDashboardState === "checking" || realAdminDashboardState === "idle") {
     return `${title}<div class="notice notice--info" role="status">Carregando o resumo administrativo...</div>`;
   }
@@ -5459,34 +5859,36 @@ function renderRealAdminDashboardScreen() {
         <span>${escapeHtml(academy.nome)}</span>
       </li>`;
     }).join("")}</ul>`
-    : emptyState("Nenhuma academia cadastrada", "As academias cadastradas aparecerão aqui.");
+    : `${emptyState("Nenhuma academia cadastrada", "As academias cadastradas aparecerão aqui.")}
+       ${button("Criar academia", "academy", "button button--quiet")}`;
   const professorsContent = realAdminDashboardProfessors.length
     ? `<ul aria-label="Professores ativos">${realAdminDashboardProfessors.map((profile) => {
       const name = typeof profile.nome === "string" && profile.nome.trim() ? profile.nome.trim() : "Nome não informado";
       const academy = academyNames.get(profile.academia_id) || "Academia não vinculada";
-      const photoUrl = realAcademyPhotoUrls.get(profile.academia_id);
+      const photoUrl = realAdminProfessorPhotoUrls.get(profile.id);
       return `<li class="real-academy-list-item">
-        ${photoUrl ? `<img class="real-media-avatar" src="${escapeHtml(photoUrl)}" alt="Foto da academia ${escapeHtml(academy)}">` : ""}
+        <img class="real-media-avatar real-media-avatar--person" src="${escapeHtml(photoUrl || realPersonAvatarSrc(profile.id))}" alt="${photoUrl ? `Foto de ${escapeHtml(name)}` : ""}"${photoUrl ? "" : ` data-avatar-choice-profile-id="${escapeHtml(profile.id)}" data-avatar-fallback="true" aria-hidden="true"`}>
         <span><strong>${escapeHtml(name)}</strong><br><small>${escapeHtml(academy)}</small></span>
       </li>`;
     }).join("")}</ul>`
-    : emptyState("Nenhum Professor ativo encontrado", "Professores ativos aparecerão aqui.");
+    : `${emptyState("Nenhum Professor ativo encontrado", "Professores ativos aparecerão aqui.")}
+       ${button("Gerenciar Professores", "role-management", "button button--quiet")}`;
   const invitationsContent = realAdminDashboardPendingInvites
     ? `<p>${realAdminDashboardPendingInvites} convite(s) de Professor aguardando aceite.</p>`
-    : emptyState("Nenhum convite pendente", "Convites pendentes aparecerão aqui.");
+    : `${emptyState("Nenhum convite pendente", "Convites pendentes aparecerão aqui.")}
+       ${button("Convidar Professor", "teacher-invites", "button button--quiet")}`;
 
   return `${title}
     <div class="card-grid card-grid--four">
-      ${metric("ACADEMIAS", String(realAdminDashboardAcademies.length), "Cadastradas", "gold")}
-      ${metric("PROFESSORES ATIVOS", String(realAdminDashboardProfessors.length), "Papel Professor", "green")}
-      ${metric("ALUNOS ATIVOS", String(realAdminDashboardStudents), "Papel Aluno", "blue")}
-      ${metric("CONVITES PENDENTES", String(realAdminDashboardPendingInvites), "Professores convidados", "amber")}
+      ${metric("ACADEMIAS", String(realAdminDashboardAcademies.length), "Cadastradas", "gold", "academy")}
+      ${metric("PROFESSORES ATIVOS", String(realAdminDashboardProfessors.length), "Papel Professor", "green", "role-management")}
+      ${metric("ALUNOS ATIVOS", String(realAdminDashboardStudents), "Papel Aluno", "blue", "admin-students")}
+      ${metric("CONVITES PENDENTES", String(realAdminDashboardPendingInvites), "Professores convidados", "amber", "teacher-invites")}
     </div>
     <div class="content-grid" style="margin-top:16px">
       ${panel("Academias", academiesContent)}
       ${panel("Professores ativos", professorsContent)}
       ${panel("Convites de Professor", invitationsContent)}
-      ${panel("Suporte", '<p>Fale com o suporte pelo e-mail <a href="mailto:desenvolvedor.aylton@gmail.com">desenvolvedor.aylton@gmail.com</a>.</p>')}
     </div>`;
 }
 
@@ -5505,7 +5907,7 @@ function renderRealAdminAcademyResult() {
 
 function renderRealAdminAcademyScreen() {
   return `
-    ${heading("CONTA REAL · ADM", "Academia", "Cadastre ou edite academias no banco. Telefone e e-mail não são enviados.")}
+    ${heading("VISÃO DO ADM", "Academia", "Cadastre ou edite academias no banco. Telefone e e-mail não são enviados.")}
     ${panel("Criar academia", `
       <form data-academy-form data-real-academy-form>
         <div class="form-grid">
@@ -5543,7 +5945,7 @@ function renderRealAdminAcademyScreen() {
 }
 
 function renderRealProfessorAcademyScreen() {
-  const title = heading("CONTA REAL · PROFESSOR", "Academia", "Edite somente a academia vinculada ao seu perfil.");
+  const title = heading("VISÃO DO PROFESSOR", "Academia", "Edite somente a academia vinculada ao seu perfil.");
   if (realProfessorAcademyState === "checking") {
     return `${title}<p class="field-help" role="status" aria-live="polite">Carregando os dados da academia...</p>`;
   }
@@ -5644,9 +6046,9 @@ function renderRealAdminAcademyRows() {
 
 function renderRealAdminInvitesScreen() {
   return `
-    ${heading("CONTA REAL · ADM", "Professores convidados", "Convites reais são listados do banco. Somente convites pendentes podem ser excluídos.")}
+    ${heading("VISÃO DO ADM", "Professores convidados", "Os convites cadastrados aparecem aqui. Somente convites pendentes podem ser excluídos.")}
     <div class="content-grid">
-      ${panel("Convites reais", `
+      ${panel("Convites cadastrados", `
         <div id="real-invite-list" aria-live="polite">Carregando convites...</div>
         <p class="login-action-error" id="real-invite-list-error" role="alert"></p>
       `)}
@@ -5681,7 +6083,7 @@ function renderRealAdminInvitesScreen() {
 
 function renderRealAdminManagementScreen() {
   return `
-    ${heading("CONTA REAL · ADM", "Papéis e autorizações", "Consulte Professores e Instrutores e gerencie os Professores pelo banco.")}
+    ${heading("VISÃO DO ADM", "Papéis e autorizações", "Consulte Professores e Instrutores e gerencie os Professores pelo banco.")}
     ${panel("Academia", `
       <div class="field">
         <label for="real-admin-academy">Academia</label>
@@ -5728,7 +6130,7 @@ function renderRealAdminManagementDetails(academyId, profiles, replacementCandid
     `;
     return `
       <div class="list-row real-admin-professor-row">
-        ${photoUrl ? `<img class="real-media-avatar" src="${escapeHtml(photoUrl)}" alt="Foto de ${escapeHtml(profile.nome || "Professor")}">` : ""}
+        <img class="real-media-avatar real-media-avatar--person" src="${escapeHtml(photoUrl || realPersonAvatarSrc(profile.id))}" alt="${photoUrl ? `Foto de ${escapeHtml(profile.nome || "Professor")}` : ""}"${photoUrl ? "" : ` data-avatar-choice-profile-id="${escapeHtml(profile.id)}" data-avatar-fallback="true" aria-hidden="true"`}>
         <span class="row-copy">
           <strong>${escapeHtml(profile.nome || "Nome não definido")}</strong>
           <small>${roleLabel} · ${statusLabel}</small>
@@ -6113,6 +6515,8 @@ async function loadRealAdminManagementForAcademy(academyId) {
     const replacementCandidates = (profiles || []).filter((profile) =>
       profile.papel === "professor" && profile.ativo === false && acceptedProfileIds.has(profile.id)
     );
+    await loadRealAvatarPreferences((profiles || []).map((profile) => profile.id));
+    if (!isCurrentSession()) return false;
     const professorIds = (profiles || [])
       .filter((profile) => profile.papel === "professor")
       .map((profile) => profile.id)
@@ -6415,7 +6819,10 @@ function handleRealProfessorPhotoSubmit(form) {
     successMessage: "Foto do Professor atualizada.",
     errorMessage: "Não foi possível enviar a foto do Professor.",
     successDelay: 0,
-    afterSuccess: () => loadRealProfessorPhotoSettings()
+    afterSuccess: async () => {
+      await loadRealProfessorPhotoSettings();
+      await loadRealUserPanelMedia();
+    }
   }, async () => {
     if (!authClient || !realUser || !isRealActiveProfessorAccount() || !realProfile) {
       return { errorMessage: "Somente Professor ativo pode enviar foto pessoal." };
@@ -6428,6 +6835,222 @@ function handleRealProfessorPhotoSubmit(form) {
       p_caminho_storage: path,
       p_tipo_mime: file.type
     }, "a foto do Professor");
+  });
+}
+
+function handleRealAvatarChoiceSave(button) {
+  const controls = button.closest("[data-real-avatar-choice-controls]");
+  const feedback = controls && controls.querySelector("#real-avatar-choice-error");
+  const announcement = controls && controls.querySelector("#real-avatar-choice-status");
+  const radios = controls ? Array.from(controls.querySelectorAll('input[name="real-avatar-choice"]')) : [];
+  const selected = radios.find((radio) => radio.checked);
+  const userId = realUser && realUser.id;
+  runButtonAction(button, {
+    feedback,
+    announcement,
+    buttons: [button, ...radios],
+    loadingText: "Salvando...",
+    loadingMessage: "Salvando o avatar escolhido.",
+    successMessage: "Avatar padrão atualizado.",
+    errorMessage: "Não foi possível salvar o avatar escolhido.",
+    successDelay: 0
+  }, async () => {
+    if (!authClient || !userId || !realProfile || realProfile.id !== userId) {
+      return { errorMessage: "Não foi possível confirmar o perfil. Recarregue a tela e tente novamente." };
+    }
+    if (!selected || !Object.prototype.hasOwnProperty.call(REAL_PERSON_AVATARS, selected.value)) {
+      return { errorMessage: "Escolha um avatar antes de salvar." };
+    }
+    try {
+      const { data, error } = await authClient.rpc("definir_avatar_escolhido", {
+        p_avatar_escolhido: selected.value
+      });
+      if (error) {
+        logRealProfileSupabaseError("salvar avatar escolhido", error);
+        return { errorMessage: "Não foi possível salvar o avatar. Tente novamente mais tarde." };
+      }
+      if (data !== true) {
+        return { errorMessage: "O avatar não foi salvo. Confira se sua conta ainda está ativa e tente novamente." };
+      }
+      realAvatarChoiceByProfile.set(userId, selected.value);
+      realAvatarChoiceOwnerId = userId;
+      realAvatarChoiceState = "ready";
+      updateRealAvatarFallbacks(userId);
+      void loadRealUserPanelMedia();
+      return {};
+    } catch (error) {
+      logRealProfileSupabaseError("salvar avatar escolhido", error);
+      return { errorMessage: "Não foi possível salvar o avatar. Verifique a conexão e tente novamente." };
+    }
+  });
+}
+
+function handleRealPhotoRemoval(button, isProfessorPhoto) {
+  const control = button.closest(".student-action-control");
+  const feedback = control && control.querySelector('[role="alert"]');
+  const announcement = control && control.querySelector('[role="status"]');
+  const userId = realUser && realUser.id;
+  const profile = realProfile;
+  const path = isProfessorPhoto ? realOwnProfessorPhotoPath : realOwnProfilePhotoPath;
+  const bucket = isProfessorPhoto ? "professores" : "perfis";
+  const rpcName = isProfessorPhoto
+    ? "remover_foto_professor_propria"
+    : "remover_foto_perfil_propria";
+  const label = isProfessorPhoto ? "foto do Professor" : "foto de perfil";
+  if (!window.confirm(`Remover sua ${label}? O avatar escolhido será exibido no lugar.`)) return;
+
+  runButtonAction(button, {
+    feedback,
+    announcement,
+    buttons: [button],
+    loadingText: "Removendo...",
+    loadingMessage: `Removendo a ${label}.`,
+    successMessage: "Foto removida. O avatar escolhido será exibido.",
+    errorMessage: `Não foi possível remover a ${label}.`,
+    successDelay: 1800,
+    afterSuccess: () => {
+      realOwnProfilePhotoPath = "";
+      realOwnProfessorPhotoPath = "";
+      void loadRealUserPanelMedia();
+      renderScreen("user-settings");
+    }
+  }, async () => {
+    if (!authClient || !userId || !profile || profile.id !== userId || !path) {
+      return { errorMessage: "Não foi possível localizar a foto atual. Atualize as Preferências e tente novamente." };
+    }
+    if (isProfessorPhoto ? !isRealActiveProfessorAccount() : !canEditRealProfilePhoto(profile)) {
+      return { errorMessage: "Este perfil não pode remover a foto enquanto estiver inativo ou sem idade adulta declarada." };
+    }
+    let storageRemoved = false;
+    try {
+      const { error: storageError } = await authClient.storage.from(bucket).remove([path]);
+      if (storageError) {
+        logRealProfileSupabaseError(`remover ${label} do Storage`, storageError);
+        return { errorMessage: `Não foi possível apagar a ${label} no armazenamento. Verifique a conexão e tente novamente.` };
+      }
+      storageRemoved = true;
+      const { data, error } = await authClient.rpc(rpcName, {
+        p_caminho_storage: path
+      });
+      if (error) {
+        logRealProfileSupabaseError(`limpar o registro da ${label}`, error);
+        return { errorMessage: `O arquivo foi removido, mas o registro da ${label} não pôde ser limpo. Tente novamente.` };
+      }
+      if (data !== true) {
+        return { errorMessage: `O arquivo foi removido, mas o registro da ${label} não pôde ser confirmado. Tente novamente.` };
+      }
+      return {};
+    } catch (error) {
+      logRealProfileSupabaseError(`remover ${label}`, error);
+      return {
+        errorMessage: storageRemoved
+          ? `O arquivo foi removido, mas o registro da ${label} não pôde ser confirmado. Tente novamente.`
+          : `Não foi possível remover a ${label}. Verifique a conexão e tente novamente.`
+      };
+    }
+  });
+}
+
+function waitForRealServiceWorkerActivation(registration) {
+  const worker = registration.installing || registration.waiting;
+  if (!worker || worker.state === "activated") return Promise.resolve();
+  if (registration.waiting === worker) worker.postMessage({ type: "TATAME_SKIP_WAITING" });
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      worker.removeEventListener("statechange", checkState);
+      reject(new Error("A instalação do service worker demorou demais."));
+    }, 15000);
+    const checkState = () => {
+      if (worker.state === "installed" && registration.waiting === worker) {
+        worker.postMessage({ type: "TATAME_SKIP_WAITING" });
+      }
+      if (worker.state === "activated") {
+        window.clearTimeout(timeout);
+        worker.removeEventListener("statechange", checkState);
+        resolve();
+      } else if (worker.state === "redundant") {
+        window.clearTimeout(timeout);
+        worker.removeEventListener("statechange", checkState);
+        reject(new Error("A instalação do service worker não foi concluída."));
+      }
+    };
+    worker.addEventListener("statechange", checkState);
+    checkState();
+  });
+}
+
+function requestRealServiceWorkerCacheRefresh(worker) {
+  if (typeof MessageChannel !== "function") {
+    return Promise.reject(new Error("O navegador não permite atualizar o cache do app."));
+  }
+  return new Promise((resolve, reject) => {
+    const channel = new MessageChannel();
+    const timeout = window.setTimeout(() => {
+      channel.port1.close();
+      reject(new Error("O service worker não respondeu à atualização."));
+    }, 20000);
+    channel.port1.onmessage = (event) => {
+      window.clearTimeout(timeout);
+      channel.port1.close();
+      if (event.data && event.data.type === "TATAME_REFRESH_STATIC_ASSETS" &&
+          event.data.success === true) {
+        resolve();
+      } else {
+        reject(new Error("O service worker não conseguiu atualizar os arquivos."));
+      }
+    };
+    try {
+      worker.postMessage({ type: "TATAME_REFRESH_STATIC_ASSETS" }, [channel.port2]);
+    } catch (error) {
+      window.clearTimeout(timeout);
+      channel.port1.close();
+      reject(error);
+    }
+  });
+}
+
+function handleAppUpdate(button) {
+  const control = button.closest(".user-panel-action");
+  if (!control) return;
+  runButtonAction(button, {
+    feedback: control.querySelector("#app-update-error"),
+    announcement: control.querySelector("#app-update-status"),
+    buttons: [button],
+    loadingText: "Verificando...",
+    loadingMessage: "Verificando atualizações do app.",
+    successMessage: "App atualizado. Recarregando...",
+    errorMessage: "Não foi possível atualizar o app.",
+    successDelay: 0,
+    afterSuccess: () => window.setTimeout(() => window.location.reload(), 900)
+  }, async () => {
+    if (!("serviceWorker" in navigator)) {
+      return { errorMessage: "Este navegador não oferece atualização automática do app." };
+    }
+    window.__tatameUpdatingApp = true;
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        return { errorMessage: "O app ainda não tem um service worker ativo. Atualize a página e tente novamente." };
+      }
+      await registration.update();
+      await waitForRealServiceWorkerActivation(registration);
+      const refreshedRegistration = await navigator.serviceWorker.getRegistration();
+      const worker = refreshedRegistration && refreshedRegistration.active;
+      if (!worker) {
+        return { errorMessage: "Não foi possível localizar o service worker ativo. Tente novamente." };
+      }
+      await requestRealServiceWorkerCacheRefresh(worker);
+      return {};
+    } catch (error) {
+      console.warn("Não foi possível atualizar o app.", error);
+      return {
+        errorMessage: navigator.onLine === false
+          ? "Conecte-se à internet e tente novamente para atualizar o app."
+          : "Não foi possível verificar a atualização. Tente novamente."
+      };
+    } finally {
+      window.__tatameUpdatingApp = false;
+    }
   });
 }
 
@@ -6444,7 +7067,10 @@ function handleRealProfilePhotoSubmit(form) {
     successMessage: "Foto de perfil atualizada.",
     errorMessage: "Não foi possível enviar a foto de perfil.",
     successDelay: 0,
-    afterSuccess: () => loadRealProfilePhotoPreview(userId)
+    afterSuccess: async () => {
+      await loadRealProfilePhotoPreview(userId);
+      await loadRealUserPanelMedia();
+    }
   }, async () => {
     if (!authClient || !userId || !realProfile || realProfile.id !== userId) {
       return { errorMessage: "Não foi possível confirmar o perfil. Recarregue a tela e tente novamente." };
@@ -6822,6 +7448,7 @@ function syncRealSessionPanel() {
     updateUserPanelProfile();
   } else {
     document.querySelector("#profile-button").hidden = true;
+    document.querySelector(".sidebar-profile-button").hidden = true;
   }
 }
 
@@ -6886,6 +7513,8 @@ function activateProfessorOnce(userId) {
 
 function clearRealAccountCaches() {
   realSessionCacheGeneration += 1;
+  realHomeProfileRequestSequence += 1;
+  realHomeProfileContext = { academyName: "", academyPhotoUrl: "", professor: null, ownPhotoUrl: "" };
   if (realProofViewerWindow && !realProofViewerWindow.closed) realProofViewerWindow.close();
   realProofViewerWindow = null;
   clearRealUserPanelMedia();
@@ -6994,9 +7623,14 @@ function clearRealAccountCaches() {
   realAdminAcademies = [];
   realAcademyPhotoUrls = new Map();
   realAdminProfessorPhotoUrls = new Map();
+  realAvatarChoiceByProfile = new Map();
+  realAvatarChoiceOwnerId = "";
+  realAvatarChoiceState = "idle";
   realProfessorAcademy = null;
   realProfessorAcademyPhotoUrl = "";
   realOwnProfessorPhotoUrl = "";
+  realOwnProfessorPhotoPath = "";
+  realOwnProfilePhotoPath = "";
   realProfessorPhotoNotice = "";
   realProfessorAcademyState = "idle";
   realProfessorAcademyNotice = "";
@@ -7230,6 +7864,7 @@ async function updateRealSession(session, updateScreen = true) {
     realInstructorLinkNotice = "";
   }
   if (sequence !== authCheckSequence) return;
+  updateUserPanelProfile();
   renderNavigation();
   if (updateScreen) {
     if (currentScreen === "teacher-code" && isRealProfessorProfile()) {
@@ -8170,6 +8805,12 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const openSidebarButton = target.closest("[data-open-sidebar]");
+  if (openSidebarButton instanceof HTMLButtonElement) {
+    openMobileMenu(openSidebarButton);
+    return;
+  }
+
   if (target.closest("[data-open-tutorial]")) {
     if (userPanel.open) closeUserPanel(openTutorial);
     else openTutorial();
@@ -8249,6 +8890,30 @@ document.addEventListener("click", (event) => {
 
   if (target.closest("[data-theme-toggle]")) {
     setTheme();
+    return;
+  }
+
+  const appUpdateButton = target.closest("[data-app-update]");
+  if (appUpdateButton instanceof HTMLButtonElement) {
+    handleAppUpdate(appUpdateButton);
+    return;
+  }
+
+  const avatarChoiceButton = target.closest("[data-real-avatar-choice-save]");
+  if (avatarChoiceButton instanceof HTMLButtonElement) {
+    handleRealAvatarChoiceSave(avatarChoiceButton);
+    return;
+  }
+
+  const profilePhotoRemoveButton = target.closest("[data-real-profile-photo-remove]");
+  if (profilePhotoRemoveButton instanceof HTMLButtonElement) {
+    handleRealPhotoRemoval(profilePhotoRemoveButton, false);
+    return;
+  }
+
+  const professorPhotoRemoveButton = target.closest("[data-real-professor-photo-remove]");
+  if (professorPhotoRemoveButton instanceof HTMLButtonElement) {
+    handleRealPhotoRemoval(professorPhotoRemoveButton, true);
     return;
   }
 
@@ -8635,19 +9300,7 @@ document.addEventListener("submit", (event) => {
   }
 });
 
-menuButton.addEventListener("click", () => {
-  if (sidebar.classList.contains("is-open")) {
-    closeMobileMenu();
-    return;
-  }
-  sidebar.classList.add("is-open");
-  sidebarBackdrop.classList.add("is-visible");
-  sidebar.setAttribute("role", "dialog");
-  sidebar.setAttribute("aria-modal", "true");
-  menuButton.setAttribute("aria-expanded", "true");
-  sidebar.querySelector("a, button").focus();
-  document.querySelectorAll(".app-main, #mobile-navigation").forEach((element) => { element.inert = true; });
-});
+menuButton.addEventListener("click", () => openMobileMenu(menuButton));
 
 sidebarBackdrop.addEventListener("click", closeMobileMenu);
 
@@ -8656,7 +9309,6 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     event.preventDefault();
     closeMobileMenu();
-    menuButton.focus();
     return;
   }
   if (event.key !== "Tab") return;
@@ -8752,6 +9404,15 @@ tutorialDialog.addEventListener("keydown", (event) => {
   }
 });
 
+function updateRealBillingRuleFields(form) {
+  const discountType = form.querySelector("#real-billing-discount-type").value;
+  const durationType = form.querySelector("#real-billing-duration").value;
+  form.querySelector("#real-billing-discount-value").closest(".field").hidden = discountType !== "valor_fixo";
+  form.querySelector("#real-billing-discount-percent").closest(".field").hidden = discountType !== "percentual";
+  form.querySelector("#real-billing-reason").closest(".field").hidden = discountType !== "isencao";
+  form.querySelector("#real-billing-duration-months").closest(".field").hidden = durationType !== "n_meses";
+}
+
 function readRealBillingRuleForm(form) {
   const studentId = form.querySelector("#real-billing-student-id").value.trim();
   const startMonth = form.querySelector("#real-billing-start-month").value;
@@ -8761,8 +9422,8 @@ function readRealBillingRuleForm(form) {
   const discountValue = form.querySelector("#real-billing-discount-value").value.trim();
   const percentValue = form.querySelector("#real-billing-discount-percent").value.trim();
   const durationType = form.querySelector("#real-billing-duration").value;
-  const durationValue = form.querySelector("#real-billing-duration-months").value.trim();
-  const reasonValue = form.querySelector("#real-billing-reason").value.trim();
+  const durationValue = durationType === "n_meses" ? form.querySelector("#real-billing-duration-months").value.trim() : "";
+  const reasonValue = discountType === "isencao" ? form.querySelector("#real-billing-reason").value.trim() : "";
 
   if (!realBillingStudentNames.has(studentId)) {
     return { errorMessage: "Selecione um aluno vinculado." };
@@ -8786,16 +9447,12 @@ function readRealBillingRuleForm(form) {
   if (!["nenhum", "valor_fixo", "percentual", "isencao"].includes(discountType)) {
     return { errorMessage: "Escolha um tipo de desconto válido." };
   }
-  if (discountType !== "isencao" && reasonValue) {
-    return { errorMessage: "O motivo só pode ser informado quando a regra é uma isenção." };
-  }
   if (Array.from(reasonValue).length > 200) {
     return { errorMessage: "O motivo da isenção deve ter no máximo 200 caracteres." };
   }
   const durationMonths = durationValue === "" ? null : Number(durationValue);
   if (!["este_mes", "n_meses", "ate_remover"].includes(durationType) ||
-      (durationType === "n_meses" && (!Number.isInteger(durationMonths) || durationMonths < 1)) ||
-      (durationType !== "n_meses" && durationMonths !== null)) {
+      (durationType === "n_meses" && (!Number.isInteger(durationMonths) || durationMonths < 1))) {
     return { errorMessage: "Confira a duração da regra e o número de meses." };
   }
 
@@ -8852,6 +9509,11 @@ async function callRealPaymentRpc(functionName, parameters, role, failureMessage
 document.addEventListener("change", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
+  if (target.matches("#real-billing-discount-type, #real-billing-duration")) {
+    const form = target.closest("[data-real-billing-rule-form]");
+    if (form) updateRealBillingRuleFields(form);
+    return;
+  }
   if (target instanceof HTMLSelectElement && target.id === "real-student-payment-type") {
     const field = document.querySelector("#real-student-proof-field");
     const fileInput = document.querySelector("#real-student-proof-file");
@@ -9641,8 +10303,7 @@ document.addEventListener("click", (event) => {
       form.querySelector("#real-billing-duration").value = rule.duracao_tipo;
       form.querySelector("#real-billing-duration-months").value = rule.duracao_meses || "";
       form.querySelector("#real-billing-reason").value = rule.motivo_isencao || "";
-      form.querySelector('[data-feature-counter="motivo_isencao"]').textContent =
-        `${form.querySelector("#real-billing-reason").value.length}/200 caracteres`;
+      updateRealBillingRuleFields(form);
       form.querySelector("#real-billing-student-id").focus();
       return {};
     });

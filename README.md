@@ -1,120 +1,86 @@
 # Tatame
 
-PWA de gestão de academia de jiu-jitsu, em desenvolvimento.
+PWA de gestão de academia de jiu-jitsu, construída com HTML, CSS e JavaScript puros. A aplicação oferece telas diferentes para Adm, Professor, Instrutor e Alunos, com autenticação e dados reais no Supabase.
 
-## Visão do projeto
+## O que o app oferece
 
-Aplicativo web instalável para apoiar a rotina de uma academia de jiu-jitsu: gestão de alunos, pagamentos, graduações, aulas e comunicação. Os perfis incluem Adm, Professor, Instrutor e Aluno. O Instrutor é um aluno com função de apoio, vê uma única turma e só ministra aulas delegadas pelo Professor, que decide o conteúdo. Cada Professor tem uma única turma.
+- Gestão de academia, perfis, convites, vínculos e alunos.
+- Ferramentas de aula delegada e plano semanal para Professor e Instrutor.
+- Graduações, conversas e acompanhamento de progresso para alunos.
+- Cobranças mensais controladas dentro do app, registro de pagamentos e envio opcional de comprovantes.
+- Preferências de conta, tema, ajuda, consentimento e exportação dos dados que a própria conta pode ler.
+- Interface responsiva: navegação lateral no computador; quatro atalhos e menu “Mais” na barra inferior do celular.
 
-O roadmap do produto é a especificação principal. As imagens de referência de estilo não são requisitos: quando houver divergência, vale o roadmap. A interface usa preto, grafite neutro e dourado no tema escuro; branco e azul no tema claro. O vermelho da marca é um detalhe pequeno, distinto do vermelho de alerta. O app terá experiências de interface próprias para notebook e mobile, mantendo as funcionalidades disponíveis e utilizáveis em toda a faixa de telas.
+O app não processa pagamentos, não envia mensagens fora dele e não envia notificações push. Alunos sem conta não são incluídos nas cobranças mensais gravadas no banco real. O texto copiado na tela de cobranças não grava cobrança nem mensagem.
 
-O estudo inicial de identidade visual fica em [`assets/identidade.html`](assets/identidade.html): o ícone Escudo aprovado, usado sozinho sem nome integrado, e dois avatares SVG (masculino e feminino), também aprovados pelo usuário. O símbolo tem insígnia circular, “T” personalizado e faixa preta com ponteira vermelha e três graus brancos. Os avatares têm silhuetas definidas e rostos angulosos. O ícone foi aplicado ao cabeçalho do painel de testes; será aplicado ao app quando sua interface for criada.
+## Perfis
 
-## Princípios e tecnologia
+- **Adm:** administra a academia, os perfis, os convites de Professor, os alunos e os papéis disponíveis. Não tem acesso às telas de pagamentos, notas privadas, feedbacks ou metas.
+- **Professor:** gerencia alunos vinculados, convites e vínculos, aulas delegadas, graduações, pagamentos, cobranças e conteúdos de treino.
+- **Instrutor:** acessa apenas alunos e conteúdos compartilhados pelo Professor; registra o acompanhamento da aula delegada e usa o plano semanal. Não acessa pagamentos, notas privadas, feedbacks ou metas.
+- **Aluno adulto:** acessa suas graduações, pagamentos, conversa e progresso, conforme o vínculo e as permissões existentes.
+- **Aluno menor:** usa avatar em vez de foto de pessoa; a idade é declarada, não verificada. As telas e dados disponíveis dependem do vínculo e das permissões existentes.
 
-- HTML, CSS e JavaScript puros, sem frameworks ou etapa de build.
-- GitHub Pages para hospedagem; o banco Supabase já foi criado. Supabase será usado para autenticação e dados, com políticas RLS por perfil; tabelas e migrations serão definidas e acrescentadas conforme cada lote precisar delas.
-- Custo de infraestrutura zero. Não adicionar dependências externas sem autorização.
-- O papel e as permissões de cada pessoa vêm do banco de dados, nunca de uma regra confiada ao navegador.
-- O sistema não processa transações. O Aluno pode registrar um aviso de pagamento com comprovante opcional; o Professor confirma ou rejeita o aviso. O Professor também pode lançar manualmente um recebimento em dinheiro ou registrar um pagamento sem comprovante. No fluxo real, comprovantes JPG/PNG/PDF de até 10 MiB são removidos do Storage quando o pagamento é decidido ou após 30 dias sem decisão; os registros permanecem.
-- Os avisos do app ficam dentro dele. O app não envia mensagens fora dele nem usa notificações push.
-- Usar apenas dados fictícios nos testes; nunca incluir credenciais, tokens ou dados reais de pessoas no repositório.
-- Conformidade com a LGPD é requisito do produto. Antes de definir ou implementar dados pessoais coletados, finalidades, hipóteses legais, consentimento, prazos de retenção, compartilhamento, atendimento aos direitos dos titulares ou conteúdo da política de privacidade, confirmar os fatos e obter aprovação do usuário. Não presumir práticas ou declarações legais, nem afirmar conformidade sem revisão apropriada.
-- A política de privacidade deverá estar em uma página HTML própria e ter um link clicável no app que abre um modal para leitura. Manter a página e o modal sincronizados quando houver mudanças; os testes devem verificar o acesso, leitura, fechamento, teclado, responsividade e consistência do conteúdo. A publicação da política depende de conteúdo confirmado pelo usuário.
-- Criar migrations sem executá-las. Só podem ser aplicadas após conferência do desenvolvedor; o app não pode depender de uma migration ainda não aplicada.
+A autorização real é determinada pelo perfil e pelas políticas do banco, não por uma regra de papel fixa no código do cliente. Adm, Professor, Instrutor e Alunos podem ter visões diferentes da mesma informação.
 
-## Login Google em configuração
+## Fotos e comprovantes
 
-O Google usa a biblioteca oficial `@supabase/supabase-js` **2.49.8**, distribuída localmente em `js/vendor/`, obtida de `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/` com sua licença. A autenticação real é separada das contas de demonstração e ainda não conecta as telas fictícias ao perfil real. Ao retornar do Google, o app consulta `public.perfis`; se não encontrar perfil, chama `public.ativar_professor()` uma vez por sessão. Quando a função confirma a ativação, o app relê e mostra o papel e o nome do perfil; quando recusa, informa que pode não haver convite pendente para o e-mail Google ou que o e-mail não está confirmado. A função só ativa um Professor com convite e e-mail confirmado; não cria nome. Falhas de consulta não são tratadas como ausência de perfil. A saída Google encerra a sessão neste navegador, separadamente da saída da demonstração.
+- Fotos de pessoa e da academia aceitam JPG ou PNG de até 5 MiB. Quando não há foto de pessoa visível, o app mostra o avatar escolhido nas Preferências (masculino por padrão); a escolha é guardada no perfil. Quem pode enviar foto de perfil pode solicitar sua remoção após confirmação.
+- Fotos de pessoa aparecem quadradas com cantos suavemente arredondados; no painel do usuário permanecem redondas. O corte é centralizado e usa `object-fit: cover`.
+- Menor ou pessoa sem idade declarada não envia foto de pessoa. A foto da academia não usa o avatar padrão.
+- Visibilidade prevista: Adm vê a própria foto e, como exceção, a do Professor; Aluno adulto e Instrutor veem a própria e a do Professor vinculado; o Professor vê a própria e as fotos de pessoas vinculadas; a foto do Professor fica visível aos vinculados e ao Adm; fotos da academia são visíveis a autenticados.
+- Comprovantes aceitam JPG, PNG ou PDF de até 10 MiB. São opcionais e usados no aviso de pagamento; cobranças e confirmações são controladas no app, sem gateway.
+- As regras de visibilidade acima são decisões previstas, não garantia de produção. A aplicação das migrations foi informada pelo Aylton; não foi verificada nesta análise. As policies consultam `vinculos`, enquanto convites de Instrutor usam `instrutores_professor`, o que pode impedir acesso às fotos entre Professor e Instrutor. É necessária revisão e confirmação do banco antes de considerar esse acesso efetivo.
 
-A migration `20261109_10_definir_nome_professor.sql` define a RPC `public.definir_nome_professor(p_nome text)` e já foi aplicada no banco. Na tela Conta Google, o Professor real ativo vinculado a uma academia pode definir o próprio nome; o app valida a entrada, traduz os códigos de retorno e relê `perfis.nome` após o sucesso. A demonstração continua separada e simulada.
+## Navegação e privacidade
 
-Para configurar e testar manualmente:
-1. Copie `js/config.example.js` para criar o arquivo local `js/config.js` e preencha `url` e `publicKey` com os dados do projeto. `js/config.js` é versionado e publicado pelo Pages; contém somente a URL do projeto e a chave publicável, nunca chave secreta; a conferência antes de cada commit é feita pelo Aylton. Use apenas uma chave pública **publishable** ou **anon**; nunca coloque `service_role`, `sb_secret_` ou outro segredo no arquivo, pois a chave fica acessível ao navegador. Não compartilhe tokens ou sessões.
-2. No Supabase, habilite o provedor Google e configure **Site URL** com o endereço real do app escolhido para uso principal. Em **Redirect URLs**, autorize a URL completa da página do app no Live Server e a URL completa efetiva do GitHub Pages. Use os endereços e portas realmente usados; o app retorna à origem e ao caminho da página atual, sem URL fixa.
-3. No Google Cloud, configure as origens JavaScript autorizadas com as origens reais do Live Server e do Pages, sem caminho. Em URIs de redirecionamento autorizados do cliente OAuth, adicione a URL de callback exibida pelo Supabase para o provedor Google (para este projeto, `https://zpmszmbcgdanokgiznal.supabase.co/auth/v1/callback`). Cadastre o cliente no provedor Google do Supabase sem colocar seus segredos em arquivos do app.
-4. Abra pelo Live Server ou HTTPS, não por `file:`. Com configuração aprovada e dados de teste, confira entrada, retorno, sessão, ausência de perfil, falhas e saída. A configuração vazia impede o login real, mas não impede a demonstração. Antes de uso real, revise e aprove as decisões de privacidade e LGPD.
+A navegação tem o mesmo conteúdo e as mesmas permissões nos dois formatos. No computador, a barra lateral fixa reúne as telas por tarefa e mantém o perfil no rodapé. No celular, quatro atalhos frequentes ficam na barra inferior e “Mais” abre as demais telas, sem ocultar recursos.
 
-## Fotos e comprovantes no fluxo real
+A política está disponível em [privacidade.html](./privacidade.html) e no modal “Ler política” dentro do app. As apresentações devem permanecer sincronizadas. O texto descreve dados, vínculos, fotos, comprovantes, cobranças, retenção e limites atuais; ainda requer revisão apropriada. Este README não declara conformidade legal.
 
-As migrations `20261110_23_comprovantes_storage.sql` e `20261110_24_foto_professor_sem_idade.sql` já foram aplicadas. Os buckets são `comprovantes`, `academias` e `professores`. O comprovante é opcional, aceita JPG/PNG/PDF até 10 MiB e só fica visível ao Aluno dono e ao Professor do vínculo. Ao confirmar ou rejeitar, ou após 30 dias sem decisão, o arquivo é removido do Storage; após o prazo, o aviso continua pendente e os registros são mantidos.
+O front usa a versão `rascunho-1` do termo. A migration `20261111_28_versao_termo.sql` converte esse rótulo para `final-1`; sua aplicação foi informada pelo Aylton, sem verificação nesta análise. Os registros de consentimento são imutáveis; aceites antigos não devem ser reescritos.
 
-Fotos de academia em JPG/PNG até 5 MiB são visíveis a todos os perfis autenticados. A foto do Professor é visível aos Alunos vinculados e ao Adm. Menores usam somente avatar; Aluno, Instrutor e Adm não enviam foto de pessoa. A tela `pix-import` de importação de extrato Pix foi removida; o fluxo real é o aviso opcional do Aluno e a decisão do Professor.
+## Preview local
 
-## Testes dos fluxos reais
+O diretório [dev-preview/](./dev-preview/) é ignorado pelo Git e não faz parte da publicação. Ele carrega os arquivos reais do app e substitui somente o cliente Supabase por dados fictícios em memória. Não use dados reais no preview.
 
-Os botões de entrada, cadastro e operações reais usam estados e mensagens acessíveis e reutilizam `runButtonAction`. Testes de autenticação, gravação e permissões exigem a configuração aprovada e contas de teste; a página `demo.html` não inicia essas operações. Os parâmetros `erro-simulado` e os fluxos demonstrativos descritos anteriormente não existem mais.
+No PowerShell, na raiz do repositório, inicie o servidor local:
 
-O login e o painel da conta mostram a versão definida em `APP_VERSION` (atualmente `5.18`); atualize essa constante sempre antes de cada push. As próximas versões seguem `5.19`, `5.20` e assim por diante. Sete cliques na versão do painel revelam diagnósticos temporários com categorias e horários de erros, sem mensagens, nomes, arquivos ou dados da conta. O `sw.js` versiona o cache do shell estático e não guarda configuração, requisições autenticadas nem respostas do Supabase.
+```powershell
+python -m http.server 8766 --bind 127.0.0.1
+```
 
-## Gestão real do Adm
+Abra `http://127.0.0.1:8766/dev-preview/`. O cabeçalho de controle fica oculto por padrão; acrescente `?painel=1` para mostrar o seletor e os controles. O perfil é escolhido pelo parâmetro `perfil`:
 
-Somente uma sessão Google com perfil Adm ativo usa estas operações reais; a demonstração continua isolada. A tela Academia lê e cria registros e atualiza nome/foto pela RPC `atualizar_academia`, com a versão de edição esperada. A tela Professores e papéis lê Professores e Instrutores permitidos pela policy atual, vincula o Adm por `vincular_adm_professor`, troca Professor por `trocar_professor_academia` e permite desativar/reativar pelos RPCs correspondentes. A troca só oferece Professores inativos da academia com convite aceito (`status = 'ativo'`). Mensagens de erro ao usuário são genéricas; as respostas conhecidas das funções são traduzidas para português. As operações ainda aguardam teste manual e validação do usuário.
+- `adm`
+- `professor`
+- `instrutor`
+- `aluno-adulto-vinculado`
+- `aluno-adulto-sem-vinculo`
+- `aluno-menor-vinculado`
+- `aluno-menor-sem-vinculo`
 
-A tela Código e convites lê `turmas.codigo` e chama `gerar_codigo()` somente para o Professor real ativo vinculado a uma academia. A tela também lista pedidos pendentes permitidos pelas policies, mostra somente o nome do aluno e permite aprovar ou recusar com confirmação pela RPC `decidir_pedido`. Um Professor real ativo também lista seus alunos sem conta pela policy de `alunos_sem_conta`, cria registros por `criar_aluno_sem_conta` e altera a idade declarada por `atualizar_idade_aluno_sem_conta`; as opções são Adulto e Menor de 18 anos, sem data de nascimento ou foto. A lista usa somente avatar com iniciais. Para a conta real de Aluno ativo, Vincular a um Professor envia o código normalizado pela RPC `solicitar_vinculo` e consulta o último estado permitido em `pedidos_vinculo`. A função não distingue código inválido, vínculo existente e pedido pendente; nesses casos o app informa uma mensagem genérica, sem confirmar se o código existe. Bloqueio por tentativas informa a espera de 15 minutos. A demonstração continua simulada e separada.
+Exemplo: `http://127.0.0.1:8766/dev-preview/frame.html?perfil=professor`. O preview não substitui testes com o backend nem comprova permissões de produção.
 
-Na conta real do Professor, a tela Cobranças mensais também permite selecionar um aluno sem conta, informar valor e vencimento e copiar uma mensagem local; não salva cobrança ou texto. A tela real do Instrutor consulta `listar_alunos_do_instrutor` e exibe somente nome e faixa/grau atuais dos alunos do Professor, sem histórico ou outros dados.
+## Estrutura do repositório
 
-A navegação lateral agrupa as telas disponíveis por assunto e pelo papel da conta ativa; não há troca de visão dentro da sessão. O painel da conta reúne preferências disponíveis, ajuda, ações simuladas do app, diagnósticos desbloqueados e saída. A área de risco é recolhível e aparece separada ao final. Digitar `EXCLUIR` libera a exclusão demonstrativa: os dados pessoais fictícios e a foto temporária da conta são removidos deste navegador, pagamentos/vínculos/graduações compartilhados continuam com a identificação “Conta excluída”, as conversas são removidas e a sessão demonstrativa é encerrada. A conta real não é apagada.
+- `index.html`: estrutura e pontos de entrada da aplicação.
+- `css/app.css`: estilos e temas claro/escuro.
+- `js/app.js`: navegação, renderização e interações do cliente.
+- `js/vendor/`: dependências locais de terceiros; não editar sem autorização.
+- `assets/`: ícones, marca e avatares locais.
+- `dev-preview/`: ferramentas locais de demonstração, fora do controle de versão.
+- `supabase/migrations/`: histórico e propostas de estrutura, funções e políticas do banco.
+- `tests/`: painel de especificações e plano visual; a conferência de integridade não é teste funcional de ponta a ponta.
+- `sw.js` e `manifest.webmanifest`: instalação e cache da PWA.
 
-- **Acesso:** Tenho um código de convite; Entrar como Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro; Ver política e termo, Voltar para entrar; Voltar e Validar convite de instrutor.
-- **Aluno:** Ver histórico de graduações, Ver academia; Trocar de professor, Vincular a um professor, Cancelar pedido; Escolher comprovante Pix.
-- **Painel do professor:** Cadastrar aluno, Papéis e autorizações, Confirmar pagamentos, Configurar cobranças mensais e Conversas.
-- **Alunos e ficha:** Novo aluno, filtros Todos, Ativos, Trancados e Sem acesso, Abrir ficha; abas Resumo, Pagamentos, Graduações, Feedbacks e Notas privadas.
-- **Novo aluno e convite:** Limpar campos e Pré-visualizar convite.
-- **Código e convites:** Copiar código, Trocar código, Gerar link, Aprovar e Recusar pedidos de vínculo. Na conta real, Professor ativo lê/gera o código, decide pedidos e administra alunos sem conta; Aluno ativo envia pedido e consulta seu estado. A demonstração permanece simulada.
-- **Papéis e autorizações:** Vincular à Academia Fictícia/Academia vinculada, Graduar a Professor, Promover a instrutor/Papel atualizado, Autorizar/Autorizado e Delegar aula.
-- **Cobranças mensais:** Salvar regras e gerar cobranças (até 24 por vez); enviar ou reenviar cobrança aberta ao aluno e copiar mensagem.
-- **Atrasados e cobrança:** Ver cobranças atrasadas calculadas por vencimento e carência.
-- **Ações rápidas:** Novo aluno, Papéis e autorizações, Confirmar pagamento, Consultar atrasos, Ver alunos e Voltar ao painel.
-- **Conversas:** Enviar nas telas do Professor e Instrutor.
-- **Adm e Instrutor:** Ver professores convidados, Prévia do convite; Segui e Não segui.
-- **Academia, preferências e privacidade:** Publicar grade/Voltar para rascunho; Alternar tema pelo rodapé do app, Buscar versão, Consultar, Abrir ajuda; Continuar e Abrir aviso em modal.
-- **Navegação lateral e inferior:** Abrir/Fechar navegação; Entrar, Cadastro por convite, Vincular a um professor, Aguardando liberação, Convite de instrutor, Início, Meu vínculo, Meus pagamentos, Minhas graduações, Conversa com o professor, Painel do professor, Alunos, Ficha do aluno, Novo aluno e convite, Código e convites, Papéis e autorizações, Pagamentos a confirmar, Cobranças mensais, Atrasados, Ações rápidas, Conversas, Treino compartilhado, Painel do Adm, Professores convidados, Academia, Preferências e Privacidade.
-- **Painéis e modais:** Abrir/Fechar painel do usuário, Preferências, Privacidade, Tutorial, Alternar tema e Sair; Termo de consentimento, Fechar modais e Voltar, Pular, Próximo/Concluir no tutorial.
+## Desenvolvimento e publicação
 
-## Estado do real
+O projeto não tem etapa de build nem usa framework. Rode o app ou o preview em servidor HTTP local; abrir os arquivos diretamente via `file://` não reproduz corretamente os recursos da PWA. O app publicado usa o GitHub Pages e o Supabase para autenticação e dados.
 
-- **Professor:** cobranças mensais, pagamentos (confirmar, rejeitar, estornar e lançar dinheiro), graduações, seleção de alunos vinculados nas cobranças e graduações e convites de Instrutor.
-- **Aluno:** cobranças enviadas pelo Professor, aviso de pagamento, faixa atual e histórico próprios; pode solicitar vínculo pelo código.
-- **Instrutor:** lista de alunos do Professor com nome e faixa/grau atuais. O Aluno que também é Instrutor mantém as telas próprias de Aluno.
-- **Adm:** gestão de academias, convites e Professores; lista de alunos ativos com nome e faixa/grau atuais, sem foto, por função.
+Migrations são arquivos de revisão e só podem ser aplicadas após conferência do desenvolvedor. Não publique código que dependa de coluna ou migration ainda não aplicada. Não inclua segredos, senhas, tokens ou dados reais no repositório. Atualize a versão do app antes de qualquer publicação e confira localmente o conteúdo destinado ao GitHub.
 
-Nada acima foi validado em uso real.
-
-## Como testar no iPhone (app publicado)
-
-1. Abra no Safari o link publicado do GitHub Pages.
-2. Toque em Compartilhar e escolha **Adicionar à Tela de Início**.
-3. Abra o app pelo ícone e entre com a conta Google de teste autorizada.
-4. Teste o cadastro de Aluno ou Instrutor com e-mail e senha de teste.
-5. Use **Esqueci a senha** e conclua a recuperação pelo link recebido no e-mail de teste.
-6. Confira a barra inferior nas contas de Aluno, Instrutor, Professor e Adm; o Adm deve ter quatro itens.
-7. Alterne entre os temas escuro e claro e confira a apresentação.
-
-## O que ainda é em construção no real
-
-- Exclusão real de conta.
-- Notas privadas reais.
-- Conversa real.
-- Exportação.
-- Tutoriais.
-
-## Acompanhar os testes
-
-Abra [`tests/teste.html`](tests/teste.html) no navegador a partir do VS Code para ver o painel e os casos de aceite separados em [F1](tests/casos-f1.js), [F2](tests/casos-f2.js) e [F3/segurança](tests/casos-f3.js). Acompanhe as etapas e estados na página visual do [plano do projeto](tests/plano.html), disponível também pelo cabeçalho do painel. Os estados dessa página espelham o plano registrado neste README; atualize ambos juntos e confira a distribuição de tarefas após cada mudança. Os casos são especificações test-first: permanecem pendentes até poderem ser executados contra o aplicativo; os casos do instrutor, das sugestões de aula e da política LGPD aguardam revisão quando indicado. As verificações do catálogo não contam como aprovação funcional. O `index.html` da raiz fica reservado para a aplicação.
-
-Cada lote deverá trazer seus testes junto com a implementação. A cobertura deve crescer por fase e incluir:
-
-- **Base e interface:** carregamento, navegação, responsividade, estados vazios e mensagens de erro.
-- **Acesso e privacidade:** perfis, convites, consentimento e tentativas de acesso não autorizado, incluindo validação das políticas RLS.
-- **Alunos e pagamentos:** cadastro e vínculo, cobranças mensais fictícias, descontos/isenções com duração, avisos, confirmação/recusa e pagamentos parciais. O app apenas controla pagamentos; não existe gateway.
-- **Graduações e operação:** histórico e permissões, mural, mensagens, feedbacks, aulas, backups e demais funcionalidades da fase correspondente.
-- **Experiências por dispositivo:** manter a identidade visual dos projetos; priorizar no mobile a experiência de iPhone 13 ou superior, com navegação inferior e respeito às áreas seguras. Na web, otimizar o mesmo padrão para notebook, com sidebar à esquerda e painel do usuário oculto à direita. Preservar as funcionalidades nos dois layouts.
-- **Interface em todos os tamanhos de tela:** em cada lote, testar as experiências próprias de notebook e mobile e todas as telas/fluxos em larguras de referência de 320, 360, 390, 768, 1024, 1280, 1440 e 1920 px, incluindo iPhone 13 (390 × 844 CSS px) e iPhone 13 Pro Max (428 × 926 CSS px), na menor largura suportada e 1 px abaixo/no/acima de cada breakpoint responsivo. Redimensionar continuamente na faixa suportada; repetir em retrato, paisagem, altura curta, áreas seguras do iPhone e com texto aumentado. Procurar sobreposições, componentes cortados ou fora do lugar, textos e campos desalinhados ou truncados, barras fixas que encobrem conteúdo, rolagem inesperada e modais/caixas de diálogo que não cabem ou não podem ser operados; verificar que as funcionalidades permanecem disponíveis nos dois layouts.
-- **Qualidade de entrega:** regressão das fases anteriores, uso com dados fictícios, comportamento offline/PWA e conferência manual nos dispositivos e navegadores definidos para o lote.
-
-Não marcar uma verificação como aprovada sem executá-la e conferir o resultado. Para concluir um lote, todos os testes previstos para ele devem passar e o resultado precisa ser conferido pelo usuário.
+Para a conferência de especificações, abra `tests/teste.html` por um servidor HTTP local. O painel verifica integridade das especificações, não funcionamento de telas, RLS no banco real ou fluxos completos. As alterações do plano ficam registradas na seção final deste README e devem manter o painel `tests/plano.js` sincronizado.
 
 ## Plano do projeto
 

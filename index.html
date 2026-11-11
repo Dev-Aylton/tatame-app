@@ -19,6 +19,14 @@
   <script src="js/offline.js" defer></script>
   <script>
     if ("serviceWorker" in navigator) {
+      const hadServiceWorkerController = Boolean(navigator.serviceWorker.controller);
+      let refreshingForServiceWorker = false;
+      window.__tatameUpdatingApp = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!hadServiceWorkerController || refreshingForServiceWorker || window.__tatameUpdatingApp) return;
+        refreshingForServiceWorker = true;
+        window.location.reload();
+      });
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("./sw.js").catch((error) => {
           console.warn("Não foi possível registrar o service worker.", error);
@@ -46,6 +54,11 @@
       </div>
       <nav class="screen-navigation" id="screen-navigation" aria-label="Telas por perfil"></nav>
       <div class="sidebar-footer">
+        <button class="sidebar-profile-button" type="button" data-open-user-panel aria-haspopup="dialog" aria-controls="user-panel" hidden>
+          <span class="sidebar-profile-avatar" aria-hidden="true"><img src="assets/avatars/avatar-masculino.jpg" alt=""></span>
+          <span class="sidebar-profile-copy"><strong id="sidebar-profile-name">Conta</strong><small id="sidebar-profile-role">Perfil</small></span>
+          <span class="sidebar-profile-arrow" aria-hidden="true">↗</span>
+        </button>
       </div>
     </aside>
 
@@ -64,7 +77,7 @@
           </div>
         </div>
         <button class="profile-button" id="profile-button" type="button" data-open-user-panel aria-label="Abrir painel do usuário" aria-haspopup="dialog" aria-controls="user-panel" hidden>
-          <span class="profile-orb" id="profile-button-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>
+          <span class="profile-orb" id="profile-button-avatar" aria-hidden="true"><img src="assets/avatars/avatar-masculino.jpg" alt=""></span>
           <span class="profile-button-copy"><strong>Visualizar perfil</strong><small>Sem sessão ativa</small></span>
           <span class="chevron" aria-hidden="true">⌄</span>
         </button>
@@ -96,12 +109,19 @@
       <button class="icon-button" type="button" data-close-user-panel aria-label="Fechar painel do usuário">×</button>
     </div>
     <div class="user-panel-profile">
-      <span class="user-panel-avatar" id="user-panel-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg><img id="user-panel-profile-photo" alt="" hidden></span>
+      <span class="user-panel-avatar" id="user-panel-avatar" aria-hidden="true"><img id="user-panel-profile-photo" src="assets/avatars/avatar-masculino.jpg" alt=""></span>
       <div class="user-panel-profile-copy">
         <strong id="user-panel-profile-name">Sem sessão ativa</strong>
         <small id="user-panel-profile-role">Perfil</small>
-        <small class="user-panel-profile-academy" id="user-panel-profile-academy">Sem academia vinculada<img class="user-panel-academy-photo" id="user-panel-academy-photo" alt="" hidden></small>
+        <small class="user-panel-profile-academy" id="user-panel-profile-academy" hidden>Sem academia vinculada<img class="user-panel-academy-photo" id="user-panel-academy-photo" alt="" hidden></small>
       </div>
+    </div>
+    <div class="user-panel-links" aria-label="Preferências" role="group">
+      <h3 class="user-panel-group-title">Preferências</h3>
+      <button class="user-panel-link" type="button" data-screen-target="user-settings">
+        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg></span><span><strong>Dados e foto do perfil</strong><small>Preferências, dados da conta e ajuda</small></span><span aria-hidden="true">›</span>
+      </button>
+      <button class="user-panel-theme" type="button" data-theme-toggle aria-pressed="false">Tema: escuro</button>
     </div>
     <div class="user-panel-links" aria-label="Ajuda" role="group">
       <h3 class="user-panel-group-title">Ajuda e suporte</h3>
@@ -123,6 +143,11 @@
         <button class="button button--quiet button--action" type="button" data-real-signout aria-describedby="real-signout-error"><span data-action-label>Sair da conta</span></button>
         <p class="login-action-error" id="real-signout-error" role="alert"></p>
         <p class="field-help" id="real-signout-status" role="status" aria-live="polite"></p>
+      </div>
+      <div class="user-panel-action">
+        <button class="button button--quiet button--action" type="button" data-app-update aria-describedby="app-update-error app-update-status"><span data-action-label>Atualizar app</span></button>
+        <p class="login-action-error" id="app-update-error" role="alert"></p>
+        <p class="field-help" id="app-update-status" role="status" aria-live="polite"></p>
       </div>
     </div>
     <p class="user-panel-note">O perfil e as permissões são definidos pelo banco.</p>
