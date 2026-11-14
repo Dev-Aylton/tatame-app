@@ -28,11 +28,11 @@ window.CASOS_ACEITE_F2 = [
     id: "F2-HELP-01",
     fase: "F2",
     area: "Ajuda e tutoriais",
-    titulo: "Tutorial explica as telas próprias de cada tipo de conta",
+    titulo: "Tutoriais por tópico ficam no painel do usuário",
     perfil: "Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro",
     regras: "RN26 e tutorial contextual",
-    precondicoes: "Cada tipo de conta possui um tutorial com passos, ilustrações SVG inline e controles acessíveis.",
-    passos: ["Acessar cada tipo de conta pela primeira vez.", "Avançar, voltar e pular os passos.", "Reabrir o tutorial pelo painel do usuário."],
-    esperado: "Cada tutorial cobre as telas e funcionalidades de roleScreens daquele tipo de conta; o do Professor explica o papel e os limites do Instrutor. O modal funciona por toque e teclado, mantém foco, fecha com Escape e não corta conteúdo."
+    precondicoes: "Cada tipo de conta possui tópicos de tutorial com ilustrações SVG inline e controles acessíveis.",
+    passos: ["Abrir o painel do usuário em cada tipo de conta.", "Expandir os tópicos e selecionar um de cada vez.", "Fechar o modal por botão e Escape; conferir foco e conteúdo."],
+    esperado: "Os tópicos correspondem às telas acessíveis pelo papel e aparecem somente no painel do usuário; cada escolha abre um único modal, mantém o foco e fecha com Escape."
   }
 ];

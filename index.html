@@ -124,9 +124,14 @@
     </div>
     <div class="user-panel-links" aria-label="Ajuda" role="group">
       <h3 class="user-panel-group-title">Ajuda e suporte</h3>
-      <button class="user-panel-link" type="button" data-open-tutorial>
-        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 17h.01"/></svg></span><span><strong>Ajuda e tutorial</strong><small>Tutorial e perguntas frequentes</small></span><span aria-hidden="true">›</span>
-      </button>
+      <details class="user-panel-tutorial" id="user-panel-tutorial" hidden>
+        <summary class="user-panel-link">
+          <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 17h.01"/></svg></span>
+          <span><strong>Tutoriais por tópico</strong><small>Escolha o que deseja consultar</small></span>
+          <span aria-hidden="true">⌄</span>
+        </summary>
+        <div class="user-panel-tutorial-topics" id="user-panel-tutorial-topics"></div>
+      </details>
       <p><a class="text-link" href="privacidade.html">Política de privacidade</a></p>
     </div>
     <details class="user-panel-diagnostics" id="user-diagnostics" hidden>
@@ -165,6 +170,40 @@
     <div id="profile-onboarding-content"></div>
   </dialog>
 
+  <dialog class="photo-crop-dialog" id="photo-crop-dialog" aria-labelledby="photo-crop-title" aria-describedby="photo-crop-instructions">
+    <div class="dialog-heading">
+      <div>
+        <span class="eyebrow">FOTO</span>
+        <h2 id="photo-crop-title">Ajustar enquadramento</h2>
+      </div>
+      <button class="icon-button" type="button" data-photo-crop-cancel aria-label="Cancelar ajuste da foto">×</button>
+    </div>
+    <div class="photo-crop-stage" id="photo-crop-stage" role="group" tabindex="0" aria-label="Área de enquadramento da foto">
+      <img id="photo-crop-image" alt="Prévia da foto selecionada">
+    </div>
+    <p class="photo-crop-instructions" id="photo-crop-instructions">Arraste a foto para escolher a região. Com a área focada, use as setas ou os botões direcionais; ajuste o zoom no controle. A foto só será enviada depois da confirmação.</p>
+    <div class="photo-crop-controls">
+      <div class="photo-crop-zoom">
+        <label for="photo-crop-zoom">Zoom <output id="photo-crop-zoom-value" for="photo-crop-zoom">100%</output></label>
+        <input id="photo-crop-zoom" type="range" min="1" max="3" step="0.01" value="1" aria-valuetext="Zoom 100%" disabled>
+      </div>
+      <div class="photo-crop-nudges" role="group" aria-label="Mover enquadramento">
+        <button class="icon-button photo-crop-up" type="button" data-photo-crop-move="up" aria-label="Mover foto para cima" disabled>↑</button>
+        <button class="icon-button photo-crop-left" type="button" data-photo-crop-move="left" aria-label="Mover foto para a esquerda" disabled>←</button>
+        <button class="icon-button photo-crop-right" type="button" data-photo-crop-move="right" aria-label="Mover foto para a direita" disabled>→</button>
+        <button class="icon-button photo-crop-down" type="button" data-photo-crop-move="down" aria-label="Mover foto para baixo" disabled>↓</button>
+      </div>
+    </div>
+    <p class="photo-crop-error" id="photo-crop-error" role="alert" aria-live="assertive" aria-atomic="true"></p>
+    <p class="photo-crop-status" id="photo-crop-status" role="status" aria-live="polite" aria-atomic="true"></p>
+    <div class="photo-crop-actions">
+      <button class="button button--quiet" type="button" data-photo-crop-cancel>Cancelar</button>
+      <button class="button button--primary button--action" type="button" id="photo-crop-confirm" data-photo-crop-confirm aria-describedby="photo-crop-error photo-crop-status" disabled>
+        <span data-action-label>Usar enquadramento</span>
+      </button>
+    </div>
+  </dialog>
+
   <dialog class="privacy-dialog" id="privacy-modal" aria-labelledby="privacy-modal-title">
     <div class="dialog-heading">
       <div>
@@ -194,15 +233,12 @@
         <span class="eyebrow" id="tutorial-progress"></span>
         <h2 id="tutorial-title">Tutorial</h2>
       </div>
-      <button class="icon-button" type="button" data-tutorial-skip aria-label="Pular tutorial">×</button>
+      <button class="icon-button" type="button" data-tutorial-close aria-label="Fechar tutorial">×</button>
     </div>
     <div class="tutorial-illustration" id="tutorial-illustration"></div>
-    <h3 id="tutorial-step-title"></h3>
     <p id="tutorial-copy"></p>
     <div class="tutorial-actions">
-      <button class="button button--quiet" type="button" data-tutorial-back>Voltar</button>
-      <button class="button button--quiet" type="button" data-tutorial-skip>Pular</button>
-      <button class="button button--primary" type="button" data-tutorial-next>Próximo</button>
+      <button class="button button--primary" type="button" data-tutorial-close>Entendi</button>
     </div>
   </dialog>
 

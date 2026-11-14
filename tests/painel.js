@@ -83,7 +83,7 @@ const checks = [
         areas.has("Instrutor") &&
         areas.has("Fotos e avatar") &&
         areas.has("Segurança e publicação") &&
-        casesF1.length === 61 &&
+        casesF1.length === 63 &&
         casesF2.length === 3 &&
         casesF3.length === 1 &&
         cases.some((testCase) => testCase.id === "F1-AUTH-04") &&

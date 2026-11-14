@@ -499,12 +499,12 @@ window.CASOS_ACEITE_F1 = [
   {
     id: "F1-ACAD-01",
     area: "Academia",
-    titulo: "",
+    titulo: "Adm cadastra academia e grade visível aos usuários",
     perfil: "Adm, Professor, Instrutor e Aluno",
-    regras: "Adm e Professores vinculados editam; vários Professores por academia e uma turma por Professor",
-    precondicoes: "",
-    passos: [],
-    esperado: ""
+    regras: "Somente Adm cadastra e edita; perfis autenticados consultam academias e grade; vários Professores por academia",
+    precondicoes: "Contas fictícias dos quatro perfis, duas academias e Professores convidados para uma delas.",
+    passos: ["Como Adm, cadastrar uma academia com nome e foto opcional.", "Convidar mais de um Professor para a mesma academia e confirmar a aceitação com contas fictícias.", "Como Adm, cadastrar horários em dias diferentes e associar cada linha ao Professor correspondente; remover um horário.", "Como Adm, Professor, Instrutor e Aluno autenticados, abrir Academia e conferir que nome, foto e grade são exibidos sem controles de edição para não-Adm.", "Conferir que a grade antiga de Mural e grade continua independente e que perfis não autenticados não acessam a listagem."],
+    esperado: "O Adm administra nome, foto e grade; vários Professores ativos podem ser vinculados à mesma academia e associados a horários. Todos os perfis autenticados consultam as academias e a grade, sem poder alterá-las. Mural e grade permanece inalterado."
   },
   {
     id: "F1-AVATAR-01",
@@ -577,14 +577,24 @@ window.CASOS_ACEITE_F1 = [
     esperado: "O arquivo/foto do comprovante deixa de existir após a confirmação; somente valor e data de recebimento permanecem no histórico."
   },
   {
+    id: "F1-PAG-13",
+    area: "Pagamentos",
+    titulo: "Professor lê o valor do comprovante sem confirmar automaticamente",
+    perfil: "Professor",
+    regras: "Conferência local de comprovante",
+    precondicoes: "Há comprovantes fictícios pendentes em JPG, PNG, PDF com texto e PDF digitalizado; cobranças com saldo total e parcial conhecido.",
+    passos: ["Acionar “Ler valor” em cada formato e conferir o estado de carregamento e o bloqueio contra toque duplo.", "Comparar valores lidos iguais, parciais, divergentes, ambíguos e de baixa confiança com o aviso e o saldo.", "Recarregar a tela e conferir que o resultado não foi salvo; verificar que o Professor precisa conferir o comprovante e o próprio banco antes de confirmar ou rejeitar.", "Testar PDF corrompido e com mais de 10 páginas."],
+    esperado: "O valor é processado localmente, exibido só durante a revisão e comparado com o aviso e o saldo atual; falhas e leituras incertas são explicadas. Nenhum resultado altera o pagamento ou é persistido, não há envio a serviço externo e a confirmação continua manual."
+  },
+  {
     id: "F1-UX-07",
     area: "Ajuda e acessibilidade",
-    titulo: "Tutorial acompanha o tipo de conta e pode ser reaberto",
+    titulo: "Tutoriais ficam no painel e abrem por tópico",
     perfil: "Adm, Professor, Instrutor, Aluno registrado e Aluno sem registro",
     regras: "Tutorial contextual e acessibilidade",
-    precondicoes: "Há contas fictícias dos cinco tipos e tutorial com passos próprios.",
-    passos: ["Entrar pela primeira vez em cada conta.", "Usar Voltar, Próximo e Pular.", "Reabrir Tutorial pelo painel do usuário e operar por toque, teclado e Escape."],
-    esperado: "O primeiro acesso abre o tutorial correspondente; os passos explicam as funcionalidades disponíveis, têm ilustração SVG inline, foco acessível e não cortam texto. Pular fecha o tutorial e o painel permite reabri-lo."
+    precondicoes: "Há contas fictícias dos tipos suportados e tópicos de tutorial próprios para cada papel.",
+    passos: ["Abrir o painel do usuário e conferir que os tópicos estão recolhidos.", "Expandir a lista e escolher tópicos diferentes.", "Fechar cada modal por botão e Escape; conferir o foco ao retornar à lista."],
+    esperado: "Os tutoriais aparecem apenas no painel do usuário, ficam recolhidos até a escolha e cada tópico abre sozinho em modal acessível; não há abertura automática nem tutorial em Preferências."
   },
   {
     id: "F1-UX-08",
@@ -615,5 +625,15 @@ window.CASOS_ACEITE_F1 = [
     precondicoes: "Protótipo local aberto na tela de entrada; usar apenas dados fictícios e repetir com teclado e leitor de tela.",
     passos: ["Acionar Entrar por e-mail e observar indicador e texto de processamento no botão, anúncio acessível e botões desabilitados durante a simulação.", "Tentar um segundo acionamento durante o processamento e conferir que não há nova operação.", "Ao concluir a simulação, verificar ✓ Concluído por 2 a 3 segundos no botão, sem caixa de sucesso, e depois o rótulo original; trocar de tela durante a conclusão e conferir o aviso global.", "Abrir index.html?erro-simulado=entrada e acionar Google e Entrar; conferir Tentar de novo e mensagem em role=alert perto de cada botão. A autenticação real é tratada no caso F1-AUTH-04.", "Na conversa do aluno, verificar os mesmos estados em Enviar e repetir com ?erro-simulado=aluno-mensagem."],
     esperado: "Cada ação informa processamento, conclusão ou erro sem depender apenas de cor; os estados são anunciados, o erro aparece perto do botão, toques duplicados são evitados e a entrada por e-mail e a conversa permanecem simuladas."
+  },
+  {
+    id: "F1-FOTO-01",
+    area: "Perfil e fotos",
+    titulo: "Enquadrar foto antes de enviar",
+    perfil: "Adm, Professor, Instrutor e Aluno adulto",
+    regras: "Prévia local, ajuste de zoom e foco antes de aplicar; sem envio de foto não confirmada.",
+    precondicoes: "Contas fictícias e arquivos de imagem de teste sem dados pessoais; não usar conta nem foto real.",
+    passos: ["Escolher JPG e PNG nos fluxos de foto pessoal e de academia, onde disponíveis, e conferir que a prévia abre antes do envio.", "Ajustar zoom, arrastar a imagem, usar as setas por toque e teclado e confirmar o enquadramento.", "Repetir cancelando a prévia e conferir que nenhuma foto é enviada; selecionar novamente o mesmo arquivo.", "Testar tipo inválido, arquivo acima de 5 MiB e imagem não decodificável; conferir mensagens acessíveis e claras.", "Conferir foco, leitor de tela, tema claro/escuro e larguras de 360, 390, 430 e 768 px. Verificar que comprovantes não abrem o enquadrador."],
+    esperado: "Só a imagem enquadrada e confirmada pode ser enviada; o recorte quadrado respeita o zoom e a região escolhida. Cancelamento e falhas não aplicam a foto, os comprovantes mantêm o arquivo original, o controle funciona por toque e teclado e não aparecem avisos genéricos de elegibilidade junto ao envio."
   }
 ];

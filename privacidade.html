@@ -32,7 +32,7 @@
           <ul>
             <li>e-mail da conta (login Google, ou e-mail e senha para Aluno e Instrutor);</li>
             <li>nome, papel, idade declarada (adulto ou menor de 18 anos) e vínculo com a academia;</li>
-            <li>nome da academia, códigos e pedidos de vínculo, e vínculos entre Aluno e Professor;</li>
+            <li>nome da academia, grade semanal de aulas (dias e horários) e nome do Professor associado a cada aula; códigos e pedidos de vínculo, e vínculos entre Aluno e Professor;</li>
             <li>e-mail de Professor convidado e estado do convite; convites de Instrutor guardam o hash do token, datas e estado;</li>
             <li>nome e idade declarada de aluno sem conta;</li>
             <li>cobranças mensais: valor-base, vencimento, desconto, isenção (com motivo opcional de até 200 caracteres), estado e datas de envio;</li>
@@ -44,12 +44,14 @@
           <p>No cadastro por e-mail e senha, o app coleta nome e e-mail. A senha é tratada pelo Supabase Auth e não é guardada pelo app.</p>
           <p>A exportação baixa arquivos JSON ou CSV com dados já carregados e visíveis para a própria conta. Não é backup do servidor. Não pedimos data de nascimento, telefone nem WhatsApp. Pedimos que não escreva dados sensíveis no motivo da isenção.</p>
           <p>O Aluno pode anexar opcionalmente ao aviso de pagamento um comprovante JPG, PNG ou PDF de até 10 MiB. Enquanto o arquivo está ativo e o pagamento aguarda decisão, ele fica acessível somente ao Aluno autor e ao Professor vinculado. Ao confirmar ou rejeitar, o app solicita a remoção do arquivo do Storage. Também tenta remover arquivos após 30 dias sem decisão; o aviso e os registros do pagamento permanecem.</p>
+          <p>Ao escolher “Ler valor”, o Professor pode analisar o comprovante no próprio navegador e comparar o valor identificado com o aviso do Aluno e o saldo da cobrança. O arquivo não é enviado a serviços externos de OCR; o resultado fica apenas na tela durante a revisão, não é salvo e não confirma o pagamento automaticamente. O Professor confere o comprovante e o recebimento no próprio banco antes de decidir.</p>
         </section>
 
         <section class="privacy-draft-section">
           <h2>2. Compartilhamento</h2>
           <p>O acesso depende do papel e dos vínculos:</p>
           <ul>
+            <li>todos os perfis autenticados podem consultar o nome das academias e as grades de aulas publicadas pelo Adm, com os dias, horários e nomes dos Professores;</li>
             <li>o Professor vê os Alunos vinculados a ele, suas cobranças e seus pagamentos;</li>
             <li>o Aluno vê apenas as cobranças que o Professor enviou a ele;</li>
             <li>o Instrutor vê apenas os dados de alunos e conteúdos compartilhados com ele; não vê pagamentos, notas privadas, feedbacks ou metas;</li>
