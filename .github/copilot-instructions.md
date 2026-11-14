@@ -11,6 +11,7 @@ Projeto: PWA de gestão de academia de jiu-jitsu (nome Tatame). Interface e comm
 ## Segurança e privacidade
 - Nunca colocar chaves secretas, tokens ou senhas no repositório.
 - Nunca usar dados reais de pessoas nem valores reais em arquivos, testes ou commits.
+- Exceção autorizada pelo Aylton: o e-mail de contato dele, exibido no app para contato dos usuários, pode permanecer nos arquivos e nos commits; não é dado de terceiros.
 - Tratar conformidade com a LGPD como requisito do produto. Antes de decidir ou implementar coleta/uso de dados pessoais, finalidade, hipótese legal, consentimento, retenção, compartilhamento, direitos do titular ou texto da política, confirmar as informações e obter aprovação do usuário; não declarar conformidade legal sem revisão e validação apropriadas.
 - A política de privacidade deverá existir em página HTML própria e ser acessível por link no app que abre um modal legível e acessível. Manter as duas apresentações atualizadas em conjunto e cobrir a navegação/modal nos testes responsivos.
 - Migrations: criar o arquivo sem rodar; só rodam depois de conferidas pelo desenvolvedor.
@@ -25,10 +26,10 @@ Projeto: PWA de gestão de academia de jiu-jitsu (nome Tatame). Interface e comm
 - Antes de alterar a interface ou qualquer conteúdo visual, abrir a tela correspondente no navegador integrado ao VS Code e mantê-la aberta durante a edição; atualizar a página após cada conjunto coerente de mudanças para que o usuário acompanhe visualmente. Se não for possível abrir ou manter a tela disponível, informar e pedir orientação antes de prosseguir com a alteração visual.
 - Quando o usuário descartar ou rejeitar explicitamente um arquivo, proposta ou recurso, removê-lo do projeto; não manter cópias, arquivos de arquivo morto nem listas de itens descartados. Antes de concluir ou publicar, conferir que esses itens não estão entre os arquivos do projeto. Se não estiver claro se um item foi descartado, perguntar antes de excluí-lo.
 - Ao alterar fases, tarefas ou estados do plano no README, atualizar também `tests/plano.js` para manter o painel visual sincronizado; conferir quantidade de itens, fases e distribuição de estados.
-- Antes de qualquer push para o GitHub, revisar localmente o conteúdo que será publicado. Se houver suspeita de credencial, dado pessoal ou outra informação sensível, parar sem publicar, informar o risco e pedir orientação ao usuário. Não enviar esse conteúdo para serviços externos para análise.
-- Atualizar a versão do app sempre antes de cada push.
-- O plano de trabalho fica no final do README. Cada item usa exatamente um destes estados: `[ ]` a fazer; `[x]` feito, aguardando validação do usuário; `[v]` validado pelo usuário. Ao final de cada tarefa, atualizar o estado do que foi feito e descrever o que falta. Se surgir trabalho necessário que ainda não esteja listado, acrescentá-lo ao plano sem apagar o histórico. O assistente não marca `[v]` por conta própria.
-- Um lote só avança depois que sua implementação e todos os testes previstos passam e o usuário valida o resultado. A conclusão do projeto exige todos os lotes validados, a suíte de regressão aprovada e o app funcional de ponta a ponta. Não fazer commit nem push sem autorização explícita. O merge na `main` exige autorização do Aylton e testes validados por ele.
+- Antes de qualquer push para o GitHub, revisar localmente o conteúdo que será publicado. Se houver suspeita de credencial, dado pessoal ou outra informação sensível, parar sem publicar, informar o risco e pedir orientação ao usuário. Não enviar esse conteúdo para serviços externos para análise. O e-mail de contato do Aylton citado na exceção acima não conta como suspeita de dado pessoal.
+- Atualizar a versão do app (js/app.js e sw.js juntos) só quando o prompt pedir.
+- O plano de trabalho fica no final do README. Cada item usa exatamente um destes estados: `[ ]` a fazer; `[x]` feito, aguardando validação do usuário; `[v]` validado pelo usuário. O plano não cresce: trabalho novo não vira item. O estado de um item só muda por ordem explícita do Aylton. O assistente não marca `[v]` por conta própria.
+- Não fazer commit nem push sem autorização explícita. O merge na `main` exige autorização do Aylton e testes validados por ele.
 - Pedido de commit ou push da branch feat/telas-iniciais não é bloqueado por estado de lote, teste ou validação.
 - Atualize os tutoriais por tipo de conta sempre que surgir funcionalidade nova.
 
@@ -51,7 +52,7 @@ Projeto: PWA de gestão de academia de jiu-jitsu (nome Tatame). Interface e comm
 
 ## Regras acrescentadas em 08/11/2026
 
-1. **`js/config.js`:** versionado e publicado pelo Pages; só pode conter a URL do projeto e a chave publicável (sb_publishable_), NUNCA sb_secret_, service_role, JWT, senha, token ou Client Secret. O Copilot continua proibido de ler, exibir ou abrir o conteúdo desse arquivo; a conferência antes de cada commit é feita pelo Aylton, em comando local que só mostra verdadeiro/falso. O config.js.bak fica fora do repositório.
+1. **`js/config.js`:** versionado e publicado pelo Pages; só pode conter a URL do projeto e a chave publicável (sb_publishable_), NUNCA sb_secret_, service_role, JWT, senha, token ou Client Secret. O Copilot continua proibido de exibir ou abrir o conteúdo desse arquivo. Quando o Aylton pedir explicitamente commit ou push, o Copilot pode executar uma verificação local que mostre somente resultados true/false e números, sem revelar o conteúdo nem os valores. O config.js.bak fica fora do repositório.
 2. **Comandos:** é proibido executar comandos vazios ou em loop.
-3. **Execução:** não fazer perguntas interativas ao usuário, salvo se o prompt pedir; sem teste com conta real; o navegador pode ser aberto para conferir a demonstração.
+3. **Execução:** não fazer perguntas interativas ao usuário, salvo se o prompt pedir; sem teste com conta real.
 4. **Dúvidas:** se houver dúvida sobre o escopo, parar e reportar em vez de decidir.

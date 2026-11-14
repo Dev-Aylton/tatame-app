@@ -1,7 +1,14 @@
 "use strict";
 
-const APP_VERSION = "5.18";
+const APP_VERSION = "5.25";
+const DEFAULT_PERSON_AVATAR_SRC = "assets/avatars/avatar-masculino.jpg";
+const FEMALE_PERSON_AVATAR_SRC = "assets/avatars/avatar-feminino.jpg";
+const REAL_PERSON_AVATARS = {
+  masculino: DEFAULT_PERSON_AVATAR_SRC,
+  feminino: FEMALE_PERSON_AVATAR_SRC
+};
 const REAL_PAYMENT_PROOF_MAX_BYTES = 10 * 1024 * 1024;
+const REAL_PAYMENT_PROOF_PDF_MAX_PAGES = 10;
 const REAL_PAYMENT_PROOF_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 document.body.dataset.appMode = "real";
 const CONSENT_TERM_VERSION = "rascunho-1";
@@ -38,7 +45,7 @@ const navigationGroups = [
     title: "Treino",
     roles: ["instructor"],
     items: [
-      ["instructor-class", "Treino compartilhado", "▣"],
+      ["instructor-class", "Aula delegada", "▣"],
       ["instructor-students", "Alunos vinculados", "♧"]
     ]
   },
@@ -149,24 +156,27 @@ const roleScreens = {
 const beltOrder = ["Branca", "Azul", "Roxa", "Marrom", "Preta", "Coral vermelha e preta", "Coral vermelha e branca", "Vermelha"];
 const tutorialStepsByRole = {
   adm: [
-    ["admin-home", "Painel do Adm", "Consulte os indicadores administrativos disponíveis e acesse a gestão de academias e Professores."],
+    ["admin-home", "Painel do Adm", "Consulte os indicadores e selecione um cartão para abrir academias, Professores, alunos ou convites."],
     ["teacher-invites", "Professores convidados", "Gerencie convites de Professor e acompanhe os convites existentes."],
-    ["academy", "Academias", "Consulte e administre academias e os vínculos de Professores conforme sua permissão."]
+    ["academy", "Academias", "Cadastre os dados da academia e organize aulas por dia, Professor e horário. Para vincular Professores, use Professores convidados e escolha a academia."]
   ],
   professor: [
-    ["home", "Início", "Acompanhe pagamentos a confirmar, cobranças atrasadas e atalhos para as tarefas mais usadas."],
-    ["payment-review", "Pagamentos a confirmar", "Revise avisos de pagamento, consulte comprovantes e confirme ou rejeite recebimentos. Também pode lançar manualmente um recebimento."],
-    ["monthly-charges", "Cobranças mensais", "Configure regras de cobrança, acompanhe cobranças e filtre as que estão atrasadas."]
+    ["home", "Início", "Acompanhe pagamentos a confirmar, cobranças atrasadas e atalhos para as tarefas mais usadas. Em Preferências e Academia, ajuste o zoom e o enquadramento da foto na prévia antes de enviar."],
+    ["payment-review", "Pagamentos a confirmar", "Leia o valor do comprovante para comparar com o aviso e o saldo da cobrança; confira no seu banco e confirme ou rejeite manualmente. Também pode lançar um recebimento."],
+    ["monthly-charges", "Cobranças mensais", "Configure regras de cobrança; os campos de desconto e duração aparecem conforme a opção escolhida. Acompanhe cobranças e filtre as atrasadas."],
+    ["academy", "Academia", "Consulte as academias e os dias e horários de aula publicados pelo Adm."]
   ],
   instrutor: [
-    ["home", "Início", "Confira a aula delegada para hoje, quando houver, e acesse o treino compartilhado e os alunos vinculados."],
+    ["home", "Início", "Confira a aula delegada para hoje, quando houver, e acesse o treino compartilhado e os alunos vinculados. Em Preferências, ajuste o zoom e o enquadramento da foto na prévia antes de enviar."],
     ["instructor-class", "Treino compartilhado", "Consulte a aula compartilhada pelo Professor e registre se seguiu a orientação."],
-    ["instructor-students", "Alunos vinculados", "Consulte somente os nomes e a faixa/grau atuais dos alunos vinculados ao seu Professor."]
+    ["instructor-students", "Alunos vinculados", "Consulte somente os nomes e a faixa/grau atuais dos alunos vinculados ao seu Professor."],
+    ["academy", "Academia", "Consulte as academias e os dias e horários de aula publicados pelo Adm."]
   ],
   aluno: [
-    ["home", "Início", "Consulte a situação das cobranças do mês e os atalhos para pagamentos, graduações e conversa."],
-    ["student-payments", "Meus pagamentos", "Consulte cobranças enviadas e avise um pagamento; o comprovante é opcional."],
-    ["student-grades", "Minhas graduações", "Acompanhe sua faixa atual e o histórico registrado pelo Professor."]
+    ["home", "Início", "Consulte a situação das cobranças do mês e os atalhos para pagamentos, graduações e conversa. Se seu perfil puder enviar foto, ajuste o zoom e o enquadramento na prévia antes de aplicar; menores usam somente avatar."],
+    ["student-payments", "Meus pagamentos", "Consulte cobranças e avise um pagamento. Se enviar comprovante, o Professor pode ler o valor automaticamente para ajudar na conferência; a decisão continua manual."],
+    ["student-grades", "Minhas graduações", "Acompanhe sua faixa atual e o histórico registrado pelo Professor."],
+    ["academy", "Academia", "Consulte as academias e os dias e horários de aula publicados pelo Adm."]
   ]
 };
 const tutorialIllustrations = [
@@ -250,6 +260,9 @@ let realProfessorPaymentProofs = new Map();
 let realProfessorPaymentsState = "idle";
 let realProfessorPaymentsNotice = "";
 let realProfessorPaymentsRequestSequence = 0;
+let realPaymentProofTesseractScriptPromise = null;
+let realPaymentProofOcrWorkerPromise = null;
+let realPaymentProofPdfjsPromise = null;
 let realProofCleanupRunning = false;
 let realProofCleanupNotice = "";
 let realProfessorGraduationStudents = [];
@@ -258,6 +271,9 @@ let realProfessorGraduationsState = "idle";
 let realProfessorGraduationsNotice = "";
 let realProfessorGraduationsRequestSequence = 0;
 let realSelectedGraduationStudentId = "";
+const REAL_PROFILE_PHOTO_MAX_CONCURRENT = 20;
+const realLinkedProfilePhotoQueue = [];
+let realLinkedProfilePhotoRequestsInFlight = 0;
 let realStudentGraduations = [];
 let realStudentGraduationsState = "idle";
 let realStudentGraduationsNotice = "";
@@ -271,14 +287,19 @@ let realCreatedAcademyId = null;
 let realCreatedAcademy = null;
 let realAdminAcademies = [];
 let realAcademyPhotoUrls = new Map();
+let realAcademyDirectory = [];
+let realAcademyDirectorySchedule = [];
+let realAcademyDirectoryState = "idle";
+let realAcademyDirectoryNotice = "";
+let realAcademyDirectoryRequestSequence = 0;
 let realAdminProfessorPhotoUrls = new Map();
-let realProfessorAcademy = null;
-let realProfessorAcademyPhotoUrl = "";
+let realAvatarChoiceByProfile = new Map();
+let realAvatarChoiceOwnerId = "";
+let realAvatarChoiceState = "idle";
 let realOwnProfessorPhotoUrl = "";
+let realOwnProfessorPhotoPath = "";
+let realOwnProfilePhotoPath = "";
 let realProfessorPhotoNotice = "";
-let realProfessorAcademyState = "idle";
-let realProfessorAcademyNotice = "";
-let realProfessorAcademyRequestSequence = 0;
 let realAdminStudents = [];
 let realAdminStudentsState = "idle";
 let realAdminStudentsNotice = "";
@@ -294,6 +315,8 @@ let realHomeState = "idle";
 let realHomeNotice = "";
 let realHomeData = null;
 let realHomeRequestSequence = 0;
+let realHomeProfileContext = { academyName: "", academyPhotoUrl: "", professor: null, ownPhotoUrl: "" };
+let realHomeProfileRequestSequence = 0;
 let authClient = null;
 let authCheckSequence = 0;
 let realSessionCacheGeneration = 0;
@@ -303,17 +326,144 @@ let realPasswordRecoveryPending = false;
 let realEmailAuthRequestInProgress = false;
 let currentScreen = "";
 
+function realPersonAvatarSrc(profileId) {
+  const choice = profileId && realAvatarChoiceByProfile.get(profileId);
+  return REAL_PERSON_AVATARS[choice] || DEFAULT_PERSON_AVATAR_SRC;
+}
+
+function isMissingAvatarChoiceColumn(error) {
+  const code = error && typeof error.code === "string" ? error.code : "";
+  const message = error && typeof error.message === "string" ? error.message : "";
+  return code === "42703" || /avatar_escolhido/i.test(message);
+}
+
+function updateRealAvatarFallbacks(profileId) {
+  if (!profileId) return;
+  const src = realPersonAvatarSrc(profileId);
+  document.querySelectorAll("[data-avatar-choice-profile-id][data-avatar-fallback='true']")
+    .forEach((image) => {
+      if (image.dataset.avatarChoiceProfileId === profileId) image.src = src;
+    });
+}
+
+function renderRealAvatarChoiceControls(profileId) {
+  const state = realAvatarChoiceOwnerId === profileId ? realAvatarChoiceState : "loading";
+  const choice = REAL_PERSON_AVATARS[realAvatarChoiceByProfile.get(profileId)]
+    ? realAvatarChoiceByProfile.get(profileId)
+    : "masculino";
+  const enabled = state === "ready";
+  const disabled = enabled ? "" : " disabled";
+  const statusText = state === "loading"
+    ? "Carregando a preferência de avatar..."
+    : state === "unavailable"
+      ? "A escolha ficará disponível após a atualização do banco. Mantivemos o avatar masculino."
+      : state === "error"
+        ? "Não foi possível carregar a preferência. Mantivemos o avatar masculino; tente novamente mais tarde."
+        : "";
+  return `
+    <fieldset class="avatar-choice-options"${enabled ? "" : " disabled"}>
+      <legend>Avatar quando não houver foto</legend>
+      <label class="avatar-choice-option">
+        <input type="radio" name="real-avatar-choice" value="masculino"${choice === "masculino" ? " checked" : ""}${disabled}>
+        <img src="${DEFAULT_PERSON_AVATAR_SRC}" alt="">
+        <span>Masculino</span>
+      </label>
+      <label class="avatar-choice-option">
+        <input type="radio" name="real-avatar-choice" value="feminino"${choice === "feminino" ? " checked" : ""}${disabled}>
+        <img src="${FEMALE_PERSON_AVATAR_SRC}" alt="">
+        <span>Feminino</span>
+      </label>
+    </fieldset>
+    <div class="student-action-control">
+      <button class="button button--quiet button--action" type="button" data-real-avatar-choice-save${disabled} aria-describedby="real-avatar-choice-error real-avatar-choice-status">
+        <span data-action-label>Salvar avatar</span>
+      </button>
+      <p class="login-action-error student-action-error" id="real-avatar-choice-error" role="alert"></p>
+      <p class="field-help" id="real-avatar-choice-status" role="status" aria-live="polite">${escapeHtml(statusText)}</p>
+    </div>`;
+}
+
+async function loadRealAvatarPreferences(profileIds) {
+  const ids = [...new Set(profileIds.filter((id) => typeof id === "string" && id))];
+  if (!ids.length || !authClient) return "error";
+  const sessionGeneration = realSessionCacheGeneration;
+  try {
+    const { data, error } = await authClient.from("perfis")
+      .select("id,avatar_escolhido").in("id", ids);
+    if (sessionGeneration !== realSessionCacheGeneration) return "error";
+    if (error) {
+      ids.forEach((id) => {
+        realAvatarChoiceByProfile.set(id, "masculino");
+        updateRealAvatarFallbacks(id);
+      });
+      if (isMissingAvatarChoiceColumn(error)) return "unavailable";
+      logRealProfileSupabaseError("consultar preferência de avatar", error);
+      return "error";
+    }
+    ids.forEach((id) => {
+      realAvatarChoiceByProfile.set(id, "masculino");
+      updateRealAvatarFallbacks(id);
+    });
+    (Array.isArray(data) ? data : []).forEach((profile) => {
+      if (profile && ids.includes(profile.id) &&
+          Object.prototype.hasOwnProperty.call(REAL_PERSON_AVATARS, profile.avatar_escolhido)) {
+        realAvatarChoiceByProfile.set(profile.id, profile.avatar_escolhido);
+        updateRealAvatarFallbacks(profile.id);
+      }
+    });
+    return "ready";
+  } catch (error) {
+    if (sessionGeneration === realSessionCacheGeneration) {
+      ids.forEach((id) => realAvatarChoiceByProfile.set(id, "masculino"));
+      logRealProfileSupabaseError("consultar preferência de avatar", error);
+    }
+    return "error";
+  }
+}
+
+function ensureRealAvatarChoiceLoaded() {
+  if (!authClient || !realUser || !realProfile || realProfile.id !== realUser.id) return;
+  if (realAvatarChoiceOwnerId === realUser.id && realAvatarChoiceState !== "idle") return;
+  const userId = realUser.id;
+  const sessionGeneration = realSessionCacheGeneration;
+  realAvatarChoiceOwnerId = userId;
+  realAvatarChoiceState = "loading";
+  void loadRealAvatarPreferences([userId]).then((state) => {
+    if (sessionGeneration !== realSessionCacheGeneration ||
+        !realUser || realUser.id !== userId) return;
+    realAvatarChoiceState = state;
+    updateRealAvatarFallbacks(userId);
+    void loadRealUserPanelMedia();
+    const controls = screenContent.querySelector("[data-real-avatar-choice-controls]");
+    if (controls && currentScreen === "user-settings") {
+      controls.innerHTML = renderRealAvatarChoiceControls(userId);
+    }
+  });
+}
+
 const navigation = document.querySelector("#screen-navigation");
 const screenContent = document.querySelector("#screen-content");
 const currentTitle = document.querySelector("#current-screen-title");
 const sidebar = document.querySelector("#app-sidebar");
 const sidebarBackdrop = document.querySelector("#sidebar-backdrop");
 const menuButton = document.querySelector("#mobile-menu-button");
+let mobileSidebarTrigger = menuButton;
 const toastRegion = document.querySelector("#toast-region");
 const privacyDialog = document.querySelector("#privacy-modal");
 const termsDialog = document.querySelector("#terms-modal");
 const tutorialDialog = document.querySelector("#tutorial-modal");
 const profileOnboardingDialog = document.querySelector("#profile-onboarding");
+const photoCropDialog = document.querySelector("#photo-crop-dialog");
+const photoCropStage = document.querySelector("#photo-crop-stage");
+const photoCropImage = document.querySelector("#photo-crop-image");
+const photoCropZoom = document.querySelector("#photo-crop-zoom");
+const photoCropZoomValue = document.querySelector("#photo-crop-zoom-value");
+const photoCropError = document.querySelector("#photo-crop-error");
+const photoCropStatus = document.querySelector("#photo-crop-status");
+const photoCropConfirm = document.querySelector("#photo-crop-confirm");
+const photoCropMoveButtons = Array.from(document.querySelectorAll("[data-photo-crop-move]"));
+const photoCropPreparedFiles = new WeakMap();
+let activePhotoCrop = null;
 const userPanel = document.querySelector("#user-panel");
 let toastTimeout;
 
@@ -353,13 +503,15 @@ const navigationIconByScreen = {
 const mobileNavigationLabels = {
   login: "Entrar", home: "Início", "link-teacher": "Vincular",
   "student-payments": "Pagamentos",
-  "student-grades": "Graduações", students: "Alunos",
+  "student-grades": "Graduações", "student-chat": "Conversa", students: "Alunos",
   "student-detail": "Ficha", "teacher-code": "Código", "instructor-class": "Aula",
-  "instructor-students": "Alunos", "training-board": "Mural", "training-plan": "Plano",
+  "instructor-students": "Alunos vinculados", "training-board": "Mural", "training-plan": "Plano semanal",
   "student-progress": "Metas",
-  "admin-home": "Início", "admin-students": "Alunos", "teacher-invites": "Convites", "role-management": "Papéis",
+  "admin-home": "Painel", "admin-students": "Alunos", "teacher-invites": "Convites", "role-management": "Papéis",
+  "monthly-charges": "Cobranças",
   academy: "Academia"
 };
+navigationIconByScreen.more = "actions";
 
 function navigationIcon(id) {
   const path = navigationIconPaths[navigationIconByScreen[id]];
@@ -381,16 +533,22 @@ function renderNavigation() {
     : isRealActiveInstructor()
       ? navigationGroups.filter((group) => group.roles.includes("instructor"))
       : navigationGroups.filter((group) => group.roles.includes("public"));
-  navigation.innerHTML = visibleGroups.map((group) => ({
+  const orderedGroups = [...visibleGroups].sort((left, right) =>
+    Number(right.title === "Início") - Number(left.title === "Início")
+  );
+  navigation.innerHTML = orderedGroups.map((group) => ({
     ...group,
-    items: group.items.filter(([id]) => canViewScreen(id))
+    items: group.items.filter(([id]) =>
+      canViewScreen(id) &&
+      !(id === "link-teacher" && isRealActiveStudent() && realHomeData && realHomeData.hasLink)
+    )
   })).filter((group) => group.items.length > 0).map((group) => `
     <section class="nav-group" aria-label="${group.title}">
       <h2 class="nav-group-title">${isRealStudentInstructor && group.title === "Treino" ? "Instrutor" : group.title}</h2>
       ${group.items.map(([id, title]) => `
         <button class="nav-item" type="button" data-screen-target="${id}">
           <span class="nav-icon">${navigationIcon(id)}</span>
-          <span>${title}</span>
+          <span>${isRealProfessorProfile() && id === "role-management" ? "Aula delegada" : title}</span>
         </button>
       `).join("")}
     </section>
@@ -402,25 +560,29 @@ function renderMobileNavigation() {
   const mobileNavigation = document.querySelector("#mobile-navigation");
   if (!mobileNavigation) return;
   const isRealStudentInstructor = isRealActiveStudent() && isRealActiveInstructor();
+  const isUnlinkedStudent = isRealActiveStudent() && realHomeData && realHomeData.hasLink === false;
   const items = isRealAdmSession()
-      ? ["admin-home", "admin-students", "teacher-invites", "role-management"].filter(canViewScreen)
+      ? ["admin-home", "admin-students", "teacher-invites", "role-management"]
+          .filter(canViewScreen)
       : isRealProfessorProfile()
-        ? ["home", "payment-review", "monthly-charges", "teacher-code"].filter(canViewScreen)
+        ? ["home", "payment-review", "monthly-charges", "students"]
+            .filter(canViewScreen)
       : isRealStudentInstructor
           ? ["home", "link-teacher", "student-payments", "instructor-class"].filter(canViewScreen)
         : isRealActiveStudent()
-          ? ["home", "link-teacher", "student-payments", "student-grades"].filter(canViewScreen)
+          ? ["home", "student-payments", "student-grades", isUnlinkedStudent ? "link-teacher" : "student-chat"]
+              .filter(canViewScreen)
         : isRealActiveInstructor()
-          ? ["home", "instructor-class", "instructor-students"].filter(canViewScreen)
+          ? ["home", "instructor-class", "instructor-students", "training-plan"].filter(canViewScreen)
           : ["login", "instructor-invite"].filter(canViewScreen);
-  mobileNavigation.style.setProperty("--mobile-nav-items", items.length);
-  mobileNavigation.innerHTML = items.map((id) => {
+  mobileNavigation.style.setProperty("--mobile-nav-items", items.length + 1);
+  mobileNavigation.innerHTML = `${items.map((id) => {
     const info = screenInfo[id] || { title: id, group: "" };
     const label = id === "instructor-students" && isRealStudentInstructor
       ? "Instrutor"
       : mobileNavigationLabels[id] || info.title;
     return `<button type="button" data-screen-target="${id}" aria-label="${info.title}"><span class="mobile-nav-icon">${navigationIcon(id)}</span><span class="mobile-nav-label">${label}</span></button>`;
-  }).join("");
+  }).join("")}<button type="button" data-open-sidebar aria-controls="app-sidebar" aria-expanded="false" aria-label="Abrir navegação completa"><span class="mobile-nav-icon">${navigationIcon("more")}</span><span class="mobile-nav-label">Mais</span></button>`;
   updateToastPosition();
 }
 
@@ -439,7 +601,7 @@ function canViewScreen(id) {
     ["no-access", "instructor-invite"].includes(id) ||
     (isRealAdmSession() && ["admin-home", "academy", "teacher-invites", "role-management", "admin-students"].includes(id)) ||
     (isRealProfessorProfile() && id === "teacher-code") ||
-    (isRealActiveProfessor() && id === "academy") ||
+    (id === "academy" && (isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor())) ||
     (isRealActiveProfessor() && ["home", "monthly-charges", "payment-review", "student-detail", "students", "teacher-chat", "role-management", "training-board", "training-plan"].includes(id)) ||
     (isRealActiveStudent() && ["home", "student-payments", "student-grades", "student-chat", "student-progress", "training-board"].includes(id)) ||
     (isRealActiveInstructor() && ["home", "instructor-students", "instructor-class", "instructor-chat", "training-board", "training-plan"].includes(id));
@@ -468,7 +630,7 @@ function renderRealProfileOnboarding(stage) {
       ${isStudentProfileFlow ? `
         <div class="field">
           <label for="real-profile-onboarding-name">Nome</label>
-          <input id="real-profile-onboarding-name" name="nome" type="text" autocomplete="off" required value="${escapeHtml(realOnboardingName)}">
+          <input id="real-profile-onboarding-name" name="nome" type="text" autocomplete="off" placeholder="Seu nome completo" required value="${escapeHtml(realOnboardingName)}">
         </div>
       ` : ""}
       <fieldset class="profile-onboarding-options">
@@ -493,9 +655,8 @@ function renderRealProfileOnboarding(stage) {
         : "Se você aceitar um convite de Instrutor, o registro ocorrerá após o convite ser consumido. Leia a política de privacidade antes de continuar.";
     content.innerHTML = `
       <p id="profile-onboarding-copy" class="profile-onboarding-copy">${consentCopy}</p>
-      <div class="form-actions">
-        <button class="button button--quiet" type="button" data-open-privacy>Ler política no modal</button>
-        <a class="button button--quiet" href="privacidade.html" target="_blank" rel="noopener">Abrir página da política</a>
+      <div class="profile-onboarding-links">
+        <button class="link-simples-modal" type="button" data-open-privacy>Ler política</button>
       </div>
       <div class="profile-onboarding-actions">
         <button class="button button--primary button--action" type="button" data-real-onboarding-action="continue"><span data-action-label>Aceitar e continuar</span></button>
@@ -509,8 +670,26 @@ function renderRealProfileOnboarding(stage) {
   if (firstControl) firstControl.focus();
 }
 
-function maybeOpenRealProfileOnboarding() {
+async function checkRealConsentAccepted() {
+  if (!authClient || !realUser) return false;
+  try {
+    const { data, error } = await authClient.rpc("consentimento_atual_aceito", {
+      p_versao: CONSENT_TERM_VERSION
+    });
+    if (error) {
+      recordDiagnostic("Erro ao consultar consentimento");
+      return false;
+    }
+    return data === true;
+  } catch {
+    recordDiagnostic("Erro ao consultar consentimento");
+    return false;
+  }
+}
+
+async function maybeOpenRealProfileOnboarding() {
   if (!realUser) return;
+  const userId = realUser.id;
   const role = realProfileState === "found" && realProfile ? realProfile.papel : null;
   if (role === "adm") {
     if (realOnboardingStage && profileOnboardingDialog.open) profileOnboardingDialog.close();
@@ -527,7 +706,14 @@ function maybeOpenRealProfileOnboarding() {
     }
     return;
   }
-  realOnboardingHandledSessionUserId = realUser.id;
+  const hasDeclaredAge = realProfile && ["adulto", "menor"].includes(realProfile.idade_declarada);
+  if (role === "professor" || (["aluno", "instrutor"].includes(role) && hasDeclaredAge)) {
+    realOnboardingHandledSessionUserId = userId;
+    if (await checkRealConsentAccepted()) return;
+    if (!realUser || realUser.id !== userId) return;
+  } else {
+    realOnboardingHandledSessionUserId = userId;
+  }
   realOnboardingAge = null;
   realOnboardingName = getPendingRealSignupName();
   renderRealProfileOnboarding(role === "professor" ? "consent" : "age");
@@ -636,13 +822,15 @@ function panel(title, body, extraClass = "") {
   `;
 }
 
-function metric(label, value, note, tone = "") {
+function metric(label, value, note, tone = "", target = "") {
+  const tag = target ? "button" : "article";
   return `
-    <article class="metric-card ${tone ? `metric-card--${tone}` : ""}">
+    <${tag} class="metric-card ${tone ? `metric-card--${tone}` : ""}${target ? " metric-card--link" : ""}"${target ? ` type="button" data-screen-target="${target}"` : ""}>
       <span class="metric-label">${label}</span>
       <strong class="metric-value">${value}</strong>
       <span class="metric-note">${note}</span>
-    </article>
+      ${target ? '<span class="metric-note">Ver detalhes →</span>' : ""}
+    </${tag}>
   `;
 }
 
@@ -773,31 +961,45 @@ function copyInstructorInviteLinkFromSelection(link) {
   return copied ? "" : "Não foi possível copiar o link automaticamente. Tente novamente em um navegador compatível.";
 }
 
+function getAvailableTutorialSteps(role) {
+  return (tutorialStepsByRole[role] || []).filter(([screenId]) => canViewScreen(screenId));
+}
+
+function renderUserPanelTutorialTopics() {
+  const details = document.querySelector("#user-panel-tutorial");
+  const topicsContainer = document.querySelector("#user-panel-tutorial-topics");
+  if (!details || !topicsContainer) return;
+  const steps = realProfile ? getAvailableTutorialSteps(realProfile.papel) : [];
+  details.hidden = !realUser || steps.length === 0;
+  details.open = false;
+  topicsContainer.innerHTML = steps.map(([, title], index) => `
+    <button class="user-panel-link user-panel-tutorial-topic" type="button" data-tutorial-topic="${index}">
+      <span><strong>${escapeHtml(title)}</strong><small>Ver orientação</small></span>
+      <span aria-hidden="true">›</span>
+    </button>
+  `).join("");
+}
+
 function renderTutorialStep() {
   const role = realProfile && realProfile.papel;
   const roleNames = { adm: "Adm", professor: "Professor", instrutor: "Instrutor", aluno: "Aluno" };
-  const steps = tutorialStepsByRole[role] || [];
+  const steps = getAvailableTutorialSteps(role);
   const step = steps[tutorialStepIndex];
   if (!step) return;
-  document.querySelector("#tutorial-progress").textContent = `${roleNames[role]} · passo ${tutorialStepIndex + 1} de ${steps.length}`;
-  document.querySelector("#tutorial-title").textContent = `Tutorial ${roleNames[role]}`;
+  document.querySelector("#tutorial-progress").textContent = `TUTORIAL · ${roleNames[role] || "CONTA"}`;
+  document.querySelector("#tutorial-title").textContent = step[1];
   document.querySelector("#tutorial-illustration").innerHTML = tutorialIllustrations[tutorialStepIndex % tutorialIllustrations.length];
-  document.querySelector("#tutorial-step-title").textContent = step[1];
   document.querySelector("#tutorial-copy").textContent = step[2];
-  document.querySelector("[data-tutorial-back]").disabled = tutorialStepIndex === 0;
-  document.querySelector("[data-tutorial-next]").textContent = tutorialStepIndex === steps.length - 1 ? "Concluir" : "Próximo";
 }
 
-function openTutorial() {
-  if (!realProfile || !tutorialStepsByRole[realProfile.papel]) {
-    showToast("O tutorial estará disponível depois que o perfil for carregado.", "error");
-    return;
-  }
-  tutorialStepIndex = 0;
-  tutorialReturnFocus = document.activeElement;
+function openTutorial(topicIndex, trigger) {
+  const steps = realProfile ? getAvailableTutorialSteps(realProfile.papel) : [];
+  if (!Number.isInteger(topicIndex) || topicIndex < 0 || topicIndex >= steps.length) return;
+  tutorialStepIndex = topicIndex;
+  tutorialReturnFocus = trigger instanceof HTMLElement ? trigger : document.activeElement;
   renderTutorialStep();
   if (!tutorialDialog.open) tutorialDialog.showModal();
-  document.querySelector("[data-tutorial-next]").focus();
+  document.querySelector("[data-tutorial-close]").focus();
 }
 
 function closeTutorial() {
@@ -815,6 +1017,7 @@ const privacyPlaceholder = "O aceite do termo é gravado com o identificador do 
 function renderPrivacyDraftContent(headingTag = "h2") {
   return `
     <p class="panel-copy">O aceite do termo é gravado com o identificador do perfil, a versão do termo e a data e hora. O Professor aceita na primeira vez. O Instrutor aceita depois de usar o convite. O Aluno novo aceita ao criar o perfil.</p>
+    <p class="panel-copy">O redesign reorganiza a navegação: barra lateral no computador e barra inferior com menu “Mais” no celular. A mudança visual não altera as permissões nem os dados acessíveis por perfil.</p>
 
     <section class="privacy-draft-section">
       <${headingTag}>1. Dados que o app guarda</${headingTag}>
@@ -822,41 +1025,52 @@ function renderPrivacyDraftContent(headingTag = "h2") {
       <ul>
         <li>e-mail da conta (login Google, ou e-mail e senha para Aluno e Instrutor);</li>
         <li>nome, papel, idade declarada (adulto ou menor de 18 anos) e vínculo com a academia;</li>
-        <li>nome da academia, pedidos de vínculo e vínculos entre Aluno e Professor;</li>
+        <li>nome da academia, grade semanal de aulas (dias e horários) e nome do Professor associado a cada aula; códigos e pedidos de vínculo, e vínculos entre Aluno e Professor;</li>
         <li>e-mail de Professor convidado e estado do convite; convites de Instrutor guardam o hash do token, datas e estado;</li>
         <li>nome e idade declarada de aluno sem conta;</li>
         <li>cobranças mensais: valor-base, vencimento, desconto, isenção (com motivo opcional de até 200 caracteres), estado e datas de envio;</li>
         <li>pagamentos: o Aluno registra aviso como Dinheiro ou Comprovante; o Professor pode lançar recebimento como Pix, Dinheiro, Transferência ou Outro. O app guarda valor, estado, referência e datas correspondentes;</li>
+        <li>fotos de perfil e da academia enviadas, além de metadados como formato, tamanho e data de atualização; escolha do avatar de perfil;</li>
         <li>notas privadas, feedbacks, metas e mensagens trocadas conforme os papéis e vínculos;</li>
         <li>dados de graduação, avisos e conteúdos de treino compartilhados nas telas do app.</li>
       </ul>
       <p>No cadastro por e-mail e senha, o app coleta nome e e-mail. A senha é tratada pelo Supabase Auth e não é guardada pelo app.</p>
       <p>A exportação baixa arquivos JSON ou CSV com dados já carregados e visíveis para a própria conta. Não é backup do servidor. Não pedimos data de nascimento, telefone nem WhatsApp. Pedimos que não escreva dados sensíveis no motivo da isenção.</p>
-      <p>O Aluno pode anexar opcionalmente ao aviso de pagamento um comprovante JPG, PNG ou PDF de até 10 MiB. O arquivo fica visível somente ao Aluno autor e ao Professor do vínculo. O app remove o arquivo do Storage quando o Professor confirma ou rejeita o aviso; na abertura da tela de pagamentos, também tenta remover arquivos com mais de 30 dias sem decisão. Nesse caso, o aviso continua pendente e ficam somente os registros.</p>
+      <p>O Aluno pode anexar opcionalmente ao aviso de pagamento um comprovante JPG, PNG ou PDF de até 10 MiB. Enquanto o arquivo está ativo e o pagamento aguarda decisão, ele fica acessível somente ao Aluno autor e ao Professor vinculado. Ao confirmar ou rejeitar, o app solicita a remoção do arquivo do Storage. Também tenta remover arquivos após 30 dias sem decisão; o aviso e os registros do pagamento permanecem.</p>
+      <p>Ao escolher “Ler valor”, o Professor pode analisar o comprovante no próprio navegador e comparar o valor identificado com o aviso do Aluno e o saldo da cobrança. O arquivo não é enviado a serviços externos de OCR; o resultado fica apenas na tela durante a revisão, não é salvo e não confirma o pagamento automaticamente. O Professor confere o comprovante e o recebimento no próprio banco antes de decidir.</p>
     </section>
 
     <section class="privacy-draft-section">
       <${headingTag}>2. Compartilhamento</${headingTag}>
       <p>O acesso depende do papel e dos vínculos:</p>
       <ul>
+        <li>todos os perfis autenticados podem consultar o nome das academias e as grades de aulas publicadas pelo Adm, com os dias, horários e nomes dos Professores;</li>
         <li>o Professor vê os Alunos vinculados a ele, suas cobranças e seus pagamentos;</li>
         <li>o Aluno vê apenas as cobranças que o Professor enviou a ele;</li>
         <li>o Instrutor vê apenas os dados de alunos e conteúdos compartilhados com ele; não vê pagamentos, notas privadas, feedbacks ou metas;</li>
         <li>o Adm não tem acesso às telas de pagamentos, notas privadas, feedbacks ou metas.</li>
       </ul>
-      <p>O app só controla pagamentos. Ele não processa dinheiro. O app não envia notificações push.</p>
-      <p>A foto da academia aceita JPG ou PNG de até 5 MiB e fica visível a todos os perfis autenticados. A foto do Professor aceita JPG ou PNG de até 5 MiB e fica visível aos Alunos vinculados a ele e ao Adm.</p>
+      <p>O Aluno pode solicitar vínculo usando um código; o vínculo depende da decisão do Professor. Alunos sem conta não entram nas cobranças mensais gravadas no banco real. A mensagem copiada na tela de cobranças não cria nem salva a cobrança e o texto não é armazenado.</p>
+      <p>O app só controla pagamentos: não processa dinheiro, não envia mensagens fora do app e não usa notificações push.</p>
     </section>
 
     <section class="privacy-draft-section">
       <${headingTag}>3. Menores de 18 anos</${headingTag}>
-      <p>A idade é só declarada, sem verificação. Menores usam somente avatar; o app não tem foto de pessoa para Aluno. Convites de Instrutor exigem declaração de adulto.</p>
+      <p>A idade é só declarada, sem verificação. Alunos menores ou sem idade declarada usam somente avatar; não enviam foto de pessoa. Convites de Instrutor exigem declaração de adulto.</p>
     </section>
 
     <section class="privacy-draft-section">
-      <${headingTag}>4. Fotos</${headingTag}>
-      <p>A foto da academia é armazenada no Storage; aceita JPG ou PNG de até 5 MiB e fica visível a todos os perfis autenticados. O Adm e o Professor ativo da academia podem enviá-la.</p>
-      <p>A foto do Professor é armazenada no Storage; aceita JPG ou PNG de até 5 MiB e fica visível aos Alunos vinculados e ao Adm. Somente o próprio Professor ativo pode enviá-la. Menores usam somente avatar; Adm e Instrutor não têm foto de pessoa.</p>
+      <${headingTag}>4. Fotos e avatares</${headingTag}>
+      <p>Fotos de pessoa aceitam JPG ou PNG de até 5 MiB e ficam em armazenamento privado. A exibição é quadrada, com cantos suavemente arredondados e corte centralizado; no painel do usuário, a foto é redonda.</p>
+      <ul>
+        <li>Adm: vê somente a própria foto de perfil; como exceção, pode ver a foto do Professor;</li>
+        <li>Aluno adulto e Instrutor: veem a própria foto e a do Professor vinculado; o Professor vinculado pode ver a foto deles;</li>
+        <li>Professor: vê a própria foto; a foto dele fica visível aos Alunos e Instrutores vinculados e ao Adm;</li>
+        <li>Aluno menor ou sem idade declarada: não tem foto de pessoa e usa avatar; pode ver a foto do Professor vinculado;</li>
+        <li>foto da academia: JPG ou PNG de até 5 MiB, visível a todos os perfis autenticados.</li>
+      </ul>
+      <p>Quando não há uma foto de pessoa visível, o app mostra o avatar escolhido nas Preferências: masculino ou feminino. O padrão é masculino. As imagens dos avatares são arquivos locais; a escolha é guardada no perfil. Um novo envio aceito substitui a foto anterior. Quem pode enviar foto de perfil também pode solicitar sua remoção nas Preferências, após confirmação; o app solicita a remoção do arquivo e do registro e informa se a operação não for concluída.</p>
+      <p>As regras acima são as decisões previstas para o produto. O acesso de Instrutor às fotos do Professor e o acesso do Professor às fotos de Instrutor ainda dependem de a política do banco reconhecer a relação de Instrutor; confirme essa configuração antes de considerar o acesso efetivo.</p>
     </section>
 
     <section class="privacy-draft-section">
@@ -866,7 +1080,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
 
     <section class="privacy-draft-section">
       <${headingTag}>6. Retenção</${headingTag}>
-      <p>Pagamentos e cobranças não são apagados, apenas mudam de estado (por exemplo, cancelada ou estornado). Um Professor substituído na academia é desativado, não apagado. A remoção física do comprovante é solicitada pelo app à API do Storage; o aviso e os registros permanecem.</p>
+      <p>Pagamentos e cobranças não são apagados, apenas mudam de estado (por exemplo, cancelada ou estornado). Um Professor substituído na academia é desativado, não apagado. A remoção física do comprovante é solicitada pelo app à API do Storage; se não for concluída, o app tenta novamente ao abrir pagamentos. O aviso e os registros permanecem.</p>
     </section>
 
     <section class="privacy-draft-section">
@@ -892,13 +1106,11 @@ const screens = {
             <h2>Treino, gestão e evolução no mesmo lugar.</h2>
             <p>Entre para acompanhar suas aulas, graduações e pagamentos.</p>
           </div>
-          <span class="auth-visual-foot">Acesso protegido · permissões vêm do banco</span>
         </section>
         <section class="auth-card">
           <img class="auth-mobile-mark" src="assets/logos/tatame-icone-escudo.svg" alt="">
           <p class="eyebrow">BEM-VINDO AO TATAME</p>
           <h2>Continuar</h2>
-          <p>Entre com sua conta real. O papel e as permissões são definidos pelo banco.</p>
           <div class="visually-hidden" id="login-action-status" role="status" aria-live="polite" aria-atomic="true"></div>
           <button class="button button--google button--action" type="button" data-login-action aria-describedby="google-login-error">
             <img class="google-icon" src="assets/logos/google-g.svg" alt="" aria-hidden="true">
@@ -932,7 +1144,7 @@ const screens = {
       <div class="content-grid auth-form-layout">
         <section class="panel-card" style="max-width:620px;margin:0 auto">
           <form data-real-signup-form novalidate>
-            <div class="field"><label for="real-signup-name">Nome</label><input id="real-signup-name" name="name" type="text" autocomplete="name" maxlength="80" aria-describedby="real-signup-error" required></div>
+            <div class="field"><label for="real-signup-name">Nome</label><input id="real-signup-name" name="name" type="text" autocomplete="name" placeholder="Seu nome completo" maxlength="80" aria-describedby="real-signup-error" required></div>
             <div class="field" style="margin-top:12px"><label for="real-signup-email">E-mail</label><input id="real-signup-email" name="email" type="email" autocomplete="email" placeholder="seu e-mail" aria-describedby="real-signup-error" required></div>
             <div class="field" style="margin-top:12px"><label for="real-signup-password">Senha</label><input id="real-signup-password" name="password" type="password" autocomplete="new-password" minlength="8" aria-describedby="real-signup-help real-signup-error" required></div>
             <div class="field" style="margin-top:12px"><label for="real-signup-confirm-password">Confirmar senha</label><input id="real-signup-confirm-password" name="password-confirmation" type="password" autocomplete="new-password" minlength="8" aria-describedby="real-signup-help real-signup-error" required></div>
@@ -1013,7 +1225,7 @@ function renderRealAccountScreen() {
   const storedName = realProfile && typeof realProfile.nome === "string" ? realProfile.nome.trim() : "";
   const canDefineRealTeacherName = isRealActiveProfessor();
   const realTeacherNameSection = canDefineRealTeacherName
-    ? `<form class="real-teacher-name-form" data-real-teacher-name-form><div class="form-grid"><div class="field field--wide"><label for="real-teacher-name">Nome do perfil</label><input id="real-teacher-name" name="nome" type="text" value="${escapeHtml(storedName)}" autocomplete="name" maxlength="160" aria-describedby="real-teacher-name-help"><small class="field-help" id="real-teacher-name-help">Use de 2 a 80 caracteres, sem caracteres de controle.</small></div></div><div class="form-actions"><button class="button button--primary button--action" type="submit" data-real-teacher-name-save aria-describedby="real-teacher-name-error real-teacher-name-status"><span data-action-label>Definir nome</span></button></div><div class="login-action-error" id="real-teacher-name-error" role="alert" aria-atomic="true"></div><div class="field-help" id="real-teacher-name-status" role="status" aria-live="polite"></div></form>`
+    ? `<form class="real-teacher-name-form" data-real-teacher-name-form><div class="form-grid"><div class="field field--wide"><label for="real-teacher-name">Nome do perfil</label><input id="real-teacher-name" name="nome" type="text" value="${escapeHtml(storedName)}" autocomplete="name" placeholder="Seu nome completo" maxlength="160" aria-describedby="real-teacher-name-help"><small class="field-help" id="real-teacher-name-help">Use de 2 a 80 caracteres, sem caracteres de controle.</small></div></div><div class="form-actions"><button class="button button--primary button--action" type="submit" data-real-teacher-name-save aria-describedby="real-teacher-name-error real-teacher-name-status"><span data-action-label>Definir nome</span></button></div><div class="login-action-error" id="real-teacher-name-error" role="alert" aria-atomic="true"></div><div class="field-help" id="real-teacher-name-status" role="status" aria-live="polite"></div></form>`
     : "";
   const [title, copy] = realProfileState === "checking"
     ? ["Verificando seu perfil", "Aguarde a consulta da conta."]
@@ -1030,33 +1242,36 @@ function closeMobileMenu() {
   sidebar.classList.remove("is-open");
   sidebarBackdrop.classList.remove("is-visible");
   menuButton.setAttribute("aria-expanded", "false");
+  document.querySelectorAll("#mobile-navigation [data-open-sidebar]").forEach((button) => {
+    button.setAttribute("aria-expanded", "false");
+  });
   sidebar.removeAttribute("role");
   sidebar.removeAttribute("aria-modal");
-  if (wasOpen && menuButton.getClientRects().length) menuButton.focus();
+  const focusTarget = mobileSidebarTrigger || menuButton;
+  if (wasOpen && focusTarget.getClientRects().length) focusTarget.focus();
+  mobileSidebarTrigger = menuButton;
 }
 
-function realTutorialCopy(text) {
-  return text
-    .replace(/[^.!?]*(?:fict|demonstr|simulad|em breve|em construção)[^.!?]*[.!?]?/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function renderRealTutorial(role) {
-  const steps = (tutorialStepsByRole[role] || [])
-    .filter(([screenId]) => canViewScreen(screenId))
-    .map(([, title, copy]) => ({ title, copy: realTutorialCopy(copy) }))
-    .filter((step) => step.copy && !/(?:fict|demonstr|simulad|em breve|em construção)/i.test(step.copy))
-    .slice(0, 3);
-  return steps.length
-    ? `<ol class="real-help-steps">${steps.map((step) => `<li><strong>${escapeHtml(step.title)}</strong><p>${escapeHtml(step.copy)}</p></li>`).join("")}</ol>`
-    : emptyState("Tutorial indisponível", "Não há passos disponíveis para o papel desta conta.");
+function openMobileMenu(trigger = menuButton) {
+  if (sidebar.classList.contains("is-open")) {
+    closeMobileMenu();
+    return;
+  }
+  mobileSidebarTrigger = trigger;
+  sidebar.classList.add("is-open");
+  sidebarBackdrop.classList.add("is-visible");
+  sidebar.setAttribute("role", "dialog");
+  sidebar.setAttribute("aria-modal", "true");
+  trigger.setAttribute("aria-expanded", "true");
+  sidebar.querySelector("a, button").focus();
+  document.querySelectorAll(".app-main, #mobile-navigation").forEach((element) => { element.inert = true; });
 }
 
 async function loadRealProfessorPhotoSettings() {
   const userId = realUser && realUser.id;
   const sessionGeneration = realSessionCacheGeneration;
   realOwnProfessorPhotoUrl = "";
+  realOwnProfessorPhotoPath = "";
   realProfessorPhotoNotice = "";
   if (!authClient || !userId || !isRealActiveProfessorAccount()) return;
   try {
@@ -1067,6 +1282,7 @@ async function loadRealProfessorPhotoSettings() {
       logRealProfileSupabaseError("consultar foto do Professor", error);
       realProfessorPhotoNotice = "Não foi possível carregar a foto atual. Atualize a tela e tente novamente.";
     } else if (photo && typeof photo.caminho_storage === "string") {
+      realOwnProfessorPhotoPath = photo.caminho_storage;
       const signed = await createStorageSignedUrl("professores", photo.caminho_storage, "foto do Professor");
       if (sessionGeneration !== realSessionCacheGeneration || !realUser || realUser.id !== userId) return;
       if (signed.errorMessage) realProfessorPhotoNotice = signed.errorMessage;
@@ -1082,8 +1298,180 @@ async function loadRealProfessorPhotoSettings() {
   }
 }
 
+function canShowRealProfilePhotoForm(profile) {
+  return Boolean(profile && (
+    profile.papel === "adm" ||
+    profile.papel === "instrutor" ||
+    (profile.papel === "aluno" && profile.idade_declarada === "adulto")
+  ));
+}
+
+function canEditRealProfilePhoto(profile) {
+  return Boolean(profile && profile.ativo && canShowRealProfilePhotoForm(profile));
+}
+
+async function loadRealProfilePhotoPreview(userId) {
+  const sessionGeneration = realSessionCacheGeneration;
+  if (!authClient || !userId) return;
+  realOwnProfilePhotoPath = "";
+  try {
+    const { data: photos, error } = await authClient.rpc("obter_foto_perfil", {
+      p_perfil_id: userId
+    });
+    if (sessionGeneration !== realSessionCacheGeneration || !realUser || realUser.id !== userId || currentScreen !== "user-settings") return;
+    if (error) {
+      logRealProfileSupabaseError("consultar foto de perfil", error);
+      return;
+    }
+    const photo = Array.isArray(photos) ? photos[0] : null;
+    if (!photo || typeof photo.caminho_storage !== "string") {
+      const removeButton = screenContent.querySelector("[data-real-profile-photo-remove]");
+      if (removeButton) removeButton.hidden = true;
+      return;
+    }
+    realOwnProfilePhotoPath = photo.caminho_storage;
+    const removeButton = screenContent.querySelector("[data-real-profile-photo-remove]");
+    if (removeButton) removeButton.hidden = false;
+
+    const { data: signedPhoto, error: signedError } = await authClient.storage
+      .from("perfis")
+      .createSignedUrl(photo.caminho_storage, 300);
+    if (sessionGeneration !== realSessionCacheGeneration || !realUser || realUser.id !== userId || currentScreen !== "user-settings") return;
+    if (signedError) {
+      logRealProfileSupabaseError("criar URL temporária da foto de perfil", signedError);
+      return;
+    }
+    if (!signedPhoto || typeof signedPhoto.signedUrl !== "string") {
+      console.error("Não foi possível criar a URL temporária da foto de perfil.");
+      return;
+    }
+
+    const avatar = screenContent.querySelector("#real-profile-photo-avatar");
+    if (!avatar) return;
+    const fallbackImage = avatar.querySelector("img[data-avatar-fallback='true']");
+    if (fallbackImage) fallbackImage.remove();
+    const image = new Image();
+    image.alt = "Foto de perfil";
+    image.addEventListener("load", () => {
+      if (sessionGeneration !== realSessionCacheGeneration || !realUser || realUser.id !== userId || currentScreen !== "user-settings" || !avatar.isConnected) return;
+      avatar.replaceChildren(image);
+      avatar.classList.remove("avatar--initials");
+      avatar.removeAttribute("aria-hidden");
+    }, { once: true });
+    image.addEventListener("error", () => {
+      console.error("Não foi possível carregar a foto de perfil; mantendo o avatar.");
+    }, { once: true });
+    image.src = signedPhoto.signedUrl;
+  } catch (error) {
+    if (sessionGeneration !== realSessionCacheGeneration || !realUser || realUser.id !== userId) return;
+    logRealProfileSupabaseError("carregar foto de perfil", error);
+  }
+}
+
+function renderRealLinkedProfileAvatar(profile) {
+  return `<span class="avatar avatar--small avatar--initials" data-real-linked-profile-avatar="${escapeHtml(profile.id)}" aria-hidden="true"><img src="${escapeHtml(realPersonAvatarSrc(profile.id))}" alt="" loading="lazy" data-avatar-choice-profile-id="${escapeHtml(profile.id)}" data-avatar-fallback="true"></span>`;
+}
+
+function pumpRealLinkedProfilePhotoQueue() {
+  while (realLinkedProfilePhotoRequestsInFlight < REAL_PROFILE_PHOTO_MAX_CONCURRENT &&
+         realLinkedProfilePhotoQueue.length) {
+    const { task, resolve } = realLinkedProfilePhotoQueue.shift();
+    realLinkedProfilePhotoRequestsInFlight += 1;
+    void (async () => {
+      try {
+        await task();
+      } catch (error) {
+        logRealProfileSupabaseError("carregar foto de perfil vinculada", error);
+      } finally {
+        realLinkedProfilePhotoRequestsInFlight -= 1;
+        resolve();
+        pumpRealLinkedProfilePhotoQueue();
+      }
+    })();
+  }
+}
+
+function queueRealLinkedProfilePhotoTask(task) {
+  return new Promise((resolve) => {
+    realLinkedProfilePhotoQueue.push({ task, resolve });
+    pumpRealLinkedProfilePhotoQueue();
+  });
+}
+
+async function loadRealLinkedProfilePhotoAvatars(profiles, screenId) {
+  if (!Array.isArray(profiles) || !authClient || !realUser || !isRealActiveProfessor() ||
+      !["students", "student-detail"].includes(screenId) || currentScreen !== screenId) return;
+  const professorId = realUser.id;
+  const sessionGeneration = realSessionCacheGeneration;
+  const linkedProfilesById = new Map(
+    profiles
+      .filter((profile) => profile && typeof profile.id === "string")
+      .map((profile) => [profile.id, profile])
+  );
+  await loadRealAvatarPreferences([...linkedProfilesById.keys()]);
+  if (sessionGeneration !== realSessionCacheGeneration ||
+      !realUser || realUser.id !== professorId || currentScreen !== screenId) return;
+  const avatars = Array.from(screenContent.querySelectorAll("[data-real-linked-profile-avatar]"));
+  const tasks = Array.from(linkedProfilesById.values()).map((profile) => {
+    const avatar = avatars.find((element) => element.dataset.realLinkedProfileAvatar === profile.id);
+    if (!avatar) return Promise.resolve();
+    const isCurrent = () =>
+      sessionGeneration === realSessionCacheGeneration &&
+      Boolean(realUser && realUser.id === professorId) &&
+      isRealActiveProfessor() &&
+      currentScreen === screenId &&
+      avatar.isConnected &&
+      (screenId !== "student-detail" || realSelectedGraduationStudentId === profile.id);
+    return queueRealLinkedProfilePhotoTask(async () => {
+      if (!isCurrent()) return;
+      try {
+        const { data: photos, error } = await authClient.rpc("obter_foto_perfil", {
+          p_perfil_id: profile.id
+        });
+        if (!isCurrent()) return;
+        if (error) {
+          logRealProfileSupabaseError("consultar foto de perfil vinculada", error);
+          return;
+        }
+        const photo = Array.isArray(photos) ? photos[0] : null;
+        if (!photo || typeof photo.caminho_storage !== "string") return;
+
+        const { data: signedPhoto, error: signedError } = await authClient.storage
+          .from("perfis")
+          .createSignedUrl(photo.caminho_storage, 300);
+        if (!isCurrent()) return;
+        if (signedError) {
+          logRealProfileSupabaseError("criar URL temporária da foto de perfil vinculada", signedError);
+          return;
+        }
+        if (!signedPhoto || typeof signedPhoto.signedUrl !== "string") {
+          console.error("Não foi possível criar a URL temporária da foto de perfil vinculada.");
+          return;
+        }
+
+        const image = new Image();
+        image.alt = `Foto de perfil de ${profile.nome || "aluno vinculado"}`;
+        image.addEventListener("load", () => {
+          if (!isCurrent()) return;
+          avatar.replaceChildren(image);
+          avatar.classList.remove("avatar--initials");
+          avatar.removeAttribute("aria-hidden");
+        }, { once: true });
+        image.addEventListener("error", () => {
+          if (isCurrent()) console.error("Não foi possível carregar a foto de perfil vinculada; mantendo o avatar.");
+        }, { once: true });
+        image.src = signedPhoto.signedUrl;
+      } catch (error) {
+        if (!isCurrent()) return;
+        logRealProfileSupabaseError("carregar foto de perfil vinculada", error);
+      }
+    });
+  });
+  await Promise.all(tasks);
+}
+
 function renderRealUserSettingsScreen() {
-  const title = heading("CONTA REAL", "Configurações, tutorial e ajuda", "Informações da conta e orientações disponíveis para seu papel.");
+  const title = heading("CONTA", "Configurações da conta", "Consulte seus dados, foto e preferências.");
   if (realProfileState === "checking") {
     return `${title}<div class="notice notice--info" role="status">Carregando os dados da conta...</div>`;
   }
@@ -1110,39 +1498,84 @@ function renderRealUserSettingsScreen() {
     role ? listRow("Papel", "", escapeHtml(role)) : "",
     email ? listRow("E-mail", "", escapeHtml(email)) : ""
   ].filter(Boolean).join("");
-  const professorPhotoPanel = realProfile.papel === "professor"
+  const showProfilePhotoForm = canShowRealProfilePhotoForm(realProfile);
+  const profilePhotoVisibility = realProfile.papel === "adm"
+    ? "A foto fica visível somente para você."
+    : "A foto fica visível somente para você e para o Professor vinculado.";
+  ensureRealAvatarChoiceLoaded();
+  if (showProfilePhotoForm && realUser) {
+    void loadRealProfilePhotoPreview(realUser.id);
+  }
+  const profilePhotoPanel = realProfile.papel === "professor"
     ? isRealActiveProfessorAccount()
       ? panel("Foto do Professor", `
           <p class="field-help">JPG ou PNG, até 5 MiB. A foto fica visível aos Alunos vinculados ao Professor e ao Adm.</p>
-          ${realOwnProfessorPhotoUrl
-            ? `<img class="real-media-preview" src="${escapeHtml(realOwnProfessorPhotoUrl)}" alt="Foto atual do Professor">`
-            : '<p class="field-help">Nenhuma foto enviada.</p>'}
+          <img class="real-media-preview" src="${escapeHtml(realOwnProfessorPhotoUrl || realPersonAvatarSrc(realProfile.id))}" alt="${realOwnProfessorPhotoUrl ? "Foto atual do Professor" : "Avatar padrão do Professor"}"${realOwnProfessorPhotoUrl ? "" : ` data-avatar-choice-profile-id="${escapeHtml(realProfile.id)}" data-avatar-fallback="true"`}>
+          ${realOwnProfessorPhotoUrl ? "" : '<p class="field-help">Nenhuma foto enviada.</p>'}
+          <div data-real-avatar-choice-controls>${renderRealAvatarChoiceControls(realProfile.id)}</div>
           ${realProfessorPhotoNotice ? `<p class="login-action-error" role="alert">${escapeHtml(realProfessorPhotoNotice)}</p>` : ""}
           <form data-real-professor-photo-form>
             <div class="field">
               <label for="real-professor-photo-file">Escolher foto</label>
               <input id="real-professor-photo-file" name="foto" type="file" accept="image/jpeg,image/png" aria-describedby="real-professor-photo-help">
-              <small class="field-help" id="real-professor-photo-help">Somente Professor ativo pode enviar foto pessoal.</small>
+              <small class="field-help" id="real-professor-photo-help">Ajuste o zoom e o enquadramento na prévia antes de enviar.</small>
             </div>
             <div class="student-action-control">
               <button class="button button--primary button--action" type="submit" data-real-professor-photo-save aria-describedby="real-professor-photo-error real-professor-photo-status"><span data-action-label>Enviar foto</span></button>
               <p class="login-action-error student-action-error" id="real-professor-photo-error" role="alert"></p>
               <p class="field-help" id="real-professor-photo-status" role="status" aria-live="polite"></p>
             </div>
+            <div class="student-action-control">
+              <button class="button button--danger button--action" type="button" data-real-professor-photo-remove${realOwnProfessorPhotoPath ? "" : " hidden"} aria-describedby="real-professor-photo-remove-error real-professor-photo-remove-status"><span data-action-label>Remover foto</span></button>
+              <p class="login-action-error student-action-error" id="real-professor-photo-remove-error" role="alert"></p>
+              <p class="field-help" id="real-professor-photo-remove-status" role="status" aria-live="polite"></p>
+            </div>
           </form>
         `)
-      : panel("Foto do Professor", '<div class="notice notice--info">Somente Professor ativo pode enviar foto pessoal.</div>')
-    : panel("Foto pessoal", '<div class="notice notice--info">Este perfil usa somente avatar e não envia foto de pessoa.</div>');
+      : panel("Foto do Professor", `
+          <div class="person-row">
+            <img class="avatar" src="${realPersonAvatarSrc(realProfile.id)}" alt="" data-avatar-choice-profile-id="${escapeHtml(realProfile.id)}" data-avatar-fallback="true">
+          </div>
+          <div data-real-avatar-choice-controls>${renderRealAvatarChoiceControls(realProfile.id)}</div>
+        `)
+    : showProfilePhotoForm
+      ? panel("Foto de perfil", `
+          <div class="person-row">
+            <div class="avatar avatar--initials" id="real-profile-photo-avatar" aria-hidden="true"><img src="${realPersonAvatarSrc(realProfile.id)}" alt="" data-avatar-choice-profile-id="${escapeHtml(realProfile.id)}" data-avatar-fallback="true"></div>
+            <div class="person-copy"><small>${profilePhotoVisibility}</small></div>
+          </div>
+          <div data-real-avatar-choice-controls>${renderRealAvatarChoiceControls(realProfile.id)}</div>
+          <form data-real-profile-photo-form>
+            <div class="field">
+              <label for="real-profile-photo-file">Escolher foto</label>
+              <input id="real-profile-photo-file" name="foto" type="file" accept="image/jpeg,image/png" aria-describedby="real-profile-photo-help">
+              <small class="field-help" id="real-profile-photo-help">JPG ou PNG, até 5 MiB. A prévia permite ajustar zoom e enquadramento antes do envio.</small>
+            </div>
+            <div class="student-action-control">
+              <button class="button button--primary button--action" type="submit" data-real-profile-photo-save aria-describedby="real-profile-photo-error real-profile-photo-status"><span data-action-label>Enviar foto</span></button>
+              <p class="login-action-error student-action-error" id="real-profile-photo-error" role="alert"></p>
+              <p class="field-help" id="real-profile-photo-status" role="status" aria-live="polite"></p>
+            </div>
+            <div class="student-action-control">
+              <button class="button button--danger button--action" type="button" data-real-profile-photo-remove${realOwnProfilePhotoPath ? "" : " hidden"} aria-describedby="real-profile-photo-remove-error real-profile-photo-remove-status"><span data-action-label>Remover foto</span></button>
+              <p class="login-action-error student-action-error" id="real-profile-photo-remove-error" role="alert"></p>
+              <p class="field-help" id="real-profile-photo-remove-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        `)
+      : panel("Foto pessoal", `
+          <div class="person-row">
+            <div class="avatar"><img src="${realPersonAvatarSrc(realProfile.id)}" alt="" data-avatar-choice-profile-id="${escapeHtml(realProfile.id)}" data-avatar-fallback="true"></div>
+          </div>
+          <div data-real-avatar-choice-controls>${renderRealAvatarChoiceControls(realProfile.id)}</div>
+        `);
   return `${title}
     <div class="content-grid">
       <div class="stack">
         ${panel("Dados da conta", accountRows || emptyState("Dados da conta indisponíveis", "Não há dados de perfil para exibir."))}
-        ${professorPhotoPanel}
-        ${panel("Tutorial", renderRealTutorial(realProfile.papel))}
+        ${profilePhotoPanel}
         ${panel("Perguntas frequentes", `
           <div class="real-help-faq">
-            <details><summary>Quais telas estão disponíveis?</summary><p>As telas disponíveis dependem do papel definido no perfil da conta.</p></details>
-            <details><summary>As preferências desta tela são gravadas no banco?</summary><p>Esta tela não grava preferências no banco.</p></details>
             <details><summary>Quem pode consultar pagamentos?</summary><p>O Professor consulta pagamentos dos alunos vinculados e cada Aluno consulta somente os próprios pagamentos. Adm e Instrutor não têm acesso a essas telas.</p></details>
           </div>
         `)}
@@ -1204,12 +1637,13 @@ function featureSubmitButton(label) {
   return `<div class="student-action-control"><button class="button button--primary button--action" type="submit"><span data-action-label>${escapeHtml(label)}</span></button><p class="login-action-error" role="alert"></p><p class="field-help" role="status" aria-live="polite"></p></div>`;
 }
 
-function renderFeatureTextField(name, label, value, max, multiline = false, required = true) {
+function renderFeatureTextField(name, label, value, max, multiline = false, required = true, placeholder = "") {
   const id = `feature-${name}-${Math.random().toString(36).slice(2, 8)}`;
   const requiredAttributes = required ? "required minlength=\"1\"" : "";
+  const placeholderAttribute = placeholder ? ` placeholder="${escapeHtml(placeholder)}"` : "";
   const element = multiline
-    ? `<textarea id="${id}" name="${name}" maxlength="${max}" ${requiredAttributes}>${escapeHtml(value || "")}</textarea>`
-    : `<input id="${id}" name="${name}" maxlength="${max}" ${requiredAttributes} value="${escapeHtml(value || "")}">`;
+    ? `<textarea id="${id}" name="${name}" maxlength="${max}"${placeholderAttribute} ${requiredAttributes}>${escapeHtml(value || "")}</textarea>`
+    : `<input id="${id}" name="${name}" maxlength="${max}"${placeholderAttribute} ${requiredAttributes} value="${escapeHtml(value || "")}">`;
   return `<div class="field"><label for="${id}">${label}</label>${element}<small class="field-help" data-feature-counter="${name}">${(value || "").length}/${max} caracteres</small></div>`;
 }
 
@@ -1230,8 +1664,8 @@ function renderRealTrainingBoard() {
   const gradeRows = grades.length ? grades.map((grade) => `
     <article class="panel-card">
       ${canEdit ? `<form data-feature-form="edit-grade" data-feature-id="${escapeHtml(grade.id)}">
-        ${renderFeatureTextField("dias", "Dias", grade.dias, 500, true)}
-        ${renderFeatureTextField("horario", "Horário", grade.horario, 500, true)}
+        ${renderFeatureTextField("dias", "Dias", grade.dias, 500, true, true, "Ex.: segunda e quarta")}
+        ${renderFeatureTextField("horario", "Horário", grade.horario, 500, true, true, "Ex.: 19h às 20h")}
         ${featureSubmitButton("Salvar alterações")}
       </form>` : `<p><strong>${escapeHtml(grade.dias)}</strong></p><p>${escapeHtml(grade.horario)}</p>`}
       <p class="field-help">${grade.publicada ? "Grade publicada" : "Rascunho"}${grade.arquivado ? " · Arquivada" : ""}</p>
@@ -1240,8 +1674,8 @@ function renderRealTrainingBoard() {
   const noticeRows = notices.length ? notices.map((notice) => `
     <article class="panel-card">
       ${canEdit ? `<form data-feature-form="edit-notice" data-feature-id="${escapeHtml(notice.id)}">
-        ${renderFeatureTextField("titulo", "Título", notice.titulo, 80)}
-        ${renderFeatureTextField("texto", "Aviso", notice.texto, 500, true)}
+        ${renderFeatureTextField("titulo", "Título", notice.titulo, 80, false, true, "Ex.: Mudança de horário")}
+        ${renderFeatureTextField("texto", "Aviso", notice.texto, 500, true, true, "Escreva um aviso objetivo para os alunos.")}
         <label><input type="checkbox" name="fixado" ${notice.fixado ? "checked" : ""}> Fixar aviso</label>
         ${featureSubmitButton("Salvar alterações")}
       </form>` : `<h3>${escapeHtml(notice.titulo)}</h3><p>${escapeHtml(notice.texto)}</p>`}
@@ -1251,8 +1685,8 @@ function renderRealTrainingBoard() {
   const faqRows = faqs.length ? faqs.map((item) => `
     <article class="panel-card">
       ${canEdit ? `<form data-feature-form="edit-faq" data-feature-id="${escapeHtml(item.id)}">
-        ${renderFeatureTextField("pergunta", "Pergunta", item.pergunta, 200)}
-        ${renderFeatureTextField("resposta", "Resposta", item.resposta, 500, true)}
+        ${renderFeatureTextField("pergunta", "Pergunta", item.pergunta, 200, false, true, "Ex.: Como faço para repor uma aula?")}
+        ${renderFeatureTextField("resposta", "Resposta", item.resposta, 500, true, true, "Escreva a orientação para os alunos.")}
         <input type="hidden" name="ordem" value="${Number(item.ordem) || 0}">
         ${featureSubmitButton("Salvar alterações")}
       </form>` : `<h3>${escapeHtml(item.pergunta)}</h3><p>${escapeHtml(item.resposta)}</p>`}
@@ -1261,20 +1695,20 @@ function renderRealTrainingBoard() {
   return `${heading("TREINO", "Mural e grade", "Grade, avisos e perguntas frequentes do Professor vinculado.")}
     <div class="content-grid">
       ${panel("Grade semanal", `${canEdit ? `<form data-feature-form="create-grade">
-        ${renderFeatureTextField("dias", "Dias", "", 500, true)}
-        ${renderFeatureTextField("horario", "Horário", "", 500, true)}
+        ${renderFeatureTextField("dias", "Dias", "", 500, true, true, "Ex.: segunda e quarta")}
+        ${renderFeatureTextField("horario", "Horário", "", 500, true, true, "Ex.: 19h às 20h")}
         ${featureSubmitButton("Criar grade")}
       </form><div class="form-actions">${featureActionButton("publish-grade", "", "Publicar ou retirar publicação")}</div>` : ""}
         ${gradeRows}`)}
       ${panel("Avisos", `${canEdit ? `<form data-feature-form="create-notice">
-        ${renderFeatureTextField("titulo", "Título", "", 80)}
-        ${renderFeatureTextField("texto", "Aviso", "", 500, true)}
+        ${renderFeatureTextField("titulo", "Título", "", 80, false, true, "Ex.: Mudança de horário")}
+        ${renderFeatureTextField("texto", "Aviso", "", 500, true, true, "Escreva um aviso objetivo para os alunos.")}
         <label><input type="checkbox" name="fixado"> Fixar aviso</label>
         ${featureSubmitButton("Publicar aviso")}
       </form>` : ""}${noticeRows}`)}
       ${panel("Perguntas frequentes", `${canEdit ? `<form data-feature-form="create-faq">
-        ${renderFeatureTextField("pergunta", "Pergunta", "", 200)}
-        ${renderFeatureTextField("resposta", "Resposta", "", 500, true)}
+        ${renderFeatureTextField("pergunta", "Pergunta", "", 200, false, true, "Ex.: Como faço para repor uma aula?")}
+        ${renderFeatureTextField("resposta", "Resposta", "", 500, true, true, "Escreva a orientação para os alunos.")}
         <input type="hidden" name="ordem" value="0">
         ${featureSubmitButton("Adicionar pergunta")}
       </form>` : ""}${faqRows}`)}
@@ -1285,8 +1719,8 @@ function renderPlanItemEditor(item = {}) {
   const days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
   return `<div class="form-grid" data-plan-item>
     <div class="field"><label>Dia do treino</label><select name="dia" aria-label="Dia do treino">${days.map((day, index) => `<option value="${index}" ${Number(item.dia) === index ? "selected" : ""}>${day}</option>`).join("")}</select></div>
-    <div class="field"><label>Tema</label><input name="tema" aria-label="Tema" maxlength="80" value="${escapeHtml(item.tema || "")}" required minlength="1"><small class="field-help" data-feature-counter="tema">${(item.tema || "").length}/80 caracteres</small></div>
-    <div class="field field--wide"><label>Descrição</label><textarea name="descricao" aria-label="Descrição" maxlength="300">${escapeHtml(item.descricao || "")}</textarea><small class="field-help" data-feature-counter="descricao">${(item.descricao || "").length}/300 caracteres</small></div>
+    <div class="field"><label>Tema</label><input name="tema" aria-label="Tema" maxlength="80" placeholder="Ex.: Treino técnico" value="${escapeHtml(item.tema || "")}" required minlength="1"><small class="field-help" data-feature-counter="tema">${(item.tema || "").length}/80 caracteres</small></div>
+    <div class="field field--wide"><label>Descrição</label><textarea name="descricao" aria-label="Descrição" maxlength="300" placeholder="Ex.: Sequência de posições para a guarda.">${escapeHtml(item.descricao || "")}</textarea><small class="field-help" data-feature-counter="descricao">${(item.descricao || "").length}/300 caracteres</small></div>
   </div>`;
 }
 
@@ -1324,8 +1758,8 @@ function renderRealTrainingPlan() {
   const themes = canEdit ? (realFeatureData.themes || []).map((theme) => `
     <article class="panel-card">
       <form data-feature-form="edit-theme" data-feature-id="${escapeHtml(theme.id)}">
-        ${renderFeatureTextField("nome", "Nome do tema", theme.nome, 80)}
-        ${renderFeatureTextField("descricao", "Descrição", theme.descricao || "", 300, true, false)}
+        ${renderFeatureTextField("nome", "Nome do tema", theme.nome, 80, false, true, "Ex.: Treino técnico")}
+        ${renderFeatureTextField("descricao", "Descrição", theme.descricao || "", 300, true, false, "Ex.: Sequência de posições para a guarda.")}
         <label><input type="checkbox" name="arquivado" ${theme.arquivado ? "checked" : ""}> Arquivado</label>
         ${featureSubmitButton("Salvar tema")}
       </form>
@@ -1339,8 +1773,8 @@ function renderRealTrainingPlan() {
         ${featureSubmitButton("Criar plano")}
       </form>` : ""}${planRows}`)}
       ${canEdit ? panel("Biblioteca de temas", `<form data-feature-form="create-theme">
-        ${renderFeatureTextField("nome", "Nome do tema", "", 80)}
-        ${renderFeatureTextField("descricao", "Descrição", "", 300, true, false)}
+        ${renderFeatureTextField("nome", "Nome do tema", "", 80, false, true, "Ex.: Treino técnico")}
+        ${renderFeatureTextField("descricao", "Descrição", "", 300, true, false, "Ex.: Sequência de posições para a guarda.")}
         ${featureSubmitButton("Adicionar tema")}
       </form>${themes || emptyState("Biblioteca vazia", "Adicione temas para sua equipe.")}`) : ""}
     </div>`;
@@ -1375,7 +1809,7 @@ function renderRealConversations() {
         ${messages.map((message) => `<p><strong>${message.remetente_id === realUser.id ? "Você" : escapeHtml(otherParty)}:</strong> ${escapeHtml(message.texto)}</p>`).join("")}
       </div>
       <form data-feature-form="reply-conversation" data-feature-id="${escapeHtml(id)}">
-        <div class="field"><label>Mensagem</label><textarea name="texto" required minlength="1"></textarea></div>
+        <div class="field"><label>Mensagem</label><textarea name="texto" placeholder="Escreva sua mensagem" required minlength="1"></textarea></div>
         ${featureSubmitButton("Responder")}
       </form>
     </article>`;
@@ -1393,7 +1827,7 @@ function renderRealConversations() {
     : `<input type="hidden" name="destinatario" value="${escapeHtml(fixedRecipientId)}">`;
   const form = canCreate ? `<form data-feature-form="create-conversation">
     ${recipientField}
-    <div class="field"><label for="feature-chat-text">Mensagem</label><textarea id="feature-chat-text" name="texto" required minlength="1"></textarea></div>
+    <div class="field"><label for="feature-chat-text">Mensagem</label><textarea id="feature-chat-text" name="texto" placeholder="Escreva sua mensagem" required minlength="1"></textarea></div>
     ${featureSubmitButton("Iniciar conversa")}
   </form>` : "";
   return `${heading("COMUNICAÇÃO", "Conversas", "Mensagens individuais entre o Professor e pessoas vinculadas.")}
@@ -1440,9 +1874,9 @@ function renderRealDelegatedLessonScreen() {
       </div>`;
   }
   const lesson = lessons.find((item) => item.instrutor_id === realUser.id && item.compartilhada);
-  if (!lesson) return `${heading("VISÃO DO INSTRUTOR", "Treino compartilhado", "O Professor controla o que fica disponível.")}${emptyState("Nenhuma aula compartilhada", "Aguarde a publicação do Professor.")}`;
+  if (!lesson) return `${heading("VISÃO DO INSTRUTOR", "Aula delegada", "O Professor controla o que fica disponível.")}${emptyState("Nenhuma aula compartilhada", "Aguarde a publicação do Professor.")}`;
   const followed = lesson.seguido;
-  return `${heading("VISÃO DO INSTRUTOR", "Treino compartilhado", "Registre se seguiu a orientação do Professor.")}
+  return `${heading("VISÃO DO INSTRUTOR", "Aula delegada", "Registre se seguiu a orientação do Professor.")}
     ${panel("Aula", `${lesson.modo === "free" ? "Treino livre" : escapeHtml(lesson.plano)}
       ${followed ? `<p>Registro: ${followed === "yes" ? "Segui" : "Não segui"}</p>` : `<div class="form-actions">${featureActionButton("follow-delegated-yes", realUser.id, "Segui")}${featureActionButton("follow-delegated-no", realUser.id, "Não segui")}</div>`}`)}`;
 }
@@ -1633,6 +2067,9 @@ async function loadRealFeatureScreen(screenId, updateView = true) {
   }
   if (isCurrentRequest() && updateView) {
     screenContent.innerHTML = renderRealFeatureScreenById(screenId);
+    if (screenId === "students" && realFeatureData.state === "found") {
+      void loadRealLinkedProfilePhotoAvatars(realFeatureData.linkedStudents, screenId);
+    }
   }
 }
 
@@ -1691,11 +2128,14 @@ function renderRealProfessorGraduationsScreen() {
     ${heading("VISÃO DO PROFESSOR", "Ficha do aluno", "Consulte a faixa atual e o histórico; novas graduações ficam registradas sem alterar as anteriores.")}
     <div class="content-grid">
       ${panel("Aluno vinculado", `
-        <div class="field">
-          <label for="real-graduation-student">Aluno</label>
-          <select id="real-graduation-student">
-            ${realProfessorGraduationStudents.map((student) => `<option value="${escapeHtml(student.id)}"${student.id === selectedStudent.id ? " selected" : ""}>${escapeHtml(student.nome)}</option>`).join("")}
-          </select>
+        <div class="real-academy-list-item">
+          ${renderRealLinkedProfileAvatar(selectedStudent)}
+          <div class="field user-panel-profile-copy">
+            <label for="real-graduation-student">Aluno</label>
+            <select id="real-graduation-student">
+              ${realProfessorGraduationStudents.map((student) => `<option value="${escapeHtml(student.id)}"${student.id === selectedStudent.id ? " selected" : ""}>${escapeHtml(student.nome)}</option>`).join("")}
+            </select>
+          </div>
         </div>
       `)}
       ${panel("Graduação atual", renderRealGraduationCurrent(graduations), "panel-card--highlight")}
@@ -1710,7 +2150,7 @@ function renderRealProfessorGraduationsScreen() {
                 ${beltOrder.map((belt) => `<option value="${escapeHtml(belt)}">${escapeHtml(belt)}</option>`).join("")}
               </select>
             </div>
-            <div class="field">
+            <div class="field field--wide">
               <label for="real-graduation-degree">Grau</label>
               <select id="real-graduation-degree" required disabled>
                 <option value="">Selecione a faixa</option>
@@ -1827,6 +2267,9 @@ async function loadRealProfessorGraduations(renderScreen = true) {
 
   if (renderScreen && sequence === realProfessorGraduationsRequestSequence && currentScreen === screenId) {
     screenContent.innerHTML = renderRealProfessorGraduationsScreen();
+    void loadRealLinkedProfilePhotoAvatars([realProfessorGraduationStudents.find((student) =>
+      student.id === realSelectedGraduationStudentId
+    )].filter(Boolean), screenId);
   }
 }
 
@@ -1918,6 +2361,9 @@ async function loadRealStudentDetailData(updateView = true) {
   }
   if (isCurrentRequest() && updateView) {
     screenContent.innerHTML = renderRealProfessorGraduationsScreen();
+    void loadRealLinkedProfilePhotoAvatars([realProfessorGraduationStudents.find((student) =>
+      student.id === realSelectedGraduationStudentId
+    )].filter(Boolean), "student-detail");
   }
 }
 
@@ -1986,7 +2432,12 @@ function renderRealFeatureStudents() {
     ${renderRealExportButton("professor-students", "Exportar dados")}
     <div class="content-grid">
       ${panel("Alunos vinculados", registered.length ? registered.map((student) => `<article class="panel-card">
-        <strong>${escapeHtml(student.nome)}</strong><small>${student.status === "locked" ? "Trancado" : "Ativo"}</small>
+        <div class="real-academy-list-item">
+          ${renderRealLinkedProfileAvatar(student)}
+          <div class="user-panel-profile-copy">
+            <strong>${escapeHtml(student.nome)}</strong><small>${student.status === "locked" ? "Trancado" : "Ativo"}</small>
+          </div>
+        </div>
         ${featureActionButton("toggle-linked-lock", student.id, student.status === "locked" ? "Destrancar" : "Trancar")}
       </article>`).join("") : emptyState("Nenhum aluno vinculado", "Alunos vinculados aparecerão aqui."))}
       ${panel("Alunos sem conta", unregistered.length ? unregistered.map((student) => `<article class="panel-card">
@@ -2016,6 +2467,186 @@ function renderRealHomeShortcuts(items) {
   ).join("")}</div>`;
 }
 
+function renderRealHomeProfileHeader() {
+  if (!realProfile || realProfileState !== "found" || realProfile.papel === "adm") return "";
+  const isStudent = isRealActiveStudent();
+  const isInstructor = isRealActiveInstructor();
+  const isLinkedStudent = isStudent && realHomeData && realHomeData.hasLink === true;
+  const people = [];
+  const academyId = realProfile.academia_id ||
+    (realHomeProfileContext.professor && realHomeProfileContext.professor.academiaId) || "";
+  const academy = academyId && (realHomeProfileContext.academyName || "Academia vinculada");
+  const professor = realHomeProfileContext.professor;
+  const ownName = typeof realProfile.nome === "string" && realProfile.nome.trim()
+    ? realProfile.nome.trim()
+    : "Seu perfil";
+  const ownInitial = Array.from(ownName)[0].toLocaleUpperCase("pt-BR");
+  const ownPhoto = realHomeProfileContext.ownPhotoUrl;
+  const academyInitial = academy ? Array.from(academy)[0].toLocaleUpperCase("pt-BR") : "A";
+  const renderPerson = (label, name, initial, photoUrl = "", isPerson = false, profileId = "") => {
+    const avatarImageUrl = isPerson ? photoUrl || realPersonAvatarSrc(profileId) : photoUrl;
+    const fallbackAttributes = isPerson && !photoUrl && profileId
+      ? ` data-avatar-choice-profile-id="${escapeHtml(profileId)}" data-avatar-fallback="true"`
+      : "";
+    const avatarContent = avatarImageUrl
+      ? `<img src="${escapeHtml(avatarImageUrl)}" alt=""${fallbackAttributes}>`
+      : escapeHtml(initial);
+    return `
+      <article class="home-profile-person">
+        <span class="home-profile-avatar${isPerson ? " home-profile-avatar--person" : ""}" aria-hidden="true">${avatarContent}</span>
+        <span class="home-profile-copy">
+          <small>${escapeHtml(label)}</small>
+          <strong>${escapeHtml(name)}</strong>
+        </span>
+      </article>`;
+  };
+  const academyCard = () => renderPerson("ACADEMIA", academy, academyInitial, realHomeProfileContext.academyPhotoUrl);
+  const professorCard = () => professor
+    ? renderPerson("PROFESSOR", professor.name, professor.initial, professor.photoUrl, true, professor.id)
+    : "";
+  const ownCard = () => renderPerson("VOCÊ", ownName, ownInitial, ownPhoto, true, realProfile.id);
+
+  if (isStudent) {
+    if (isLinkedStudent) {
+      if (academy) people.push(academyCard());
+      if (professor) people.push(professorCard());
+    }
+    people.push(ownCard());
+  } else if (isInstructor) {
+    people.push(ownCard());
+    if (professor) people.push(professorCard());
+    if (academy) people.push(academyCard());
+  } else if (isRealActiveProfessor()) {
+    people.push(ownCard());
+    if (academy) people.push(academyCard());
+  }
+  if (!people.length) return "";
+  return `<section class="home-profile-strip" aria-label="Perfil e vínculos">${people.join("")}</section>`;
+}
+
+async function loadRealHomeProfilePhoto(profile, isCurrentRequest) {
+  if (!profile || !authClient || !isCurrentRequest()) return "";
+  try {
+    let path = "";
+    let bucket = "";
+    if (profile.papel === "professor") {
+      const { data, error } = await authClient.from("professores_fotos")
+        .select("caminho_storage").eq("professor_id", profile.id).maybeSingle();
+      if (!isCurrentRequest()) return "";
+      if (error) {
+        logRealProfileSupabaseError("consultar foto do Professor na tela inicial", error);
+        return "";
+      }
+      path = data && data.caminho_storage;
+      bucket = "professores";
+    } else if (profile.papel === "instrutor" ||
+        (profile.papel === "aluno" && profile.idade_declarada === "adulto")) {
+      const { data, error } = await authClient.rpc("obter_foto_perfil", {
+        p_perfil_id: profile.id
+      });
+      if (!isCurrentRequest()) return "";
+      if (error) {
+        logRealProfileSupabaseError("consultar foto de perfil na tela inicial", error);
+        return "";
+      }
+      const photo = Array.isArray(data) ? data[0] : null;
+      path = photo && photo.caminho_storage;
+      bucket = "perfis";
+    }
+    if (typeof path !== "string" || !path) return "";
+    const signed = await createStorageSignedUrl(bucket, path, "foto do perfil na tela inicial");
+    return isCurrentRequest() ? signed.signedUrl || "" : "";
+  } catch (error) {
+    if (isCurrentRequest()) logRealProfileSupabaseError("carregar foto de perfil na tela inicial", error);
+    return "";
+  }
+}
+
+async function loadRealHomeProfileContext(professorId) {
+  const sequence = ++realHomeProfileRequestSequence;
+  const sessionGeneration = realSessionCacheGeneration;
+  const userId = realUser && realUser.id;
+  const isCurrentRequest = () =>
+    sequence === realHomeProfileRequestSequence &&
+    sessionGeneration === realSessionCacheGeneration &&
+    currentScreen === "home" &&
+    Boolean(realUser && realUser.id === userId);
+  const context = { academyName: "", academyPhotoUrl: "", professor: null, ownPhotoUrl: "" };
+  realHomeProfileContext = context;
+  if (!authClient || !realUser || !realProfile || realProfileState !== "found") return;
+  const academyIds = new Set(
+    [realProfile.academia_id].filter((id) => typeof id === "string" && id)
+  );
+  const loadAcademy = async (academyId) => {
+    try {
+      const { data, error } = await authClient.from("academias").select("nome")
+        .eq("id", academyId).maybeSingle();
+      if (!isCurrentRequest()) return;
+      if (error) {
+        logRealProfileSupabaseError("consultar nome da academia na tela inicial", error);
+        return;
+      }
+      if (data && typeof data.nome === "string") context.academyName = data.nome.trim();
+      context.academyPhotoUrl = await loadRealAcademyPhotoUrl(academyId);
+    } catch (error) {
+      if (isCurrentRequest()) logRealProfileSupabaseError("carregar dados da academia na tela inicial", error);
+    }
+  };
+  const loadProfessor = async () => {
+    if (typeof professorId !== "string" || !professorId) return;
+    try {
+      const { data, error } = await authClient.from("perfis")
+        .select("id,nome,academia_id").eq("id", professorId).maybeSingle();
+      if (!isCurrentRequest()) return;
+      if (error) {
+        logRealProfileSupabaseError("consultar Professor vinculado na tela inicial", error);
+        return;
+      }
+      const name = data && typeof data.nome === "string" ? data.nome.trim() : "";
+      if (!data || !name) return;
+      if (typeof data.academia_id === "string" && data.academia_id) academyIds.add(data.academia_id);
+      const photo = await authClient.from("professores_fotos").select("caminho_storage")
+        .eq("professor_id", professorId).maybeSingle();
+      if (!isCurrentRequest()) return;
+      let photoUrl = "";
+      if (photo.error) {
+        logRealProfileSupabaseError("consultar foto do Professor vinculado", photo.error);
+      } else if (photo.data && typeof photo.data.caminho_storage === "string") {
+        const signed = await createStorageSignedUrl("professores", photo.data.caminho_storage, "foto do Professor vinculado");
+        if (isCurrentRequest()) photoUrl = signed.signedUrl || "";
+      }
+      context.professor = {
+        id: professorId,
+        name,
+        initial: Array.from(name)[0].toLocaleUpperCase("pt-BR"),
+        photoUrl,
+        academiaId: typeof data.academia_id === "string" ? data.academia_id : ""
+      };
+    } catch (error) {
+      if (isCurrentRequest()) logRealProfileSupabaseError("carregar Professor vinculado na tela inicial", error);
+    }
+  };
+
+  const ownPhotoPromise = loadRealHomeProfilePhoto(realProfile, isCurrentRequest)
+    .then((photoUrl) => { if (isCurrentRequest()) context.ownPhotoUrl = photoUrl; });
+  const professorPromise = loadProfessor();
+  await Promise.all([ownPhotoPromise, professorPromise]);
+  if (!isCurrentRequest()) return;
+  const avatarChoiceState = await loadRealAvatarPreferences([
+    userId,
+    context.professor && context.professor.id
+  ]);
+  if (!isCurrentRequest()) return;
+  realAvatarChoiceOwnerId = userId;
+  realAvatarChoiceState = avatarChoiceState;
+  void loadRealUserPanelMedia();
+  const academyId = [...academyIds][0];
+  if (academyId) await loadAcademy(academyId);
+  if (!isCurrentRequest()) return;
+  realHomeProfileContext = context;
+  screenContent.innerHTML = renderRealHomeScreen();
+}
+
 function renderRealHomeScreen() {
   if (!isRealActiveProfessor() && !isRealActiveStudent() && !isRealActiveInstructor()) {
     return featureAccessNotice();
@@ -2023,17 +2654,18 @@ function renderRealHomeScreen() {
   const isProfessor = isRealActiveProfessor();
   const isStudent = isRealActiveStudent();
   const isInstructor = isRealActiveInstructor();
+  const profileHeader = renderRealHomeProfileHeader();
   const title = isProfessor
     ? heading("VISÃO DO PROFESSOR", "Início", "Acompanhe pendências e acesse suas ferramentas.")
     : isStudent
-      ? heading("VISÃO DO ALUNO", "Início", "Consulte suas cobranças e acesse sua conta.")
-      : heading("VISÃO DO INSTRUTOR", "Início", "Acesse o treino compartilhado e os alunos vinculados.");
+      ? heading("VISÃO DO ALUNO", "Início", "Veja o que precisa de atenção e escolha o próximo passo.")
+      : heading("VISÃO DO INSTRUTOR", "Início", "Consulte a aula compartilhada e acesse seus alunos.");
 
   if (realHomeState === "idle" || realHomeState === "checking") {
-    return `${title}<div class="notice notice--info" role="status" aria-live="polite">Carregando seu resumo...</div>`;
+    return `${title}${profileHeader}<div class="notice notice--info" role="status" aria-live="polite">Carregando seu resumo...</div>`;
   }
   if (realHomeState === "error") {
-    return `${title}
+    return `${title}${profileHeader}
       <div class="notice notice--pending" role="alert">${escapeHtml(realHomeNotice)}</div>
       <div class="student-action-control">
         <button class="button button--primary button--action" type="button" data-real-home-retry aria-describedby="real-home-retry-error real-home-retry-status">
@@ -2049,48 +2681,48 @@ function renderRealHomeScreen() {
     const pendingPayments = data.pendingPayments || 0;
     const lateCharges = data.lateCharges || 0;
     const shortcuts = [
-      ["payment-review", "Pagamentos a confirmar"],
-      ["monthly-charges", "Cobranças mensais"],
       ["students", "Alunos"],
       ["teacher-code", "Código e convites"]
     ];
-    return `${title}
+    const nextAction = pendingPayments
+      ? button("Revisar pagamentos", "payment-review", "button button--primary")
+      : lateCharges
+        ? button("Ver cobranças atrasadas", "monthly-charges", "button button--primary")
+        : button("Ver alunos", "students", "button button--primary");
+    return `${title}${profileHeader}<div class="stack">
       <div class="summary-grid">
         ${metric("PAGAMENTOS A CONFIRMAR", String(pendingPayments), "Avisos aguardando decisão", "amber")}
         ${metric("COBRANÇAS ATRASADAS", String(lateCharges), "Mês selecionado", lateCharges ? "red" : "green")}
       </div>
       ${pendingPayments || lateCharges ? "" : emptyState("Tudo em dia", "Não há pagamentos aguardando decisão nem cobranças atrasadas.")}
-      ${panel("Atalhos", renderRealHomeShortcuts(shortcuts))}`;
+      ${panel("Próxima ação", nextAction)}
+      ${panel("Atalhos", renderRealHomeShortcuts(shortcuts))}
+    </div>`;
   }
   if (isStudent) {
-    const month = data.month || realGraduationToday().slice(0, 7);
     const counts = data.monthCounts || { pending: 0, paid: 0, late: 0, exempt: 0 };
-    const shortcuts = [
-      ["student-payments", "Meus pagamentos"],
-      ["student-grades", "Minhas graduações"],
-      ["student-chat", "Conversa"]
-    ];
-    if (!data.hasLink) shortcuts.push(["link-teacher", "Vincular a um Professor"]);
-    return `${title}
-      ${panel(`Cobranças de ${escapeHtml(month)}`, data.monthChargeCount
+    if (!data.hasLink) {
+      return `${title}${profileHeader}
+        ${panel("Próxima ação", `<p>Vincule seu perfil a um Professor para consultar os dados da academia.</p>${button("Vincular a um Professor", "link-teacher", "button button--primary")}`)}`;
+    }
+    const hasPending = counts.pending > 0 || counts.late > 0;
+    return `${title}${profileHeader}<div class="stack">
+      ${data.monthChargeCount
         ? `<div class="summary-grid">
-            ${metric("PENDENTE", String(counts.pending), "Saldo dentro do prazo", "amber")}
-            ${metric("PAGO", String(counts.paid), "Cobranças quitadas", "green")}
-            ${metric("ATRASADA", String(counts.late), "Após vencimento e carência", "red")}
-            ${counts.exempt ? metric("ISENTA", String(counts.exempt), "Cobranças isentas", "blue") : ""}
+            ${metric("PENDENTES", String(counts.pending), "Cobranças dentro do prazo", "amber")}
+            ${metric("ATRASADAS", String(counts.late), "Cobranças que precisam de atenção", "red")}
           </div>`
-        : emptyState("Nenhuma cobrança neste mês", "As cobranças enviadas pelo Professor aparecerão aqui."))}
-      ${!data.hasLink ? panel("Vínculo", '<p class="field-help">Você ainda não tem um Professor vinculado.</p>') : ""}
-      ${panel("Atalhos", renderRealHomeShortcuts(shortcuts))}
-      ${isInstructor ? panel("Atalhos do Instrutor", renderRealHomeShortcuts([
-        ["instructor-class", "Treino compartilhado"],
-        ["instructor-students", "Alunos vinculados"]
-      ])) : ""}`;
+        : emptyState("Nenhuma cobrança neste mês", "As cobranças enviadas pelo Professor aparecerão aqui.")}
+      ${panel(hasPending ? "Próxima ação" : "Tudo em dia", hasPending
+        ? button("Ver pagamentos", "student-payments", "button button--primary")
+        : `<p>Não há pagamentos pendentes neste mês.</p>${button("Ver graduações", "student-grades", "button button--quiet")}`)}
+    </div>`;
   }
-  return `${title}${panel("Atalhos", renderRealHomeShortcuts([
-    ["instructor-class", "Treino compartilhado"],
-    ["instructor-students", "Alunos vinculados"]
-  ]))}`;
+  return `${title}${profileHeader}
+    ${panel("Próxima ação", `<p>Confira a aula delegada e o plano compartilhado pelo Professor.</p>${renderRealHomeShortcuts([
+      ["instructor-class", "Abrir Aula"],
+      ["training-plan", "Ver Plano semanal"]
+    ])}`)}`;
 }
 
 async function loadRealHomeData(renderScreen = true) {
@@ -2106,6 +2738,9 @@ async function loadRealHomeData(renderScreen = true) {
   realHomeState = "checking";
   realHomeNotice = "";
   realHomeData = null;
+  realHomeProfileContext = { academyName: "", academyPhotoUrl: "", professor: null, ownPhotoUrl: "" };
+  realHomeProfileRequestSequence += 1;
+  renderMobileNavigation();
 
   try {
     if (!authClient || !realUser) throw new Error("Entre com sua conta real para carregar o Início.");
@@ -2162,6 +2797,7 @@ async function loadRealHomeData(renderScreen = true) {
         }
         realHomeData = {
           hasLink: true,
+          professorId: link.professor_id,
           month,
           monthChargeCount: monthCharges.length,
           monthCounts
@@ -2185,7 +2821,16 @@ async function loadRealHomeData(renderScreen = true) {
         : "Não foi possível carregar o Início. Tente novamente.";
   }
 
-  if (renderScreen && isCurrentRequest()) screenContent.innerHTML = renderRealHomeScreen();
+  if (isCurrentRequest()) {
+    const professorId = isRealActiveStudent()
+      ? realHomeData && realHomeData.professorId
+      : isRealActiveInstructor() && realInstructorLink
+        ? realInstructorLink.professor_id
+        : "";
+    void loadRealHomeProfileContext(professorId);
+    renderNavigation();
+    if (renderScreen) screenContent.innerHTML = renderRealHomeScreen();
+  }
   return realHomeState === "found";
 }
 
@@ -2195,7 +2840,8 @@ function renderScreen(id) {
   const isRealAdminHome = id === "admin-home" && isRealAdmin;
   const isRealHome = id === "home" &&
     (isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor());
-  const isRealProfessorAcademy = id === "academy" && isRealActiveProfessor();
+  const isRealAcademyDirectory = id === "academy" &&
+    (isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor());
   const isRealUserSettings = id === "user-settings" && Boolean(realUser);
   const isRealStudentLink = id === "link-teacher" && isRealActiveStudent();
   const isRealStudentPayments = id === "student-payments" && isRealActiveStudent();
@@ -2211,8 +2857,8 @@ function renderScreen(id) {
       "role-management": renderRealAdminManagementScreen
     }[id]
     : null;
-  const realProfessorAcademyRenderer = isRealProfessorAcademy
-    ? renderRealProfessorAcademyScreen
+  const realAcademyDirectoryRenderer = isRealAcademyDirectory
+    ? renderRealAcademyDirectoryScreen
     : null;
   const isRealTeacherCode = id === "teacher-code" && isRealProfessorProfile();
   const isRealBilling = id === "monthly-charges" && isRealActiveProfessor();
@@ -2251,7 +2897,7 @@ function renderScreen(id) {
     ? renderRealBillingScreen
     : isRealTeacherCode
     ? renderRealTeacherCodeScreen
-    : realProfessorAcademyRenderer || realFeatureRenderer || realAdminRenderer || screen;
+    : realAcademyDirectoryRenderer || realFeatureRenderer || realAdminRenderer || screen;
   if (!screenRenderer || !canViewScreen(id)) {
     const message = realUser && ["academy", "teacher-invites", "role-management", "admin-students"].includes(id)
       ? "Esta tela está disponível somente para uma conta real com papel Adm."
@@ -2280,10 +2926,11 @@ function renderScreen(id) {
     realUnregisteredStudentsState = "checking";
     realUnregisteredStudentsNotice = "";
   }
-  if (isRealProfessorAcademy) {
-    realProfessorAcademy = null;
-    realProfessorAcademyState = "checking";
-    realProfessorAcademyNotice = "";
+  if (isRealAcademyDirectory) {
+    realAcademyDirectory = [];
+    realAcademyDirectorySchedule = [];
+    realAcademyDirectoryState = "checking";
+    realAcademyDirectoryNotice = "";
   }
   if (isRealBilling) {
     realBillingStudentNames = new Map();
@@ -2307,6 +2954,7 @@ function renderScreen(id) {
   if (isRealAdminHome) {
     realAdminDashboardAcademies = [];
     realAdminDashboardProfessors = [];
+    realAdminProfessorPhotoUrls = new Map();
     realAdminDashboardStudents = 0;
     realAdminDashboardPendingInvites = 0;
     realAdminDashboardState = "checking";
@@ -2378,11 +3026,14 @@ function renderScreen(id) {
   if (isRealStudentLink) loadRealStudentLinkStatus();
   if (id === "teacher-invites" && isRealAdmSession()) loadRealAdminInvites();
   if (id === "academy" && isRealAdmSession()) loadRealAdminAcademiesForEdit();
-  if (isRealProfessorAcademy) loadRealProfessorAcademy();
+  if (isRealAcademyDirectory) loadRealAcademyDirectory();
   if (id === "role-management" && isRealAdmSession()) loadRealAdminManagement();
   screenContent.querySelectorAll('input[type="email"]').forEach(updateEmailPreview);
-  currentTitle.textContent = screenInfo[id].title;
-  document.title = `${screenInfo[id].title} | Tatame`;
+  const screenTitle = id === "role-management" && isRealProfessorProfile()
+    ? "Aula delegada"
+    : screenInfo[id].title;
+  currentTitle.textContent = screenTitle;
+  document.title = `${screenTitle} | Tatame`;
   document.querySelectorAll("#screen-navigation [data-screen-target], #mobile-navigation [data-screen-target]").forEach((item) => {
     if (item.dataset.screenTarget === id) {
       item.setAttribute("aria-current", "page");
@@ -2464,7 +3115,7 @@ function renderRealBillingRuleRow(rule) {
       </div>
       <p class="field-help">${escapeHtml(duration)} · início ${realBillingDate(rule.mes_inicio)}</p>
       <div class="row-actions">
-        <button class="button button--small button--quiet" type="button" data-real-billing-edit-rule="${escapeHtml(rule.id)}"${canEdit ? "" : ` disabled aria-describedby="real-rule-student-unavailable-${escapeHtml(rule.id)}"`}>Editar</button>
+        <button class="button button--small button--quiet button--action" type="button" data-real-billing-edit-rule="${escapeHtml(rule.id)}" aria-describedby="real-rule-error-${escapeHtml(rule.id)} real-rule-status-${escapeHtml(rule.id)}${canEdit ? "" : ` real-rule-student-unavailable-${escapeHtml(rule.id)}`}"${canEdit ? "" : " disabled"}><span data-action-label>Editar</span></button>
         <button class="button button--small button--danger button--action" type="button" data-real-billing-remove-rule="${escapeHtml(rule.id)}" aria-describedby="real-rule-error-${escapeHtml(rule.id)} real-rule-status-${escapeHtml(rule.id)}"><span data-action-label>Remover regra</span></button>
       </div>
       ${canEdit ? "" : `<p class="field-help" id="real-rule-student-unavailable-${escapeHtml(rule.id)}">Edição indisponível: aluno sem vínculo ativo.</p>`}
@@ -2570,7 +3221,7 @@ function renderRealBillingUnregisteredStudentsPanel() {
               <div class="field"><label for="real-unregistered-student">Aluno sem conta no app</label><select id="real-unregistered-student" required>
                 <option value="" disabled selected>Selecione um aluno</option>${unregisteredOptions}
               </select></div>
-              <div class="field"><label for="real-unregistered-amount">Valor (R$)</label><input id="real-unregistered-amount" type="text" inputmode="decimal" required></div>
+              <div class="field"><label for="real-unregistered-amount">Valor (R$)</label><input id="real-unregistered-amount" type="text" inputmode="decimal" placeholder="0,00" required></div>
               <div class="field"><label for="real-unregistered-due-date">Vencimento</label><input id="real-unregistered-due-date" type="date" required></div>
             </div>
             <div class="student-action-control">
@@ -2619,8 +3270,7 @@ function renderRealBillingScreen() {
         ? '<p class="field-help" role="status" aria-live="polite">Consultando cobranças e alunos vinculados...</p>'
         : "";
   return `
-    ${heading("VISÃO DO PROFESSOR", "Cobranças mensais", "Configure regras, gere cobranças e acompanhe o mês na sua conta real.")}
-    <div class="notice notice--info">O app só controla pagamentos; não há gateway nem envio de mensagens fora do app. Alunos sem conta não entram nas cobranças do banco real; a mensagem copiada no painel não salva cobrança ou texto.</div>
+    ${heading("VISÃO DO PROFESSOR", "Cobranças mensais", "Configure regras, gere cobranças e acompanhe as cobranças do mês.")}
     ${realBillingNotice ? `<p class="login-action-error" role="alert">${escapeHtml(realBillingNotice)}</p>` : ""}
     ${realBillingStudentsNotice ? `<p class="login-action-error" role="alert">${escapeHtml(realBillingStudentsNotice)}</p>` : ""}
     ${summary ? `
@@ -2655,7 +3305,7 @@ function renderRealBillingScreen() {
                 ${studentOptions ? `<option value="" disabled selected>Selecione um aluno</option>${studentOptions}` : '<option value="" disabled selected>Nenhum aluno vinculado ainda</option>'}
               </select></div>
               <div class="field"><label for="real-billing-start-month">Início da regra</label><input id="real-billing-start-month" type="month" value="${escapeHtml(realBillingSelectedMonth)}" required${disabled}></div>
-              <div class="field"><label for="real-billing-base">Valor-base (R$)</label><input id="real-billing-base" type="text" inputmode="decimal" required${disabled}></div>
+              <div class="field"><label for="real-billing-base">Valor-base (R$)</label><input id="real-billing-base" type="text" inputmode="decimal" placeholder="0,00" required${disabled}></div>
               <div class="field"><label for="real-billing-due-day">Dia de vencimento (1 a 28)</label><input id="real-billing-due-day" type="number" min="1" max="28" step="1" required${disabled}></div>
               <div class="field"><label for="real-billing-discount-type">Desconto ou isenção</label><select id="real-billing-discount-type" required${disabled}>
                 <option value="nenhum">Sem desconto</option>
@@ -2663,16 +3313,16 @@ function renderRealBillingScreen() {
                 <option value="percentual">Desconto em %</option>
                 <option value="isencao">Isenção</option>
               </select></div>
-              <div class="field"><label for="real-billing-discount-value">Desconto em R$</label><input id="real-billing-discount-value" type="text" inputmode="decimal"${disabled}></div>
-              <div class="field"><label for="real-billing-discount-percent">Desconto em %</label><input id="real-billing-discount-percent" type="text" inputmode="decimal"${disabled}></div>
+              <div class="field" hidden><label for="real-billing-discount-value">Desconto em R$</label><input id="real-billing-discount-value" type="text" inputmode="decimal"${disabled}></div>
+              <div class="field" hidden><label for="real-billing-discount-percent">Desconto em %</label><input id="real-billing-discount-percent" type="text" inputmode="decimal"${disabled}></div>
               <div class="field"><label for="real-billing-duration">Duração</label><select id="real-billing-duration" required${disabled}>
                 <option value="este_mes">Só este mês</option>
                 <option value="n_meses">N meses</option>
                 <option value="ate_remover">Até remover</option>
               </select></div>
-              <div class="field"><label for="real-billing-duration-months">Número de meses</label><input id="real-billing-duration-months" type="number" min="1" step="1"${disabled}></div>
+              <div class="field" hidden><label for="real-billing-duration-months">Número de meses</label><input id="real-billing-duration-months" type="number" min="1" step="1"${disabled}></div>
             </div>
-            <div class="field"><label for="real-billing-reason">Motivo opcional da isenção</label><textarea id="real-billing-reason" maxlength="400"${disabled}></textarea></div>
+            <div class="field" hidden><label for="real-billing-reason">Motivo opcional da isenção</label><textarea id="real-billing-reason" maxlength="400"${disabled}></textarea></div>
             <div class="student-action-control">
               <button class="button button--primary button--action" type="submit" data-real-billing-save-rule aria-describedby="real-billing-rule-error real-billing-rule-status"${ruleSubmitDisabled ? " disabled" : ""}><span data-action-label>Salvar regra</span></button>
               <p class="login-action-error student-action-error" id="real-billing-rule-error" role="alert"></p>
@@ -3027,6 +3677,247 @@ async function removeRegisteredPaymentProof(paymentId, path, role) {
   }
 }
 
+class RealPaymentProofReadError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "RealPaymentProofReadError";
+  }
+}
+
+function realPaymentProofAssetUrl(path) {
+  return new URL(path, document.baseURI).href;
+}
+
+function loadRealPaymentProofTesseract() {
+  if (window.Tesseract && typeof window.Tesseract.createWorker === "function") {
+    return Promise.resolve(window.Tesseract);
+  }
+  if (!realPaymentProofTesseractScriptPromise) {
+    realPaymentProofTesseractScriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = realPaymentProofAssetUrl("js/vendor/tesseract/tesseract.min.js");
+      script.async = true;
+      script.onload = () => {
+        if (window.Tesseract && typeof window.Tesseract.createWorker === "function") {
+          resolve(window.Tesseract);
+        } else {
+          reject(new Error("A biblioteca de leitura não carregou corretamente."));
+        }
+      };
+      script.onerror = () => reject(new Error("Não foi possível carregar a biblioteca de leitura."));
+      document.head.append(script);
+    }).catch((error) => {
+      realPaymentProofTesseractScriptPromise = null;
+      throw error;
+    });
+  }
+  return realPaymentProofTesseractScriptPromise;
+}
+
+function getRealPaymentProofOcrWorker() {
+  if (!realPaymentProofOcrWorkerPromise) {
+    realPaymentProofOcrWorkerPromise = loadRealPaymentProofTesseract()
+      .then((tesseract) => tesseract.createWorker("eng", 1, {
+        workerPath: realPaymentProofAssetUrl("js/vendor/tesseract/worker.min.js"),
+        langPath: realPaymentProofAssetUrl("js/vendor/tesseract/lang-data"),
+        corePath: realPaymentProofAssetUrl("js/vendor/tesseract/core/tesseract-core-lstm.wasm.js"),
+        legacyCore: false,
+        legacyLang: false,
+        gzip: false,
+        workerBlobURL: false
+      }))
+      .catch((error) => {
+        realPaymentProofOcrWorkerPromise = null;
+        throw error;
+      });
+  }
+  return realPaymentProofOcrWorkerPromise;
+}
+
+function getRealPaymentProofPdfjs() {
+  if (!realPaymentProofPdfjsPromise) {
+    realPaymentProofPdfjsPromise = import(realPaymentProofAssetUrl("js/vendor/pdfjs/pdf.min.mjs"))
+      .then((pdfjs) => {
+        pdfjs.GlobalWorkerOptions.workerSrc = realPaymentProofAssetUrl("js/vendor/pdfjs/pdf.worker.min.mjs");
+        return pdfjs;
+      })
+      .catch((error) => {
+        realPaymentProofPdfjsPromise = null;
+        throw error;
+      });
+  }
+  return realPaymentProofPdfjsPromise;
+}
+
+function parseRealPaymentProofAmountToken(token) {
+  const normalized = String(token).replace(/\s+/g, "").replace(/[^\d.,]/g, "");
+  if (!normalized || !/^\d+(?:[.,]\d+)*$/.test(normalized)) return null;
+
+  const lastComma = normalized.lastIndexOf(",");
+  const lastDot = normalized.lastIndexOf(".");
+  let decimalIndex = -1;
+  if (lastComma >= 0 && lastDot >= 0) {
+    decimalIndex = Math.max(lastComma, lastDot);
+  } else if (lastComma >= 0 && normalized.length - lastComma - 1 <= 2) {
+    decimalIndex = lastComma;
+  } else if (lastDot >= 0 && normalized.length - lastDot - 1 <= 2) {
+    decimalIndex = lastDot;
+  }
+
+  const wholePart = (decimalIndex >= 0 ? normalized.slice(0, decimalIndex) : normalized)
+    .replace(/[.,]/g, "");
+  const fractionPart = decimalIndex >= 0 ? normalized.slice(decimalIndex + 1) : "";
+  if (!wholePart || wholePart.length > 12 || fractionPart.length > 2) return null;
+
+  const cents = BigInt(wholePart) * 100n + BigInt(fractionPart.padEnd(2, "0") || "0");
+  return cents > 0n ? cents : null;
+}
+
+function extractRealPaymentProofAmounts(text) {
+  const amounts = new Set();
+  const lines = String(text).replace(/\r/g, "\n").split(/\n+/);
+  const currencyAmount = /R\s*\$\s*(\d{1,3}(?:[.\s]\d{3})*(?:[,.]\d{1,2})?|\d+(?:[,.]\d{1,2})?)/gi;
+  const labeledAmount = /(?:valor|amount|total\s+(?:pago|recebido))[^\d]{0,30}(\d{1,3}(?:[.\s]\d{3})*(?:[,.]\d{1,2})?|\d+(?:[,.]\d{1,2})?)/gi;
+
+  for (const line of lines) {
+    for (const match of line.matchAll(currencyAmount)) {
+      const cents = parseRealPaymentProofAmountToken(match[1]);
+      if (cents !== null) amounts.add(cents.toString());
+    }
+    for (const match of line.matchAll(labeledAmount)) {
+      const cents = parseRealPaymentProofAmountToken(match[1]);
+      if (cents !== null) amounts.add(cents.toString());
+    }
+  }
+  return Array.from(amounts, (amount) => BigInt(amount)).sort((left, right) =>
+    left < right ? -1 : left > right ? 1 : 0
+  );
+}
+
+async function recognizeRealPaymentProofImage(image) {
+  const worker = await getRealPaymentProofOcrWorker();
+  const { data } = await worker.recognize(image);
+  return {
+    amounts: extractRealPaymentProofAmounts(data.text),
+    confidence: Number.isFinite(data.confidence) ? data.confidence : null,
+    method: "OCR"
+  };
+}
+
+async function recognizeRealPaymentProofPdf(file) {
+  const pdfjs = await getRealPaymentProofPdfjs();
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(await file.arrayBuffer()),
+    isEvalSupported: false,
+    useSystemFonts: true
+  });
+  const amounts = new Map();
+  let pdf;
+  try {
+    pdf = await loadingTask.promise;
+    if (!Number.isInteger(pdf.numPages) || pdf.numPages < 1) {
+      throw new RealPaymentProofReadError("O PDF não contém páginas legíveis.");
+    }
+    if (pdf.numPages > REAL_PAYMENT_PROOF_PDF_MAX_PAGES) {
+      throw new RealPaymentProofReadError("O PDF tem mais de 10 páginas. Use um arquivo menor com o comprovante.");
+    }
+
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .filter((item) => item && typeof item.str === "string")
+        .map((item) => item.str)
+        .join(" ");
+      const textAmounts = extractRealPaymentProofAmounts(pageText);
+      textAmounts.forEach((amount) => {
+        const key = amount.toString();
+        const current = amounts.get(key);
+        if (!current || current.confidence < 100) {
+          amounts.set(key, { amount, confidence: 100, method: "PDF" });
+        }
+      });
+
+      if (!textAmounts.length) {
+        const baseViewport = page.getViewport({ scale: 1 });
+        const scale = Math.min(1.5, 2000 / Math.max(baseViewport.width, baseViewport.height));
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) throw new Error("Não foi possível preparar a leitura do PDF.");
+        try {
+          await page.render({ canvasContext: context, viewport }).promise;
+          const result = await recognizeRealPaymentProofImage(canvas);
+          result.amounts.forEach((amount) => {
+            const key = amount.toString();
+            const current = amounts.get(key);
+            if (!current || (result.confidence !== null && result.confidence > current.confidence)) {
+              amounts.set(key, { amount, confidence: result.confidence, method: "OCR" });
+            }
+          });
+        } finally {
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+      }
+      page.cleanup();
+    }
+  } finally {
+    await loadingTask.destroy();
+  }
+
+  const results = Array.from(amounts.values()).sort((left, right) =>
+    left.amount < right.amount ? -1 : left.amount > right.amount ? 1 : 0
+  );
+  return {
+    amounts: results.map((result) => result.amount),
+    confidence: results.length === 1 ? results[0].confidence : null,
+    method: results.some((result) => result.method === "OCR") ? "OCR" : "PDF"
+  };
+}
+
+async function readRealPaymentProof(file, mimeType) {
+  if (mimeType === "application/pdf") return recognizeRealPaymentProofPdf(file);
+  if (mimeType === "image/jpeg" || mimeType === "image/png") {
+    return recognizeRealPaymentProofImage(file);
+  }
+  throw new RealPaymentProofReadError("O formato deste comprovante não pode ser lido.");
+}
+
+function realPaymentProofAnalysisMarkup(result, payment, charge) {
+  const messages = [];
+  if (!result.amounts.length) {
+    messages.push("Não foi possível identificar um valor com segurança. Confira o comprovante e o extrato bancário.");
+  } else if (result.amounts.length > 1) {
+    messages.push(`Mais de um valor foi encontrado: ${result.amounts.map(formatRealBillingCents).join(", ")}. Confira visualmente.`);
+  } else {
+    const amount = result.amounts[0];
+    const declared = realBillingIntegerCents(payment.valor_centavos);
+    const balance = realBillingBalance(charge, realProfessorPayments);
+    messages.push(`Valor lido: ${formatRealBillingCents(amount)}.`);
+    messages.push(`Valor informado no aviso: ${formatRealBillingCents(declared)}.`);
+    messages.push(`Saldo atual da cobrança: ${formatRealBillingCents(balance)}.`);
+    messages.push(amount === declared
+      ? "O valor lido coincide com o aviso do aluno."
+      : "O valor lido difere do valor informado no aviso.");
+    if (balance > 0n) {
+      messages.push(amount === balance
+        ? "O valor coincide com o saldo total atual da cobrança."
+        : amount < balance
+          ? "O valor é menor que o saldo atual; pode ser um pagamento parcial."
+          : "O valor excede o saldo atual; confira antes de decidir.");
+    }
+  }
+  if (result.confidence !== null) {
+    messages.push(`Confiança estimada da leitura: ${Math.round(result.confidence)}%.`);
+    if (result.confidence < 60) messages.push("A leitura tem baixa confiança; confira o valor manualmente.");
+  }
+  messages.push("Confira o comprovante e seu banco. A leitura não confirma o pagamento e o valor extraído não é salvo.");
+  return messages.map((message) => `<p>${escapeHtml(message)}</p>`).join("");
+}
+
 function renderRealStudentPaymentRow(charge) {
   const payments = realStudentPayments.filter((payment) => payment.cobranca_id === charge.id);
   const statusLabel = charge.status === "aberta" && realBillingIsLate(charge)
@@ -3143,6 +4034,7 @@ function renderRealProfessorPaymentRow(payment, charge) {
   const proofCreatedAt = proof ? Date.parse(proof.criado_em) : NaN;
   const canViewProof = Boolean(proof && proof.estado_arquivo === "ativo" &&
     Number.isFinite(proofCreatedAt) && proofCreatedAt > Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const canReadProof = canViewProof && payment.status === "pendente" && payment.tipo === "comprovante";
   const isPending = payment.status === "pendente";
   const canUndo = realPaymentUndoDeadline(payment) > Date.now();
   const actions = [
@@ -3152,6 +4044,9 @@ function renderRealProfessorPaymentRow(payment, charge) {
     ] : payment.status === "confirmado" ? [
       ...(canUndo ? [`<button class="button button--small button--quiet button--action" type="button" data-real-payment-action="desfazer" data-real-payment-id="${paymentId}" aria-describedby="real-payment-error-${paymentId} real-payment-status-${paymentId}"><span data-action-label>Desfazer</span></button>`] : []),
       `<button class="button button--small button--danger button--action" type="button" data-real-payment-action="estornar" data-real-payment-id="${paymentId}" aria-describedby="real-payment-error-${paymentId} real-payment-status-${paymentId}"><span data-action-label>Estornar</span></button>`
+    ] : []),
+    ...(canReadProof ? [
+      `<button class="button button--small button--quiet button--action" type="button" data-real-proof-analyze="${paymentId}" aria-describedby="real-payment-error-${paymentId} real-payment-status-${paymentId}"><span data-action-label>Ler valor</span></button>`
     ] : []),
     ...(canViewProof ? [
       `<button class="button button--small button--quiet button--action" type="button" data-real-proof-view="${paymentId}" aria-describedby="real-payment-error-${paymentId} real-payment-status-${paymentId}"><span data-action-label>Ver comprovante</span></button>`
@@ -3166,6 +4061,7 @@ function renderRealProfessorPaymentRow(payment, charge) {
       <p class="field-help">${escapeHtml(payment.origem === "professor" ? "Lançamento do Professor" : "Aviso do aluno")} · ${escapeHtml(payment.tipo)} · ${formatRealBillingCents(payment.valor_centavos)} · saldo ${formatRealBillingCents(realBillingBalance(charge, realProfessorPayments))}${payment.referencia ? ` · ${escapeHtml(payment.referencia)}` : ""} · ${realBillingTimestamp(payment.criado_em)}</p>
       ${proof && !canViewProof ? `<p class="field-help">Comprovante indisponível (${escapeHtml(proof.estado_arquivo)}).</p>` : ""}
       ${actions ? `<div class="row-actions">${actions}</div>` : ""}
+      ${canReadProof ? `<div class="notice notice--info" data-real-proof-analysis="${paymentId}" role="region" aria-label="Leitura do comprovante" aria-live="polite" hidden></div>` : ""}
       <p class="login-action-error student-action-error" id="real-payment-error-${paymentId}" role="alert"></p>
       <p class="field-help" id="real-payment-status-${paymentId}" role="status" aria-live="polite"></p>
     </article>
@@ -3220,7 +4116,7 @@ function renderRealProfessorPaymentsScreen() {
             </div>
             <div class="field">
               <label for="real-professor-payment-reference">Referência</label>
-              <input id="real-professor-payment-reference" type="text" maxlength="120" required>
+              <input id="real-professor-payment-reference" type="text" maxlength="120" placeholder="Mensalidade" required>
             </div>
           </div>
           <div class="student-action-control">
@@ -3245,7 +4141,7 @@ async function loadRealStudentPayments(renderScreen = true, allowHome = false) {
   realStudentPaymentProofs = new Map();
   if (!authClient || !realUser || !isRealActiveStudent() || !realProfile || !realProfile.academia_id) {
     realStudentPaymentsState = "error";
-    realStudentPaymentsNotice = "Esta tela exige uma conta real de Aluno ativa.";
+    realStudentPaymentsNotice = "Esta tela exige um perfil de Aluno ativo vinculado a uma academia.";
     if (renderScreen && !allowHome && currentScreen === screenId) {
       screenContent.innerHTML = renderRealStudentPaymentsScreen();
     }
@@ -3784,7 +4680,7 @@ function renderRealStudentLinkScreen() {
     ? `<form data-real-student-link-form>
         <div class="field">
           <label for="real-student-link-code">Código de 6 caracteres</label>
-          <input id="real-student-link-code" name="codigo" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="real-student-link-help">
+          <input id="real-student-link-code" name="codigo" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC123" aria-describedby="real-student-link-help">
           <small class="field-help" id="real-student-link-help">Digite ou cole o código recebido do Professor. Espaços serão removidos automaticamente.</small>
         </div>
         <div class="form-actions">
@@ -3798,7 +4694,7 @@ function renderRealStudentLinkScreen() {
     : "";
 
   return `
-    ${heading("CONTA · ALUNO", "Vincular a um Professor", "Envie seu código para solicitar um vínculo. A demonstração continua separada.") }
+    ${heading("CONTA · ALUNO", "Vincular a um Professor", "Envie seu código para solicitar um vínculo.") }
     <div class="content-grid">
       ${panel("Pedido de vínculo", `${requestState}${cancelAction}${form}`, "panel-card--highlight")}
     </div>
@@ -3840,7 +4736,6 @@ function renderRealUnregisteredStudents() {
       ? `<p class="login-action-error" role="alert">${escapeHtml(realUnregisteredStudentsNotice)}</p>`
       : realUnregisteredStudents.length
         ? `<div class="stack">${realUnregisteredStudents.map((student, index) => {
-          const initials = Array.from(student.nome.trim())[0] || "A";
           const ageLabel = student.idade_declarada === "menor" ? "Menor de 18 anos · somente avatar" :
             student.idade_declarada === "adulto" ? "Adulto · somente avatar" : "Idade ainda não declarada · somente avatar";
           const ageSelect = `
@@ -3866,7 +4761,7 @@ function renderRealUnregisteredStudents() {
           return `
             <article class="real-unregistered-student-row">
               <div class="person-row">
-                <span class="avatar avatar--small avatar--initials" aria-hidden="true">${escapeHtml(initials)}</span>
+                <span class="avatar avatar--small avatar--initials" aria-hidden="true"><img src="${DEFAULT_PERSON_AVATAR_SRC}" alt="" loading="lazy"></span>
                 <span class="person-copy"><strong>${escapeHtml(student.nome)}</strong><small>${escapeHtml(ageLabel)}</small></span>
               </div>
               ${ageSelect}
@@ -3880,7 +4775,7 @@ function renderRealUnregisteredStudents() {
       <div class="form-grid">
         <div class="field field--wide">
           <label for="real-unregistered-name">Nome do aluno</label>
-          <input id="real-unregistered-name" name="nome" type="text" autocomplete="off" maxlength="160" aria-describedby="real-unregistered-create-help">
+          <input id="real-unregistered-name" name="nome" type="text" autocomplete="off" placeholder="Nome completo do aluno" maxlength="160" aria-describedby="real-unregistered-create-help">
           <small class="field-help" id="real-unregistered-create-help">Informe de 1 a 80 caracteres. Não é necessário telefone, e-mail ou data de nascimento.</small>
         </div>
         <div class="field field--wide">
@@ -4153,27 +5048,55 @@ async function loadRealProfessorStudentRecords() {
 
 function updateUserPanelProfile() {
   const roleLabels = { adm: "Adm", professor: "Professor", instrutor: "Instrutor", aluno: "Aluno" };
-  document.querySelector("#user-panel-profile-name").textContent =
-    realUser && realProfile && realProfile.nome || realUser && realUser.email || "Sem sessão ativa";
-  document.querySelector("#user-panel-profile-role").textContent =
-    realProfile && roleLabels[realProfile.papel] || (realUser ? "Conta real" : "Perfil");
-  document.querySelector("#user-panel-profile-academy").textContent =
-    realProfile && realProfile.academia_id ? "Academia vinculada" : "Sem academia vinculada";
-  if (realUser) void loadRealUserPanelMedia();
+  const name = realUser && realProfile && realProfile.nome || realUser && realUser.email || "Sem sessão ativa";
+  const role = realProfile && roleLabels[realProfile.papel] || (realUser ? "Conta real" : "Perfil");
+  document.querySelector("#user-panel-profile-name").textContent = name;
+  document.querySelector("#user-panel-profile-role").textContent = role;
+  document.querySelector("#sidebar-profile-name").textContent = name;
+  document.querySelector("#sidebar-profile-role").textContent = role;
+  document.querySelector(".sidebar-profile-button").hidden = !realUser;
+  const headerProfileCopy = document.querySelector("#profile-button .profile-button-copy");
+  headerProfileCopy.querySelector("strong").textContent = name;
+  headerProfileCopy.querySelector("small").textContent = role;
+  document.querySelector("#profile-button").setAttribute("aria-label", `Abrir painel do usuário: ${name}`);
+  renderUserPanelTutorialTopics();
+  setUserPanelAcademyText(realProfile && realProfile.academia_id ? "Academia: carregando..." : "Sem academia vinculada");
+  if (realUser) {
+    ensureRealAvatarChoiceLoaded();
+    void loadRealUserPanelMedia();
+  }
   else clearRealUserPanelMedia();
 }
 
+function setUserPanelAcademyText(text) {
+  const line = document.querySelector("#user-panel-profile-academy");
+  const image = document.querySelector("#user-panel-academy-photo");
+  if (!line) return;
+  if (image) image.remove();
+  line.textContent = text;
+  if (image) line.append(image);
+}
+
 function clearRealUserPanelMedia() {
-  ["#user-panel-academy-photo", "#user-panel-professor-photo"].forEach((selector) => {
-    const image = document.querySelector(selector);
-    if (!image) return;
-    image.removeAttribute("src");
-    image.hidden = true;
+  const avatarSrc = realUser ? realPersonAvatarSrc(realUser.id) : DEFAULT_PERSON_AVATAR_SRC;
+  document.querySelectorAll(
+    "#profile-button-avatar img, .sidebar-profile-avatar img, #user-panel-profile-photo"
+  ).forEach((image) => {
+    image.onload = null;
+    image.onerror = null;
+    image.alt = "";
+    image.hidden = false;
+    image.src = avatarSrc;
   });
-  const academyMedia = document.querySelector("#user-panel-academy-media");
-  const professorMedia = document.querySelector("#user-panel-professor-media");
-  if (academyMedia) academyMedia.hidden = true;
-  if (professorMedia) professorMedia.hidden = true;
+  const academyImage = document.querySelector("#user-panel-academy-photo");
+  if (academyImage) {
+    academyImage.removeAttribute("src");
+    academyImage.alt = "";
+    academyImage.hidden = true;
+  }
+  const avatar = document.querySelector("#user-panel-avatar");
+  if (avatar) avatar.setAttribute("aria-hidden", "true");
+  setUserPanelAcademyText("Sem academia vinculada");
 }
 
 async function loadRealUserPanelMedia() {
@@ -4183,98 +5106,88 @@ async function loadRealUserPanelMedia() {
   const sessionGeneration = realSessionCacheGeneration;
   const isCurrentSession = () =>
     sessionGeneration === realSessionCacheGeneration && Boolean(realUser && realUser.id === userId);
-  const showSignedImage = async (table, key, bucket, imageSelector, containerSelector, label) => {
-    const { data: row, error } = await authClient.from(table).select("caminho_storage").eq(key, userId).maybeSingle();
-    if (!isCurrentSession()) return;
-    if (error) {
-      logRealProfileSupabaseError(`consultar foto de ${label}`, error);
-      return;
+  const profileAvatar = document.querySelector("#user-panel-avatar");
+  const profileImage = document.querySelector("#user-panel-profile-photo");
+  const profileImages = Array.from(document.querySelectorAll(
+    "#profile-button-avatar img, .sidebar-profile-avatar img, #user-panel-profile-photo"
+  ));
+
+  const showSignedProfilePhoto = async (path, bucket, expiresIn) => {
+    try {
+      const { data: signed, error } = await authClient.storage.from(bucket).createSignedUrl(path, expiresIn);
+      if (!isCurrentSession()) return;
+      if (error || !signed || typeof signed.signedUrl !== "string") {
+        if (error) logRealProfileSupabaseError("abrir foto do perfil no painel", error);
+        else console.error("Não foi possível criar a URL temporária da foto de perfil no painel.");
+        return;
+      }
+      if (!profileAvatar || !profileImage || !profileImages.length) return;
+      for (const image of profileImages) {
+        const isPanelImage = image === profileImage;
+        image.alt = isPanelImage ? "Foto de perfil" : "";
+        image.onload = () => {
+          image.onload = null;
+          image.onerror = null;
+          if (!isCurrentSession()) {
+            image.alt = "";
+            image.src = realPersonAvatarSrc(userId);
+            return;
+          }
+          image.hidden = false;
+          if (isPanelImage) profileAvatar.removeAttribute("aria-hidden");
+        };
+        image.onerror = () => {
+          image.onload = null;
+          image.onerror = null;
+          if (!isCurrentSession()) return;
+          image.alt = "";
+          image.src = realPersonAvatarSrc(userId);
+          image.hidden = false;
+          if (isPanelImage) {
+            profileAvatar.setAttribute("aria-hidden", "true");
+            console.error("Não foi possível carregar a foto de perfil no painel; o avatar foi mantido.");
+          }
+        };
+        image.src = signed.signedUrl;
+      }
+    } catch (error) {
+      if (isCurrentSession()) logRealProfileSupabaseError("abrir foto do perfil no painel", error);
     }
-    if (!row || typeof row.caminho_storage !== "string") return;
-    const { data: signed, error: signedError } = await authClient.storage.from(bucket)
-      .createSignedUrl(row.caminho_storage, 60);
-    if (!isCurrentSession()) return;
-    if (signedError || !signed || typeof signed.signedUrl !== "string") {
-      if (signedError) logRealProfileSupabaseError(`abrir foto de ${label}`, signedError);
-      return;
-    }
-    const image = document.querySelector(imageSelector);
-    const container = document.querySelector(containerSelector);
-    if (!image || !container) return;
-    image.src = signed.signedUrl;
-    image.alt = label;
-    image.hidden = false;
-    container.hidden = false;
   };
 
-  if (realProfile.academia_id) {
-    const { data: academyPhoto, error: academyError } = await authClient.from("academias_fotos")
-      .select("caminho_storage").eq("academia_id", realProfile.academia_id).maybeSingle();
-    if (!isCurrentSession()) return;
-    if (academyError) {
-      logRealProfileSupabaseError("consultar foto da academia", academyError);
-    } else if (academyPhoto && typeof academyPhoto.caminho_storage === "string") {
-      const { data: signed, error: signedError } = await authClient.storage.from("academias")
-        .createSignedUrl(academyPhoto.caminho_storage, 60);
-      if (!isCurrentSession()) return;
-      if (signedError || !signed || typeof signed.signedUrl !== "string") {
-        if (signedError) logRealProfileSupabaseError("abrir foto da academia", signedError);
-      } else {
-        const image = document.querySelector("#user-panel-academy-photo");
-        const container = document.querySelector("#user-panel-academy-media");
-        if (image && container) {
-          image.src = signed.signedUrl;
-          image.alt = "Foto da academia";
-          image.hidden = false;
-          container.hidden = false;
-        }
-      }
-    }
-  }
-
   if (realProfile.papel === "professor") {
-    await showSignedImage("professores_fotos", "professor_id", "professores",
-      "#user-panel-professor-photo", "#user-panel-professor-media", "Foto do Professor");
+    try {
+      const { data: photo, error } = await authClient.from("professores_fotos")
+        .select("caminho_storage").eq("professor_id", userId).maybeSingle();
+      if (!isCurrentSession()) return;
+      if (error) {
+        logRealProfileSupabaseError("consultar foto do Professor no painel", error);
+      } else if (photo && typeof photo.caminho_storage === "string") {
+        await showSignedProfilePhoto(photo.caminho_storage, "professores", 60);
+      }
+    } catch (error) {
+      if (isCurrentSession()) logRealProfileSupabaseError("consultar foto do Professor no painel", error);
+    }
     return;
   }
-  if (realProfile.papel !== "aluno") return;
-  const { data: link, error: linkError } = await authClient.from("vinculos")
-    .select("professor_id").eq("aluno_id", userId).maybeSingle();
-  if (!isCurrentSession()) return;
-  if (linkError) {
-    logRealProfileSupabaseError("consultar Professor vinculado para foto", linkError);
-    return;
-  }
-  if (!link || typeof link.professor_id !== "string") return;
-  const { data: teacher, error: teacherError } = await authClient.from("perfis")
-    .select("id,nome").eq("id", link.professor_id).maybeSingle();
-  if (!isCurrentSession()) return;
-  if (teacherError) {
-    logRealProfileSupabaseError("consultar nome do Professor vinculado", teacherError);
-    return;
-  }
-  const { data: photo, error: photoError } = await authClient.from("professores_fotos")
-    .select("caminho_storage").eq("professor_id", link.professor_id).maybeSingle();
-  if (!isCurrentSession()) return;
-  if (photoError) {
-    logRealProfileSupabaseError("consultar foto do Professor vinculado", photoError);
-    return;
-  }
-  if (!photo || typeof photo.caminho_storage !== "string") return;
-  const { data: signed, error: signedError } = await authClient.storage.from("professores")
-    .createSignedUrl(photo.caminho_storage, 60);
-  if (!isCurrentSession()) return;
-  if (signedError || !signed || typeof signed.signedUrl !== "string") {
-    if (signedError) logRealProfileSupabaseError("abrir foto do Professor vinculado", signedError);
-    return;
-  }
-  const image = document.querySelector("#user-panel-professor-photo");
-  const container = document.querySelector("#user-panel-professor-media");
-  if (image && container) {
-    image.src = signed.signedUrl;
-    image.alt = teacher && teacher.nome ? `Foto de ${teacher.nome}` : "Foto do Professor vinculado";
-    image.hidden = false;
-    container.hidden = false;
+  if (realProfile.papel === "adm" || realProfile.papel === "instrutor" ||
+      (realProfile.papel === "aluno" && realProfile.idade_declarada === "adulto")) {
+    try {
+      const { data: photos, error } = await authClient.rpc("obter_foto_perfil", {
+        p_perfil_id: userId
+      });
+      if (!isCurrentSession()) return;
+      if (error) {
+        logRealProfileSupabaseError("consultar foto de perfil no painel", error);
+        return;
+      }
+      const photo = Array.isArray(photos) ? photos[0] : null;
+      if (photo && typeof photo.caminho_storage === "string") {
+        await showSignedProfilePhoto(photo.caminho_storage, "perfis", 300);
+      }
+    } catch (error) {
+      if (isCurrentSession()) logRealProfileSupabaseError("consultar foto de perfil no painel", error);
+    }
   }
 }
 
@@ -4286,6 +5199,367 @@ function validateStorageFile(file, mimeTypes, maxBytes, label) {
   }
   return "";
 }
+
+function getPhotoCropInputFeedback(input) {
+  const field = input.closest(".field");
+  if (!field) return null;
+  let feedback = field.querySelector("[data-photo-crop-feedback]");
+  if (feedback) return feedback;
+
+  feedback = document.createElement("p");
+  feedback.className = "photo-crop-input-feedback";
+  feedback.id = `${input.id}-crop-feedback`;
+  feedback.dataset.photoCropFeedback = "";
+  feedback.setAttribute("role", "status");
+  feedback.setAttribute("aria-live", "polite");
+  feedback.setAttribute("aria-atomic", "true");
+  const help = Array.from(field.children).find((element) => element.classList.contains("field-help"));
+  if (help) help.insertAdjacentElement("afterend", feedback);
+  else input.insertAdjacentElement("afterend", feedback);
+
+  const describedBy = new Set((input.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean));
+  describedBy.add(feedback.id);
+  input.setAttribute("aria-describedby", Array.from(describedBy).join(" "));
+  return feedback;
+}
+
+function setPhotoCropInputFeedback(input, message, isError = false) {
+  const feedback = getPhotoCropInputFeedback(input);
+  if (!feedback) return;
+  feedback.setAttribute("role", isError ? "alert" : "status");
+  feedback.setAttribute("aria-live", isError ? "assertive" : "polite");
+  feedback.textContent = message;
+}
+
+function getPreparedPhotoFile(input) {
+  return input instanceof HTMLInputElement ? photoCropPreparedFiles.get(input) || null : null;
+}
+
+function updatePhotoCropPreview(state) {
+  if (!state || !state.loaded) return;
+  const width = photoCropStage.clientWidth;
+  const height = photoCropStage.clientHeight;
+  if (!width || !height) return;
+
+  if (state.stageWidth !== width || state.stageHeight !== height) {
+    if (state.stageWidth && state.stageHeight) {
+      state.offsetX *= width / state.stageWidth;
+      state.offsetY *= height / state.stageHeight;
+    } else {
+      state.offsetX = 0;
+      state.offsetY = 0;
+    }
+    state.stageWidth = width;
+    state.stageHeight = height;
+    state.baseScale = Math.max(width / photoCropImage.naturalWidth, height / photoCropImage.naturalHeight);
+    if (!state.initialized) {
+      state.offsetX = (width - photoCropImage.naturalWidth * state.baseScale) / 2;
+      state.offsetY = (height - photoCropImage.naturalHeight * state.baseScale) / 2;
+      state.initialized = true;
+    }
+  }
+
+  const scale = state.baseScale * state.zoom;
+  const imageWidth = photoCropImage.naturalWidth * scale;
+  const imageHeight = photoCropImage.naturalHeight * scale;
+  state.offsetX = Math.max(width - imageWidth, Math.min(0, state.offsetX));
+  state.offsetY = Math.max(height - imageHeight, Math.min(0, state.offsetY));
+  photoCropImage.style.width = `${imageWidth}px`;
+  photoCropImage.style.height = `${imageHeight}px`;
+  photoCropImage.style.transform = `translate(${state.offsetX}px, ${state.offsetY}px)`;
+}
+
+function movePhotoCrop(direction) {
+  const state = activePhotoCrop;
+  if (!state || !state.loaded) return;
+  const distance = Math.max(10, Math.round(photoCropStage.clientWidth * 0.04));
+  if (direction === "up") state.offsetY -= distance;
+  else if (direction === "down") state.offsetY += distance;
+  else if (direction === "left") state.offsetX -= distance;
+  else if (direction === "right") state.offsetX += distance;
+  updatePhotoCropPreview(state);
+}
+
+function resetPhotoCropControls() {
+  photoCropZoom.value = "1";
+  photoCropZoom.disabled = true;
+  photoCropZoomValue.textContent = "100%";
+  photoCropZoom.setAttribute("aria-valuetext", "Zoom 100%");
+  photoCropMoveButtons.forEach((button) => { button.disabled = true; });
+  photoCropConfirm.disabled = true;
+  const label = photoCropConfirm.querySelector("[data-action-label]");
+  if (label) label.textContent = "Usar enquadramento";
+  photoCropConfirm.dataset.originalLabel = "Usar enquadramento";
+  delete photoCropConfirm.dataset.actionState;
+  photoCropConfirm.removeAttribute("aria-label");
+  photoCropConfirm.removeAttribute("aria-busy");
+}
+
+function handlePhotoFileSelection(input) {
+  photoCropPreparedFiles.delete(input);
+  setPhotoCropInputFeedback(input, "");
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const validationError = validateStorageFile(file, ["image/jpeg", "image/png"], 5242880, "a foto");
+  if (validationError) {
+    input.value = "";
+    setPhotoCropInputFeedback(input, validationError, true);
+    return;
+  }
+
+  let objectUrl;
+  try {
+    objectUrl = URL.createObjectURL(file);
+  } catch (error) {
+    console.error("Não foi possível abrir a prévia da foto.", error);
+    input.value = "";
+    setPhotoCropInputFeedback(input, "Não foi possível abrir esta foto. Tente novamente com um arquivo JPG ou PNG.", true);
+    return;
+  }
+
+  const state = {
+    input,
+    file,
+    objectUrl,
+    loaded: false,
+    confirmed: false,
+    processing: false,
+    initialized: false,
+    zoom: 1,
+    offsetX: 0,
+    offsetY: 0,
+    stageWidth: 0,
+    stageHeight: 0,
+    baseScale: 1,
+    dragStart: null
+  };
+  activePhotoCrop = state;
+  photoCropError.textContent = "";
+  photoCropStatus.textContent = "Carregando prévia da foto.";
+  resetPhotoCropControls();
+  photoCropImage.removeAttribute("style");
+
+  photoCropImage.onload = () => {
+    if (activePhotoCrop !== state) return;
+    if (!photoCropImage.naturalWidth || !photoCropImage.naturalHeight) {
+      photoCropError.textContent = "Não foi possível ler as dimensões desta foto. Tente outro arquivo JPG ou PNG.";
+      photoCropStatus.textContent = "";
+      return;
+    }
+    state.loaded = true;
+    updatePhotoCropPreview(state);
+    photoCropZoom.disabled = false;
+    photoCropMoveButtons.forEach((button) => { button.disabled = false; });
+    photoCropConfirm.disabled = false;
+    photoCropStatus.textContent = "Prévia pronta. Arraste a foto ou ajuste os controles.";
+    photoCropStage.focus();
+  };
+  photoCropImage.onerror = () => {
+    if (activePhotoCrop !== state) return;
+    console.error("Não foi possível decodificar a foto selecionada.");
+    photoCropError.textContent = "Não foi possível abrir esta foto. Tente outro arquivo JPG ou PNG.";
+    photoCropStatus.textContent = "";
+  };
+
+  try {
+    photoCropDialog.showModal();
+    photoCropImage.src = objectUrl;
+  } catch (error) {
+    console.error("Não foi possível abrir o ajuste de enquadramento.", error);
+    URL.revokeObjectURL(objectUrl);
+    activePhotoCrop = null;
+    photoCropImage.onload = null;
+    photoCropImage.onerror = null;
+    photoCropImage.removeAttribute("src");
+    resetPhotoCropControls();
+    input.value = "";
+    setPhotoCropInputFeedback(input, "Não foi possível abrir o ajuste da foto. Tente novamente.", true);
+  }
+}
+
+function createCroppedPhotoFile(state) {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement("canvas");
+    const outputSize = 512;
+    canvas.width = outputSize;
+    canvas.height = outputSize;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      reject(new Error("O navegador não conseguiu preparar a imagem."));
+      return;
+    }
+
+    const scale = state.baseScale * state.zoom;
+    const sourceSize = photoCropStage.clientWidth / scale;
+    const sourceX = Math.max(0, Math.min(
+      photoCropImage.naturalWidth - sourceSize,
+      -state.offsetX / scale
+    ));
+    const sourceY = Math.max(0, Math.min(
+      photoCropImage.naturalHeight - sourceSize,
+      -state.offsetY / scale
+    ));
+    context.drawImage(photoCropImage, sourceX, sourceY, sourceSize, sourceSize, 0, 0, outputSize, outputSize);
+    canvas.toBlob((blob) => {
+      canvas.width = 0;
+      canvas.height = 0;
+      if (!blob) {
+        reject(new Error("O navegador não conseguiu exportar a imagem enquadrada."));
+        return;
+      }
+      try {
+        const outputType = blob.type || state.file.type;
+        if (!["image/jpeg", "image/png"].includes(outputType)) {
+          reject(new Error("O navegador exportou um formato de imagem não permitido."));
+          return;
+        }
+        const extension = outputType === "image/png" ? "png" : "jpg";
+        const baseName = state.file.name.replace(/\.[^.]+$/, "") || "foto";
+        resolve(new File([blob], `${baseName}.${extension}`, {
+          type: outputType,
+          lastModified: state.file.lastModified || Date.now()
+        }));
+      } catch (error) {
+        reject(error);
+      }
+    }, state.file.type, state.file.type === "image/jpeg" ? 0.92 : undefined);
+  });
+}
+
+function confirmPhotoCrop() {
+  const state = activePhotoCrop;
+  if (!state || !state.loaded || photoCropConfirm.disabled) return;
+  state.processing = true;
+  const controls = Array.from(photoCropDialog.querySelectorAll("button, input[type='range']"));
+  runButtonAction(photoCropConfirm, {
+    feedback: photoCropError,
+    announcement: photoCropStatus,
+    buttons: controls,
+    loadingText: "Preparando...",
+    loadingMessage: "Preparando a foto enquadrada.",
+    successMessage: "Enquadramento preparado. Agora envie ou salve a foto.",
+    successLabel: "Foto preparada",
+    errorMessage: "Não foi possível preparar esta foto. Tente outro arquivo JPG ou PNG.",
+    successDelay: 500,
+    afterSuccess: () => { photoCropDialog.close(); }
+  }, async () => {
+    try {
+      const file = await createCroppedPhotoFile(state);
+      const validationError = validateStorageFile(file, ["image/jpeg", "image/png"], 5242880, "a foto");
+      if (validationError) {
+        state.processing = false;
+        return { errorMessage: validationError };
+      }
+      photoCropPreparedFiles.set(state.input, file);
+      state.input.value = "";
+      state.confirmed = true;
+      setPhotoCropInputFeedback(state.input, "Enquadramento pronto. Confirme a ação da tela para aplicar a foto.");
+      return {};
+    } catch (error) {
+      state.processing = false;
+      console.error("Não foi possível preparar a foto enquadrada.", error);
+      return { errorMessage: "Não foi possível preparar esta foto. Tente outro arquivo JPG ou PNG." };
+    }
+  });
+}
+
+photoCropZoom.addEventListener("input", () => {
+  if (!activePhotoCrop || !activePhotoCrop.loaded) return;
+  const state = activePhotoCrop;
+  const nextZoom = Number(photoCropZoom.value);
+  const oldScale = state.baseScale * state.zoom;
+  const newScale = state.baseScale * nextZoom;
+  const centerX = (photoCropStage.clientWidth / 2 - state.offsetX) / oldScale;
+  const centerY = (photoCropStage.clientHeight / 2 - state.offsetY) / oldScale;
+  state.zoom = nextZoom;
+  state.offsetX = photoCropStage.clientWidth / 2 - centerX * newScale;
+  state.offsetY = photoCropStage.clientHeight / 2 - centerY * newScale;
+  photoCropZoomValue.textContent = `${Math.round(activePhotoCrop.zoom * 100)}%`;
+  photoCropZoom.setAttribute("aria-valuetext", `Zoom ${photoCropZoomValue.textContent}`);
+  updatePhotoCropPreview(activePhotoCrop);
+});
+
+photoCropMoveButtons.forEach((button) => {
+  button.addEventListener("click", () => { movePhotoCrop(button.dataset.photoCropMove); });
+});
+
+photoCropStage.addEventListener("pointerdown", (event) => {
+  const state = activePhotoCrop;
+  if (!state || !state.loaded || event.button !== 0) return;
+  state.dragStart = {
+    pointerId: event.pointerId,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    offsetX: state.offsetX,
+    offsetY: state.offsetY
+  };
+  photoCropStage.setPointerCapture(event.pointerId);
+  event.preventDefault();
+});
+
+photoCropStage.addEventListener("pointermove", (event) => {
+  const state = activePhotoCrop;
+  if (!state || !state.dragStart || state.dragStart.pointerId !== event.pointerId) return;
+  state.offsetX = state.dragStart.offsetX + event.clientX - state.dragStart.clientX;
+  state.offsetY = state.dragStart.offsetY + event.clientY - state.dragStart.clientY;
+  updatePhotoCropPreview(state);
+});
+
+function finishPhotoCropDrag(event) {
+  if (!activePhotoCrop || !activePhotoCrop.dragStart || activePhotoCrop.dragStart.pointerId !== event.pointerId) return;
+  activePhotoCrop.dragStart = null;
+  if (photoCropStage.hasPointerCapture(event.pointerId)) photoCropStage.releasePointerCapture(event.pointerId);
+}
+
+photoCropStage.addEventListener("pointerup", finishPhotoCropDrag);
+photoCropStage.addEventListener("pointercancel", finishPhotoCropDrag);
+photoCropStage.addEventListener("keydown", (event) => {
+  const directions = {
+    ArrowUp: "up",
+    ArrowDown: "down",
+    ArrowLeft: "left",
+    ArrowRight: "right"
+  };
+  if (!directions[event.key]) return;
+  event.preventDefault();
+  movePhotoCrop(directions[event.key]);
+});
+
+photoCropConfirm.addEventListener("click", confirmPhotoCrop);
+photoCropDialog.querySelectorAll("[data-photo-crop-cancel]").forEach((button) => {
+  button.addEventListener("click", () => { photoCropDialog.close(); });
+});
+photoCropDialog.addEventListener("cancel", (event) => {
+  if (activePhotoCrop && activePhotoCrop.processing) event.preventDefault();
+});
+photoCropDialog.addEventListener("close", () => {
+  const state = activePhotoCrop;
+  if (!state) return;
+  if (!state.confirmed) {
+    photoCropPreparedFiles.delete(state.input);
+    state.input.value = "";
+    setPhotoCropInputFeedback(state.input, "Ajuste cancelado. A foto não foi alterada.");
+  }
+  photoCropImage.onload = null;
+  photoCropImage.onerror = null;
+  photoCropImage.removeAttribute("src");
+  URL.revokeObjectURL(state.objectUrl);
+  activePhotoCrop = null;
+  photoCropError.textContent = "";
+  photoCropStatus.textContent = "";
+  resetPhotoCropControls();
+});
+
+window.addEventListener("resize", () => {
+  if (activePhotoCrop && activePhotoCrop.loaded) updatePhotoCropPreview(activePhotoCrop);
+});
+
+document.addEventListener("change", (event) => {
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement) || input.type !== "file" || input.accept !== "image/jpeg,image/png") return;
+  handlePhotoFileSelection(input);
+});
 
 async function createStorageSignedUrl(bucket, path, purpose) {
   try {
@@ -4306,19 +5580,44 @@ async function createStorageSignedUrl(bucket, path, purpose) {
 
 async function uploadRegisteredPhoto(bucket, path, file, functionName, parameters, purpose) {
   try {
-    const { error: uploadError } = await authClient.storage.from(bucket).upload(path, file, {
+    const storage = authClient.storage.from(bucket);
+    let { error: uploadError } = await storage.upload(path, file, {
       cacheControl: "0",
       contentType: file.type,
-      upsert: true
+      upsert: false
     });
     if (uploadError) {
       logRealProfileSupabaseError(`enviar ${purpose}`, uploadError);
-      return { errorMessage: `Não foi possível enviar ${purpose}. Confira a conexão e tente novamente.` };
+      const alreadyExists = Number(uploadError.statusCode) === 409 ||
+        /already exists|duplicate/i.test(`${uploadError.message || ""} ${uploadError.error || ""}`);
+      if (alreadyExists) {
+        const { error: updateError } = await storage.update(path, file, {
+          cacheControl: "0",
+          contentType: file.type
+        });
+        if (updateError) {
+          uploadError = updateError;
+          logRealProfileSupabaseError(`atualizar ${purpose}`, updateError);
+        } else {
+          uploadError = null;
+        }
+      }
+    }
+    if (uploadError) {
+      return {
+        errorMessage: Number(uploadError.statusCode) === 403
+          ? "Você não tem permissão para enviar esta foto."
+          : `Não foi possível enviar ${purpose}. Confira a conexão e tente novamente.`
+      };
     }
     const { data, error } = await authClient.rpc(functionName, parameters);
     if (error) {
       logRealProfileSupabaseError(`registrar ${purpose}`, error);
-      return { errorMessage: `O arquivo foi enviado, mas não foi possível registrar ${purpose}. Tente novamente.` };
+      return {
+        errorMessage: Number(error.statusCode) === 403
+          ? "Você não tem permissão para enviar esta foto."
+          : `O arquivo foi enviado, mas não foi possível registrar ${purpose}. Tente novamente.`
+      };
     }
     if (data !== true) {
       return { errorMessage: `O arquivo foi enviado, mas não foi possível registrar ${purpose}. Tente novamente.` };
@@ -4326,7 +5625,11 @@ async function uploadRegisteredPhoto(bucket, path, file, functionName, parameter
     return {};
   } catch (error) {
     logRealProfileSupabaseError(`enviar ou registrar ${purpose}`, error);
-    return { errorMessage: `Não foi possível enviar ${purpose}. Confira a conexão e tente novamente.` };
+    return {
+      errorMessage: Number(error?.statusCode) === 403
+        ? "Você não tem permissão para enviar esta foto."
+        : `Não foi possível enviar ${purpose}. Confira a conexão e tente novamente.`
+    };
   }
 }
 
@@ -5050,7 +6353,7 @@ function renderRealAdminStudentsScreen() {
         }).join("")}</ul>`
         : '<div class="empty-state"><div><strong>Nenhum aluno ativo encontrado</strong></div></div>';
   return `
-    ${heading("CONTA REAL · ADM", "Alunos", "Consulte somente o nome e a faixa/grau atuais dos alunos ativos.")}
+    ${heading("VISÃO DO ADM", "Alunos", "Consulte somente o nome e a faixa/grau atuais dos alunos ativos.")}
     ${panel("Alunos ativos", studentsContent)}
   `;
 }
@@ -5106,6 +6409,39 @@ async function loadRealAdminDashboard(renderScreen = true) {
       realAdminDashboardProfessors = professorsResult.data;
       realAdminDashboardStudents = studentsResult.data.length;
       realAdminDashboardPendingInvites = invitesResult.data.length;
+      await loadRealAvatarPreferences(realAdminDashboardProfessors.map((profile) => profile.id));
+      if (!isCurrentRequest()) return false;
+      await loadRealAcademyPhotoUrls(realAdminDashboardAcademies);
+      if (!isCurrentRequest()) return false;
+      const professorIds = realAdminDashboardProfessors
+        .map((profile) => profile.id)
+        .filter((id) => typeof id === "string");
+      if (professorIds.length) {
+        try {
+          const { data: photos, error: photoError } = await authClient.from("professores_fotos")
+            .select("professor_id,caminho_storage").in("professor_id", professorIds);
+          if (!isCurrentRequest()) return false;
+          if (photoError) {
+            logRealAdminDatabaseError("listar fotos de Professores do painel", photoError);
+          } else {
+            for (const photo of photos || []) {
+              if (!isCurrentRequest()) return false;
+              if (typeof photo.professor_id !== "string" ||
+                  typeof photo.caminho_storage !== "string") continue;
+              const signed = await createStorageSignedUrl(
+                "professores", photo.caminho_storage, "foto do Professor"
+              );
+              if (!isCurrentRequest()) return false;
+              if (signed.signedUrl) {
+                realAdminProfessorPhotoUrls.set(photo.professor_id, signed.signedUrl);
+              }
+            }
+          }
+        } catch (error) {
+          if (!isCurrentRequest()) return false;
+          logRealAdminDatabaseError("listar fotos de Professores do painel", error);
+        }
+      }
       realAdminDashboardState = "found";
     } catch (error) {
       if (!isCurrentRequest()) return false;
@@ -5122,7 +6458,7 @@ async function loadRealAdminDashboard(renderScreen = true) {
 }
 
 function renderRealAdminDashboardScreen() {
-  const title = heading("CONTA REAL · ADM", "Painel do Adm", "Resumo das academias, Professores ativos, alunos e convites pendentes.");
+  const title = heading("VISÃO DO ADM", "Painel do Adm", "Resumo das academias, Professores ativos, alunos e convites pendentes.");
   if (realAdminDashboardState === "checking" || realAdminDashboardState === "idle") {
     return `${title}<div class="notice notice--info" role="status">Carregando o resumo administrativo...</div>`;
   }
@@ -5146,41 +6482,43 @@ function renderRealAdminDashboardScreen() {
         <span>${escapeHtml(academy.nome)}</span>
       </li>`;
     }).join("")}</ul>`
-    : emptyState("Nenhuma academia cadastrada", "As academias cadastradas aparecerão aqui.");
+    : `${emptyState("Nenhuma academia cadastrada", "As academias cadastradas aparecerão aqui.")}
+       ${button("Criar academia", "academy", "button button--quiet")}`;
   const professorsContent = realAdminDashboardProfessors.length
     ? `<ul aria-label="Professores ativos">${realAdminDashboardProfessors.map((profile) => {
       const name = typeof profile.nome === "string" && profile.nome.trim() ? profile.nome.trim() : "Nome não informado";
       const academy = academyNames.get(profile.academia_id) || "Academia não vinculada";
-      const photoUrl = realAcademyPhotoUrls.get(profile.academia_id);
+      const photoUrl = realAdminProfessorPhotoUrls.get(profile.id);
       return `<li class="real-academy-list-item">
-        ${photoUrl ? `<img class="real-media-avatar" src="${escapeHtml(photoUrl)}" alt="Foto da academia ${escapeHtml(academy)}">` : ""}
+        <img class="real-media-avatar real-media-avatar--person" src="${escapeHtml(photoUrl || realPersonAvatarSrc(profile.id))}" alt="${photoUrl ? `Foto de ${escapeHtml(name)}` : ""}"${photoUrl ? "" : ` data-avatar-choice-profile-id="${escapeHtml(profile.id)}" data-avatar-fallback="true" aria-hidden="true"`}>
         <span><strong>${escapeHtml(name)}</strong><br><small>${escapeHtml(academy)}</small></span>
       </li>`;
     }).join("")}</ul>`
-    : emptyState("Nenhum Professor ativo encontrado", "Professores ativos aparecerão aqui.");
+    : `${emptyState("Nenhum Professor ativo encontrado", "Professores ativos aparecerão aqui.")}
+       ${button("Gerenciar Professores", "role-management", "button button--quiet")}`;
   const invitationsContent = realAdminDashboardPendingInvites
     ? `<p>${realAdminDashboardPendingInvites} convite(s) de Professor aguardando aceite.</p>`
-    : emptyState("Nenhum convite pendente", "Convites pendentes aparecerão aqui.");
+    : `${emptyState("Nenhum convite pendente", "Convites pendentes aparecerão aqui.")}
+       ${button("Convidar Professor", "teacher-invites", "button button--quiet")}`;
 
   return `${title}
     <div class="card-grid card-grid--four">
-      ${metric("ACADEMIAS", String(realAdminDashboardAcademies.length), "Cadastradas", "gold")}
-      ${metric("PROFESSORES ATIVOS", String(realAdminDashboardProfessors.length), "Papel Professor", "green")}
-      ${metric("ALUNOS ATIVOS", String(realAdminDashboardStudents), "Papel Aluno", "blue")}
-      ${metric("CONVITES PENDENTES", String(realAdminDashboardPendingInvites), "Professores convidados", "amber")}
+      ${metric("ACADEMIAS", String(realAdminDashboardAcademies.length), "Cadastradas", "gold", "academy")}
+      ${metric("PROFESSORES ATIVOS", String(realAdminDashboardProfessors.length), "Papel Professor", "green", "role-management")}
+      ${metric("ALUNOS ATIVOS", String(realAdminDashboardStudents), "Papel Aluno", "blue", "admin-students")}
+      ${metric("CONVITES PENDENTES", String(realAdminDashboardPendingInvites), "Professores convidados", "amber", "teacher-invites")}
     </div>
     <div class="content-grid" style="margin-top:16px">
       ${panel("Academias", academiesContent)}
       ${panel("Professores ativos", professorsContent)}
       ${panel("Convites de Professor", invitationsContent)}
-      ${panel("Suporte", '<p>Fale com o suporte pelo e-mail <a href="mailto:desenvolvedor.aylton@gmail.com">desenvolvedor.aylton@gmail.com</a>.</p>')}
     </div>`;
 }
 
 function renderRealAdminAcademyResult() {
   if (realCreatedAcademy) {
-    const photoMessage = realCreatedAcademy.foto_fundo_url ? "URL da foto de fundo cadastrada." : "Sem foto de fundo.";
     const photoUrl = realAcademyPhotoUrls.get(realCreatedAcademy.id);
+    const photoMessage = photoUrl ? "Foto da academia cadastrada." : "Sem foto da academia.";
     return `<div class="notice notice--info"><strong>Academia lida do banco:</strong> ${escapeHtml(realCreatedAcademy.nome)}<br><small>${photoMessage}</small></div>
       ${photoUrl ? `<img class="real-media-preview" src="${escapeHtml(photoUrl)}" alt="Foto da academia ${escapeHtml(realCreatedAcademy.nome)}">` : '<p class="field-help">Nenhuma foto da academia cadastrada.</p>'}`;
   }
@@ -5192,22 +6530,18 @@ function renderRealAdminAcademyResult() {
 
 function renderRealAdminAcademyScreen() {
   return `
-    ${heading("CONTA REAL · ADM", "Academia", "Cadastre ou edite academias no banco. Telefone e e-mail não são enviados.")}
+    ${heading("VISÃO DO ADM", "Academia", "Cadastre a academia e organize a grade de aulas. O vínculo de Professores é feito pelo fluxo de convites.")}
     ${panel("Criar academia", `
       <form data-academy-form data-real-academy-form>
         <div class="form-grid">
           <div class="field field--wide">
             <label for="academy-name">Nome da academia</label>
-            <input id="academy-name" name="name" aria-required="true" autocomplete="organization">
-          </div>
-          <div class="field field--wide">
-            <label for="academy-photo-url">URL da foto de fundo (opcional)</label>
-            <input id="academy-photo-url" name="foto_fundo_url" type="text">
+            <input id="academy-name" name="name" aria-required="true" autocomplete="organization" placeholder="Ex.: Academia Central">
           </div>
           <div class="field field--wide">
             <label for="academy-new-photo-file">Foto da academia (opcional)</label>
             <input id="academy-new-photo-file" type="file" accept="image/jpeg,image/png">
-            <small class="field-help">JPG ou PNG, até 5 MiB. A academia será criada antes do envio da foto.</small>
+            <small class="field-help">JPG ou PNG, até 5 MiB. Ajuste o enquadramento na prévia antes de criar a academia e enviar a foto.</small>
           </div>
         </div>
         <div class="form-actions">
@@ -5229,111 +6563,188 @@ function renderRealAdminAcademyScreen() {
   `;
 }
 
-function renderRealProfessorAcademyScreen() {
-  const title = heading("CONTA REAL · PROFESSOR", "Academia", "Edite somente a academia vinculada ao seu perfil.");
-  if (realProfessorAcademyState === "checking") {
-    return `${title}<p class="field-help" role="status" aria-live="polite">Carregando os dados da academia...</p>`;
+function renderRealAcademyDirectoryScreen() {
+  const title = heading("ACADEMIAS", "Academias", "Consulte as academias e a grade de aulas publicada pelo Adm.");
+  if (realAcademyDirectoryState === "checking") {
+    return `${title}<p class="field-help" role="status" aria-live="polite">Carregando academias e horários...</p>`;
   }
-  if (realProfessorAcademyState === "error") {
-    return `${title}<p class="login-action-error" role="alert">${escapeHtml(realProfessorAcademyNotice || "Não foi possível carregar a academia.")}</p>
-      <p class="field-help">Abra outra tela e volte para tentar novamente.</p>`;
+  if (realAcademyDirectoryState === "error") {
+    return `${title}
+      <p class="login-action-error" role="alert">${escapeHtml(realAcademyDirectoryNotice || "Não foi possível carregar as academias.")}</p>
+      <div class="student-action-control">
+        <button class="button button--quiet button--action" type="button" data-real-academy-directory-retry aria-describedby="real-academy-directory-retry-error real-academy-directory-retry-status">
+          <span data-action-label>Tentar novamente</span>
+        </button>
+        <p class="login-action-error" id="real-academy-directory-retry-error" role="alert"></p>
+        <p class="field-help" id="real-academy-directory-retry-status" role="status" aria-live="polite"></p>
+      </div>`;
   }
-  if (!realProfessorAcademy || realProfessorAcademyState !== "found") {
-    return `${title}${emptyState("Academia não encontrada", "Não foi possível localizar a academia vinculada ao seu perfil.")}`;
+  if (!realAcademyDirectory.length) {
+    return `${title}${emptyState("Nenhuma academia cadastrada", "As academias cadastradas pelo Adm aparecerão aqui.")}`;
   }
 
-  return `${title}
-    ${panel("Dados da academia", `
-      <form data-real-professor-academy-form data-academy-id="${escapeHtml(realProfessorAcademy.id)}" data-academy-version="${escapeHtml(String(realProfessorAcademy.versao_edicao))}">
-        ${realProfessorAcademyPhotoUrl
-          ? `<img class="real-media-preview" src="${escapeHtml(realProfessorAcademyPhotoUrl)}" alt="Foto da academia ${escapeHtml(realProfessorAcademy.nome)}">`
-          : '<p class="field-help">Nenhuma foto da academia cadastrada.</p>'}
-        <div class="form-grid">
-          <div class="field field--wide">
-            <label for="real-professor-academy-name">Nome da academia</label>
-            <input id="real-professor-academy-name" name="nome" value="${escapeHtml(realProfessorAcademy.nome)}" maxlength="80" autocomplete="organization" required>
-          </div>
-          <div class="field field--wide">
-            <label for="real-professor-academy-photo">URL da foto de fundo (opcional)</label>
-            <input id="real-professor-academy-photo" name="foto_fundo_url" value="${escapeHtml(realProfessorAcademy.foto_fundo_url || "")}">
-          </div>
-          <div class="field field--wide">
-            <label for="real-professor-academy-upload">Foto da academia</label>
-            <input id="real-professor-academy-upload" data-real-academy-photo-file type="file" accept="image/jpeg,image/png">
-            <small class="field-help">JPG ou PNG, até 5 MiB.</small>
-          </div>
-        </div>
-        <div class="student-action-control">
-          <button class="button button--quiet button--action" type="button" data-real-academy-photo-upload="${escapeHtml(realProfessorAcademy.id)}" aria-describedby="real-professor-academy-photo-error real-professor-academy-photo-status"><span data-action-label>Enviar foto da academia</span></button>
-          <p class="login-action-error student-action-error" id="real-professor-academy-photo-error" data-real-academy-photo-error role="alert"></p>
-          <p class="field-help" id="real-professor-academy-photo-status" data-real-academy-photo-status role="status" aria-live="polite"></p>
-        </div>
-        <div class="form-actions">
-          <div class="academy-save-action">
-            <button class="button button--primary button--action" type="submit" data-real-professor-academy-save aria-describedby="real-professor-academy-error real-professor-academy-status">
-              <span data-action-label>Salvar alterações</span>
-            </button>
-            <div class="login-action-error" id="real-professor-academy-error" role="alert"></div>
-            <div class="field-help" id="real-professor-academy-status" role="status" aria-live="polite"></div>
-          </div>
-        </div>
-      </form>
-    `)}
-  `;
+  const weekdays = ["", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"];
+  return `${title}<div class="stack">
+    ${realAcademyDirectory.map((academy) => {
+      const photoUrl = realAcademyPhotoUrls.get(academy.id);
+      const schedule = realAcademyDirectorySchedule.filter((row) => row.academia_id === academy.id);
+      const scheduleTable = schedule.length ? `
+        <div class="academy-schedule-table-wrap">
+          <table class="academy-schedule-table">
+            <thead><tr><th scope="col">Dia</th><th scope="col">Professor</th><th scope="col">Horário</th></tr></thead>
+            <tbody>${schedule.map((row) => {
+              const day = Number(row.dia_semana);
+              const start = String(row.horario_inicio || "").slice(0, 5);
+              const end = String(row.horario_fim || "").slice(0, 5);
+              return `<tr>
+                <td>${escapeHtml(weekdays[day] || "Dia não definido")}</td>
+                <td>${escapeHtml(row.professor_nome || "Nome não definido")}</td>
+                <td>${escapeHtml(start)}–${escapeHtml(end)}</td>
+              </tr>`;
+            }).join("")}</tbody>
+          </table>
+        </div>` : `<p class="field-help">A grade de aulas ainda não foi cadastrada.</p>`;
+      return panel(academy.nome, `
+        ${photoUrl
+          ? `<img class="real-media-preview" src="${escapeHtml(photoUrl)}" alt="Foto da academia ${escapeHtml(academy.nome)}">`
+          : '<p class="field-help">Foto da academia não cadastrada.</p>'}
+        <h3>Grade de aulas</h3>
+        ${scheduleTable}
+      `, "academy-directory-card");
+    }).join("")}
+  </div>`;
 }
 
-function renderRealAdminAcademyRows() {
+function renderRealAdminAcademyRows(scheduleRows, activeProfessors) {
   if (!realAdminAcademies.length) return `<p class="field-help">Nenhuma academia encontrada.</p>`;
+  const weekdays = ["", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"];
   return realAdminAcademies.map((academy, index) => {
     const errorId = `real-academy-edit-error-${index}`;
     const statusId = `real-academy-edit-status-${index}`;
     const photoErrorId = `real-academy-photo-error-${index}`;
     const photoStatusId = `real-academy-photo-status-${index}`;
     const photoUrl = realAcademyPhotoUrls.get(academy.id);
+    const academyProfessors = activeProfessors.filter((profile) => profile.academia_id === academy.id);
+    const options = academyProfessors.map((profile) =>
+      `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.nome || "Nome não definido")}</option>`
+    ).join("");
+    const academySchedule = scheduleRows.filter((row) => row.academia_id === academy.id);
+    const scheduleList = academySchedule.length ? `
+      <div class="academy-schedule-admin-list">
+        ${academySchedule.map((row, scheduleIndex) => {
+          const scheduleErrorId = `real-academy-schedule-error-${index}-${scheduleIndex}`;
+          const scheduleStatusId = `real-academy-schedule-status-${index}-${scheduleIndex}`;
+          const professor = academyProfessors.find((profile) => profile.id === row.professor_id);
+          return `
+            <div class="list-row academy-schedule-admin-row">
+              <span class="row-copy">
+                <strong>${escapeHtml(weekdays[Number(row.dia_semana)] || "Dia não definido")} · ${escapeHtml(String(row.horario_inicio || "").slice(0, 5))}–${escapeHtml(String(row.horario_fim || "").slice(0, 5))}</strong>
+                <small>${escapeHtml(professor ? professor.nome || "Nome não definido" : "Professor inativo ou não encontrado")}</small>
+              </span>
+              <div class="academy-save-action">
+                <button class="button button--small button--danger button--action" type="button"
+                  data-real-academy-schedule-delete="${escapeHtml(row.id)}"
+                  aria-describedby="${scheduleErrorId} ${scheduleStatusId}">
+                  <span data-action-label>Remover horário</span>
+                </button>
+                <div class="login-action-error" id="${scheduleErrorId}" role="alert"></div>
+                <div class="field-help" id="${scheduleStatusId}" role="status" aria-live="polite"></div>
+              </div>
+            </div>`;
+        }).join("")}
+      </div>` : `<p class="field-help">Nenhum horário cadastrado para esta academia.</p>`;
     return `
-      <form class="real-admin-academy-row" data-real-admin-academy-form data-academy-id="${escapeHtml(academy.id)}" data-academy-version="${escapeHtml(String(academy.versao_edicao))}">
-        ${photoUrl
-          ? `<img class="real-media-preview" src="${escapeHtml(photoUrl)}" alt="Foto da academia ${escapeHtml(academy.nome)}">`
-          : '<p class="field-help">Nenhuma foto da academia cadastrada.</p>'}
-        <div class="form-grid">
-          <div class="field field--wide">
-            <label for="real-academy-edit-name-${index}">Nome da academia</label>
-            <input id="real-academy-edit-name-${index}" name="nome" value="${escapeHtml(academy.nome)}" autocomplete="organization">
+      <article class="real-admin-academy-card">
+        <form class="real-admin-academy-row" data-real-admin-academy-form data-academy-id="${escapeHtml(academy.id)}" data-academy-version="${escapeHtml(String(academy.versao_edicao))}" data-academy-photo-url="${escapeHtml(academy.foto_fundo_url || "")}">
+          ${photoUrl
+            ? `<img class="real-media-preview" src="${escapeHtml(photoUrl)}" alt="Foto da academia ${escapeHtml(academy.nome)}">`
+            : '<p class="field-help">Nenhuma foto da academia cadastrada.</p>'}
+          <div class="form-grid">
+            <div class="field field--wide">
+              <label for="real-academy-edit-name-${index}">Nome da academia</label>
+              <input id="real-academy-edit-name-${index}" name="nome" value="${escapeHtml(academy.nome)}" autocomplete="organization" maxlength="80" required>
+            </div>
+            <div class="field field--wide">
+              <label for="real-academy-edit-upload-${index}">Foto da academia</label>
+              <input id="real-academy-edit-upload-${index}" data-real-academy-photo-file type="file" accept="image/jpeg,image/png">
+              <small class="field-help">JPG ou PNG, até 5 MiB. Ajuste o enquadramento na prévia antes do envio.</small>
+            </div>
           </div>
-          <div class="field field--wide">
-            <label for="real-academy-edit-photo-${index}">URL da foto de fundo (opcional)</label>
-            <input id="real-academy-edit-photo-${index}" name="foto_fundo_url" value="${escapeHtml(academy.foto_fundo_url || "")}">
+          <div class="form-actions">
+            <div class="academy-save-action">
+              <button class="button button--primary button--action" type="submit" data-real-academy-save aria-describedby="${errorId} ${statusId}">
+                <span data-action-label>Salvar alterações</span>
+              </button>
+              <div class="login-action-error" id="${errorId}" role="alert"></div>
+              <div class="field-help" id="${statusId}" role="status" aria-live="polite"></div>
+            </div>
           </div>
-          <div class="field field--wide">
-            <label for="real-academy-edit-upload-${index}">Foto da academia</label>
-            <input id="real-academy-edit-upload-${index}" data-real-academy-photo-file type="file" accept="image/jpeg,image/png">
-            <small class="field-help">JPG ou PNG, até 5 MiB.</small>
+          <div class="student-action-control">
+            <button class="button button--quiet button--action" type="button" data-real-academy-photo-upload="${escapeHtml(academy.id)}" aria-describedby="${photoErrorId} ${photoStatusId}"><span data-action-label>Enviar foto da academia</span></button>
+            <p class="login-action-error student-action-error" id="${photoErrorId}" data-real-academy-photo-error role="alert"></p>
+            <p class="field-help" id="${photoStatusId}" data-real-academy-photo-status role="status" aria-live="polite"></p>
           </div>
-        </div>
-        <div class="form-actions">
-          <div class="academy-save-action">
-            <button class="button button--primary button--action" type="submit" data-real-academy-save aria-describedby="${errorId} ${statusId}">
-              <span data-action-label>Salvar alterações</span>
-            </button>
-            <div class="login-action-error" id="${errorId}" role="alert"></div>
-            <div class="field-help" id="${statusId}" role="status" aria-live="polite"></div>
+        </form>
+        <section class="academy-schedule-admin" aria-labelledby="real-academy-schedule-title-${index}">
+          <div>
+            <h4 id="real-academy-schedule-title-${index}">Grade de aulas</h4>
+            <p class="field-help">Vincule cada horário a um Professor ativo desta academia. A grade ficará visível para usuários autenticados.</p>
+            <p class="field-help"><strong>Professores ativos:</strong> ${academyProfessors.length
+              ? academyProfessors.map((profile) => escapeHtml(profile.nome || "Nome não definido")).join(", ")
+              : "nenhum"}</p>
+            <div class="form-actions">
+              <button class="button button--quiet" type="button" data-screen-target="teacher-invites">Professores convidados</button>
+            </div>
           </div>
-        </div>
-        <div class="student-action-control">
-          <button class="button button--quiet button--action" type="button" data-real-academy-photo-upload="${escapeHtml(academy.id)}" aria-describedby="${photoErrorId} ${photoStatusId}"><span data-action-label>Enviar foto da academia</span></button>
-          <p class="login-action-error student-action-error" id="${photoErrorId}" data-real-academy-photo-error role="alert"></p>
-          <p class="field-help" id="${photoStatusId}" data-real-academy-photo-status role="status" aria-live="polite"></p>
-        </div>
-      </form>
+          ${academyProfessors.length
+            ? `<form data-real-academy-schedule-form data-academy-id="${escapeHtml(academy.id)}">
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="real-academy-schedule-day-${index}">Dia da semana</label>
+                    <select id="real-academy-schedule-day-${index}" name="dia_semana" required>
+                      <option value="">Selecione um dia</option>
+                      ${weekdays.slice(1).map((day, dayIndex) => `<option value="${dayIndex + 1}">${day}</option>`).join("")}
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="real-academy-schedule-professor-${index}">Professor</label>
+                    <select id="real-academy-schedule-professor-${index}" name="professor_id" required>
+                      <option value="">Selecione um Professor</option>${options}
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="real-academy-schedule-start-${index}">Início</label>
+                    <input id="real-academy-schedule-start-${index}" name="horario_inicio" type="time" required>
+                  </div>
+                  <div class="field">
+                    <label for="real-academy-schedule-end-${index}">Término</label>
+                    <input id="real-academy-schedule-end-${index}" name="horario_fim" type="time" required>
+                  </div>
+                </div>
+                <div class="form-actions">
+                  <div class="academy-save-action">
+                    <button class="button button--primary button--action" type="submit" data-real-academy-schedule-save aria-describedby="real-academy-schedule-error-${index} real-academy-schedule-status-${index}">
+                      <span data-action-label>Adicionar horário</span>
+                    </button>
+                    <div class="login-action-error" id="real-academy-schedule-error-${index}" role="alert"></div>
+                    <div class="field-help" id="real-academy-schedule-status-${index}" role="status" aria-live="polite"></div>
+                  </div>
+                </div>
+              </form>`
+            : `<p class="field-help">Convide um Professor para esta academia antes de cadastrar horários.</p>`}
+          ${scheduleList}
+          <p class="field-help">O vínculo de novos Professores é feito em Professores convidados, selecionando esta academia.</p>
+        </section>
+      </article>
     `;
   }).join("");
 }
 
 function renderRealAdminInvitesScreen() {
   return `
-    ${heading("CONTA REAL · ADM", "Professores convidados", "Convites reais são listados do banco. Somente convites pendentes podem ser excluídos.")}
+    ${heading("VISÃO DO ADM", "Professores convidados", "Os convites cadastrados aparecem aqui.")}
     <div class="content-grid">
-      ${panel("Convites reais", `
+      ${panel("Convites cadastrados", `
         <div id="real-invite-list" aria-live="polite">Carregando convites...</div>
         <p class="login-action-error" id="real-invite-list-error" role="alert"></p>
       `)}
@@ -5341,7 +6752,7 @@ function renderRealAdminInvitesScreen() {
         <form data-real-admin-invite-form>
           <div class="field">
             <label for="real-invite-email">E-mail</label>
-            <input id="real-invite-email" name="email" type="text" inputmode="email" autocomplete="email" aria-required="true">
+            <input id="real-invite-email" name="email" type="text" inputmode="email" autocomplete="email" placeholder="nome@exemplo.com" aria-required="true">
           </div>
           <div class="field" style="margin-top:12px">
             <label for="real-invite-academy">Academia</label>
@@ -5360,7 +6771,6 @@ function renderRealAdminInvitesScreen() {
             </div>
           </div>
         </form>
-        <p class="field-help">Informe somente dados fictícios ou autorizados para este convite.</p>
       `)}
     </div>
   `;
@@ -5368,7 +6778,7 @@ function renderRealAdminInvitesScreen() {
 
 function renderRealAdminManagementScreen() {
   return `
-    ${heading("CONTA REAL · ADM", "Papéis e autorizações", "Consulte Professores e Instrutores e gerencie os Professores pelo banco.")}
+    ${heading("VISÃO DO ADM", "Papéis e autorizações", "Consulte Professores e Instrutores e gerencie os Professores pelo banco.")}
     ${panel("Academia", `
       <div class="field">
         <label for="real-admin-academy">Academia</label>
@@ -5415,7 +6825,7 @@ function renderRealAdminManagementDetails(academyId, profiles, replacementCandid
     `;
     return `
       <div class="list-row real-admin-professor-row">
-        ${photoUrl ? `<img class="real-media-avatar" src="${escapeHtml(photoUrl)}" alt="Foto de ${escapeHtml(profile.nome || "Professor")}">` : ""}
+        <img class="real-media-avatar real-media-avatar--person" src="${escapeHtml(photoUrl || realPersonAvatarSrc(profile.id))}" alt="${photoUrl ? `Foto de ${escapeHtml(profile.nome || "Professor")}` : ""}"${photoUrl ? "" : ` data-avatar-choice-profile-id="${escapeHtml(profile.id)}" data-avatar-fallback="true" aria-hidden="true"`}>
         <span class="row-copy">
           <strong>${escapeHtml(profile.nome || "Nome não definido")}</strong>
           <small>${roleLabel} · ${statusLabel}</small>
@@ -5429,7 +6839,7 @@ function renderRealAdminManagementDetails(academyId, profiles, replacementCandid
     : "Sua conta Adm ainda não está vinculada a esta academia.";
   const noActiveNotice = activeProfessors.length
     ? ""
-    : `<div class="notice notice--info"><strong>Academia sem Professor ativo.</strong><br>Se houver Professor inativo, você pode reativá-lo; para a troca, selecione um Professor inativo com convite aceito.</div>`;
+    : `<div class="notice notice--info"><strong>Academia sem Professor ativo.</strong><br>Convide um Professor ou reative um perfil inativo para voltar a publicar aulas.</div>`;
   const instructorMessage = instructors.length
     ? ""
     : `<p class="field-help">Nenhum Instrutor vinculado a esta academia.</p>`;
@@ -5458,8 +6868,9 @@ function renderRealAdminManagementDetails(academyId, profiles, replacementCandid
           </div>
         </form>
       `)}
-      ${panel("Trocar Professor", `
-        <p>Somente Professores inativos da academia com convite aceito aparecem para seleção.</p>
+      ${activeProfessors.length > 1
+        ? `<div class="notice notice--info"><strong>Mais de um Professor ativo.</strong><br>A troca de responsável não está disponível enquanto houver vários Professores ativos.</div>`
+        : panel("Trocar Professor", `
         <form data-real-admin-switch-form>
           <div class="field">
             <label for="real-admin-replacement-professor">Novo Professor</label>
@@ -5619,21 +7030,46 @@ async function loadRealAdminAcademiesForEdit() {
     return false;
   }
   try {
-    const { data, error } = await authClient.from("academias")
-      .select("id,nome,foto_fundo_url,versao_edicao")
-      .order("nome", { ascending: true });
+    const [academyResult, scheduleResult, professorResult] = await Promise.all([
+      authClient.from("academias")
+        .select("id,nome,foto_fundo_url,versao_edicao")
+        .order("nome", { ascending: true }),
+      authClient.from("academia_grade_aulas")
+        .select("id,academia_id,professor_id,dia_semana,horario_inicio,horario_fim")
+        .order("academia_id")
+        .order("dia_semana")
+        .order("horario_inicio"),
+      authClient.from("perfis")
+        .select("id,nome,academia_id")
+        .eq("papel", "professor")
+        .eq("ativo", true)
+        .not("academia_id", "is", null)
+        .order("nome", { ascending: true })
+    ]);
     if (!isCurrentSession()) return false;
-    if (error) {
-      logRealAdminDatabaseError("listar academias para edição", error);
-      if (listError) listError.textContent = realAdminDatabaseErrorMessage(error, "read");
+    if (academyResult.error) {
+      logRealAdminDatabaseError("listar academias para edição", academyResult.error);
+      if (listError) listError.textContent = realAdminDatabaseErrorMessage(academyResult.error, "read");
       if (list) list.textContent = "Não foi possível carregar as academias.";
       return false;
     }
-    realAdminAcademies = data || [];
+    if (scheduleResult.error) {
+      logRealAdminDatabaseError("listar horários da academia", scheduleResult.error);
+      if (listError) listError.textContent = realAdminDatabaseErrorMessage(scheduleResult.error, "read");
+      if (list) list.textContent = "Não foi possível carregar a grade de aulas.";
+      return false;
+    }
+    if (professorResult.error) {
+      logRealAdminDatabaseError("listar Professores ativos para a grade", professorResult.error);
+      if (listError) listError.textContent = realAdminDatabaseErrorMessage(professorResult.error, "read");
+      if (list) list.textContent = "Não foi possível carregar os Professores da academia.";
+      return false;
+    }
+    realAdminAcademies = academyResult.data || [];
     await loadRealAcademyPhotoUrls(realAdminAcademies);
     if (!isCurrentSession()) return false;
     if (listError) listError.textContent = "";
-    if (list) list.innerHTML = renderRealAdminAcademyRows();
+    if (list) list.innerHTML = renderRealAdminAcademyRows(scheduleResult.data || [], professorResult.data || []);
     return true;
   } catch (error) {
     if (!isCurrentSession()) return false;
@@ -5644,57 +7080,49 @@ async function loadRealAdminAcademiesForEdit() {
   }
 }
 
-async function loadRealProfessorAcademy() {
-  const sequence = ++realProfessorAcademyRequestSequence;
+async function loadRealAcademyDirectory(renderResult = true) {
+  const sequence = ++realAcademyDirectoryRequestSequence;
   const sessionGeneration = realSessionCacheGeneration;
   const userId = realUser && realUser.id;
-  const academyId = realProfile && realProfile.academia_id;
   const isCurrentSession = () =>
-    sequence === realProfessorAcademyRequestSequence &&
+    sequence === realAcademyDirectoryRequestSequence &&
     sessionGeneration === realSessionCacheGeneration &&
-    Boolean(realUser && realUser.id === userId && isRealActiveProfessor());
-
-  if (!authClient || !userId || !academyId || !isRealActiveProfessor()) {
-    realProfessorAcademyState = "error";
-    realProfessorAcademyNotice = "Esta tela exige uma conta de Professor ativa vinculada a uma academia.";
-    if (currentScreen === "academy") screenContent.innerHTML = renderRealProfessorAcademyScreen();
-    return false;
-  }
+    currentScreen === "academy" &&
+    Boolean(realUser && realUser.id === userId &&
+      (isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor()));
 
   try {
-    const { data, error } = await authClient.from("academias")
-      .select("id,nome,foto_fundo_url,versao_edicao")
-      .eq("id", academyId)
-      .maybeSingle();
+    if (!authClient || !userId) throw new Error("Entre com sua conta para consultar as academias.");
+    const [academyResult, scheduleResult] = await Promise.all([
+      authClient.from("academias")
+        .select("id,nome,foto_fundo_url")
+        .order("nome", { ascending: true }),
+      authClient.rpc("listar_grade_academias", { p_academia_id: null })
+    ]);
     if (!isCurrentSession()) return false;
-    if (error) {
-      logRealProfileSupabaseError("consultar academia do Professor", error);
-      realProfessorAcademyState = "error";
-      realProfessorAcademyNotice = realAdminDatabaseErrorMessage(error, "read");
-    } else if (!data) {
-      realProfessorAcademyState = "empty";
-      realProfessorAcademyNotice = "";
-      realProfessorAcademy = null;
-    } else {
-      realProfessorAcademy = data;
-      realProfessorAcademyPhotoUrl = await loadRealAcademyPhotoUrl(data.id);
-      if (!isCurrentSession()) return false;
-      realProfessorAcademyState = "found";
-      realProfessorAcademyNotice = "";
-    }
+    if (academyResult.error) throw academyResult.error;
+    if (scheduleResult.error) throw scheduleResult.error;
+    realAcademyDirectory = academyResult.data || [];
+    realAcademyDirectorySchedule = scheduleResult.data || [];
+    await loadRealAcademyPhotoUrls(realAcademyDirectory);
+    if (!isCurrentSession()) return false;
+    realAcademyDirectoryState = "found";
+    realAcademyDirectoryNotice = "";
   } catch (error) {
     if (!isCurrentSession()) return false;
-    logRealProfileSupabaseError("consultar academia do Professor", error);
-    realProfessorAcademyState = "error";
-    realProfessorAcademyNotice = navigator.onLine === false
-      ? "Falha de rede ao consultar a academia. Verifique sua conexão e tente novamente."
-      : "Não foi possível consultar a academia. Tente novamente mais tarde.";
+    logRealProfileSupabaseError("consultar academias e grade", error);
+    realAcademyDirectory = [];
+    realAcademyDirectorySchedule = [];
+    realAcademyDirectoryState = "error";
+    realAcademyDirectoryNotice = navigator.onLine === false
+      ? "Falha de rede ao consultar as academias. Verifique a conexão e tente novamente."
+      : realAdminDatabaseErrorMessage(error, "read");
   }
 
-  if (isCurrentSession() && currentScreen === "academy") {
-    screenContent.innerHTML = renderRealProfessorAcademyScreen();
+  if (renderResult && isCurrentSession()) {
+    screenContent.innerHTML = renderRealAcademyDirectoryScreen();
   }
-  return realProfessorAcademyState === "found";
+  return realAcademyDirectoryState === "found";
 }
 
 async function loadRealAdminManagement() {
@@ -5800,6 +7228,8 @@ async function loadRealAdminManagementForAcademy(academyId) {
     const replacementCandidates = (profiles || []).filter((profile) =>
       profile.papel === "professor" && profile.ativo === false && acceptedProfileIds.has(profile.id)
     );
+    await loadRealAvatarPreferences((profiles || []).map((profile) => profile.id));
+    if (!isCurrentSession()) return false;
     const professorIds = (profiles || [])
       .filter((profile) => profile.papel === "professor")
       .map((profile) => profile.id)
@@ -5855,7 +7285,7 @@ function realAdminProfessorRpcMessage(code) {
     nao_pode_desativar_a_si_mesmo: "Não é possível desativar a própria conta.",
     professor_ja_inativo: "Este Professor já está inativo.",
     professor_ja_ativo: "Este Professor já está ativo.",
-    professor_ativo_na_academia: "A academia já possui um Professor ativo. Desative-o ou troque-o antes de reativar outro."
+    troca_ambigua_multiplos_professores: "A troca de responsável não pode ser feita com vários Professores ativos."
   }[code] || "Não foi possível concluir a operação com o Professor. Tente novamente.";
 }
 
@@ -5875,7 +7305,7 @@ function handleRealAdminAcademySubmit(form) {
   }, async () => {
     const guardError = realAdminGuardError();
     if (guardError) return { errorMessage: guardError };
-    const photoFile = photoInput && photoInput.files && photoInput.files[0];
+    const photoFile = getPreparedPhotoFile(photoInput);
     if (photoFile) {
       const validationError = validateStorageFile(photoFile, ["image/jpeg", "image/png"], 5242880, "a foto da academia");
       if (validationError) return { errorMessage: validationError };
@@ -5884,11 +7314,10 @@ function handleRealAdminAcademySubmit(form) {
       const name = form.querySelector("#academy-name").value.trim();
       const nameLength = Array.from(name).length;
       if (nameLength < 2 || nameLength > 80) return { errorMessage: "Informe um nome com 2 a 80 caracteres." };
-      const photoUrl = form.querySelector("#academy-photo-url").value.trim();
       realCreatedAcademy = null;
       try {
         const { data, error } = await authClient.from("academias")
-          .insert({ nome: name, foto_fundo_url: photoUrl || null })
+          .insert({ nome: name, foto_fundo_url: null })
           .select("id")
           .single();
         if (error) {
@@ -5942,15 +7371,14 @@ function handleRealAdminAcademySubmit(form) {
 function handleRealAdminAcademyEditSubmit(form) {
   const button = form.querySelector("[data-real-academy-save]");
   const nameInput = form.querySelector('[name="nome"]');
-  const photoInput = form.querySelector('[name="foto_fundo_url"]');
   const name = nameInput.value.trim();
   const nameLength = Array.from(name).length;
-  const photoUrl = photoInput.value.trim();
+  const photoUrl = form.dataset.academyPhotoUrl || null;
   const version = Number(form.dataset.academyVersion);
   runButtonAction(button, {
     feedback: form.querySelector('[role="alert"]'),
     announcement: form.querySelector('[role="status"]'),
-    buttons: [button, nameInput, photoInput],
+    buttons: [button, nameInput],
     loadingText: "Salvando...",
     loadingMessage: "Atualizando os dados da academia no banco.",
     successMessage: "Academia atualizada no banco.",
@@ -5966,7 +7394,7 @@ function handleRealAdminAcademyEditSubmit(form) {
       const { data, error } = await authClient.rpc("atualizar_academia", {
         p_academia_id: form.dataset.academyId,
         p_nome: name,
-        p_foto_fundo_url: photoUrl || null,
+        p_foto_fundo_url: photoUrl,
         p_versao_esperada: version
       });
       if (error) {
@@ -5978,6 +7406,129 @@ function handleRealAdminAcademyEditSubmit(form) {
     } catch (error) {
       logRealAdminDatabaseError("atualizar academia", error);
       return { errorMessage: realAdminDatabaseErrorMessage(error, "updateAcademy") };
+    }
+  });
+}
+
+function handleRealAcademyScheduleSubmit(form) {
+  const button = form.querySelector("[data-real-academy-schedule-save]");
+  const dayInput = form.querySelector('[name="dia_semana"]');
+  const professorInput = form.querySelector('[name="professor_id"]');
+  const startInput = form.querySelector('[name="horario_inicio"]');
+  const endInput = form.querySelector('[name="horario_fim"]');
+  const describedIds = (button.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean);
+  const [errorId, statusId] = describedIds;
+  const feedback = errorId ? form.querySelector(`[id="${errorId}"]`) : null;
+  const announcement = statusId ? form.querySelector(`[id="${statusId}"]`) : null;
+
+  runButtonAction(button, {
+    feedback,
+    announcement,
+    buttons: [button, dayInput, professorInput, startInput, endInput],
+    loadingText: "Salvando...",
+    loadingMessage: "Adicionando horário à grade da academia.",
+    successMessage: "Horário adicionado à grade.",
+    errorMessage: "Não foi possível adicionar o horário. Confira os dados e tente novamente.",
+    successDelay: 0,
+    afterSuccess: () => { loadRealAdminAcademiesForEdit(); }
+  }, async () => {
+    const guardError = realAdminGuardError();
+    if (guardError) return { errorMessage: guardError };
+    const academyId = form.dataset.academyId;
+    const day = Number(dayInput.value);
+    if (!realAdminAcademies.some((academy) => academy.id === academyId)) {
+      return { errorMessage: "Selecione uma academia cadastrada e tente novamente." };
+    }
+    if (!Number.isInteger(day) || day < 1 || day > 7) {
+      return { errorMessage: "Selecione um dia da semana." };
+    }
+    if (!professorInput.value) return { errorMessage: "Selecione um Professor ativo desta academia." };
+    if (!/^\d{2}:\d{2}$/.test(startInput.value) || !/^\d{2}:\d{2}$/.test(endInput.value) ||
+        startInput.value >= endInput.value) {
+      return { errorMessage: "Informe um horário de término posterior ao início." };
+    }
+
+    try {
+      const { data, error } = await authClient.from("academia_grade_aulas")
+        .insert({
+          academia_id: academyId,
+          professor_id: professorInput.value,
+          dia_semana: day,
+          horario_inicio: startInput.value,
+          horario_fim: endInput.value
+        })
+        .select("id")
+        .single();
+      if (error) {
+        logRealAdminDatabaseError("adicionar horário à grade da academia", error);
+        return {
+          errorMessage: error.code === "23505"
+            ? "Este horário já está cadastrado para o Professor."
+            : realAdminDatabaseErrorMessage(error, "createAcademySchedule")
+        };
+      }
+      if (!data || !data.id) {
+        return { errorMessage: "O horário foi enviado, mas não foi possível confirmar o registro. Tente novamente." };
+      }
+    } catch (error) {
+      logRealAdminDatabaseError("adicionar horário à grade da academia", error);
+      return { errorMessage: realAdminDatabaseErrorMessage(error, "createAcademySchedule") };
+    }
+  });
+}
+
+function handleRealAcademyScheduleDelete(button) {
+  const row = button.closest(".academy-schedule-admin-row");
+  if (!row || !window.confirm("Remover este horário da grade da academia?")) return;
+  const describedIds = (button.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean);
+  const [errorId, statusId] = describedIds;
+  runButtonAction(button, {
+    feedback: errorId ? row.querySelector(`[id="${errorId}"]`) : null,
+    announcement: statusId ? row.querySelector(`[id="${statusId}"]`) : null,
+    buttons: [button],
+    loadingText: "Removendo...",
+    loadingMessage: "Removendo horário da grade.",
+    successMessage: "Horário removido da grade.",
+    errorMessage: "Não foi possível remover este horário. Tente novamente.",
+    successDelay: 0,
+    afterSuccess: () => { loadRealAdminAcademiesForEdit(); }
+  }, async () => {
+    const guardError = realAdminGuardError();
+    if (guardError) return { errorMessage: guardError };
+    try {
+      const { data, error } = await authClient.from("academia_grade_aulas")
+        .delete()
+        .eq("id", button.dataset.realAcademyScheduleDelete)
+        .select("id")
+        .maybeSingle();
+      if (error) {
+        logRealAdminDatabaseError("remover horário da grade da academia", error);
+        return { errorMessage: realAdminDatabaseErrorMessage(error, "deleteAcademySchedule") };
+      }
+      if (!data) return { errorMessage: "O horário não foi encontrado ou já foi removido." };
+    } catch (error) {
+      logRealAdminDatabaseError("remover horário da grade da academia", error);
+      return { errorMessage: realAdminDatabaseErrorMessage(error, "deleteAcademySchedule") };
+    }
+  });
+}
+
+function handleRealAcademyDirectoryRetry(button) {
+  runButtonAction(button, {
+    feedback: document.querySelector("#real-academy-directory-retry-error"),
+    announcement: document.querySelector("#real-academy-directory-retry-status"),
+    buttons: [button],
+    loadingText: "Carregando...",
+    loadingMessage: "Consultando academias e grade.",
+    successMessage: "Academias atualizadas.",
+    errorMessage: "Não foi possível carregar as academias. Tente novamente.",
+    successDelay: 0,
+    afterSuccess: () => { screenContent.innerHTML = renderRealAcademyDirectoryScreen(); }
+  }, async () => {
+    if (!realUser || !authClient) return { errorMessage: "Entre na sua conta e tente novamente." };
+    await loadRealAcademyDirectory(false);
+    if (realAcademyDirectoryState === "error") {
+      return { errorMessage: realAcademyDirectoryNotice || "Não foi possível carregar as academias." };
     }
   });
 }
@@ -5998,21 +7549,12 @@ function handleRealAcademyPhotoUpload(button) {
     successMessage: "Foto da academia atualizada.",
     errorMessage: "Não foi possível enviar a foto da academia.",
     successDelay: 0,
-    afterSuccess: async () => {
-      if (isRealAdmSession()) {
-        await loadRealAdminAcademiesForEdit();
-      } else if (isRealActiveProfessor()) {
-        realProfessorAcademyPhotoUrl = await loadRealAcademyPhotoUrl(academyId);
-        if (currentScreen === "academy") screenContent.innerHTML = renderRealProfessorAcademyScreen();
-      }
-    }
+    afterSuccess: () => { loadRealAdminAcademiesForEdit(); }
   }, async () => {
-    const canEdit = isRealAdmSession() ||
-      (isRealActiveProfessor() && realProfile && academyId === realProfile.academia_id);
-    if (!authClient || !realUser || !canEdit || !academyId) {
-      return { errorMessage: "Somente o Adm ou o Professor ativo da academia pode enviar esta foto." };
+    if (!authClient || !realUser || !isRealAdmSession() || !academyId) {
+      return { errorMessage: "Somente o Adm pode enviar a foto da academia." };
     }
-    const file = fileInput && fileInput.files && fileInput.files[0];
+    const file = getPreparedPhotoFile(fileInput);
     const validationError = validateStorageFile(file, ["image/jpeg", "image/png"], 5242880, "a foto da academia");
     if (validationError) return { errorMessage: validationError };
     const path = `${academyId}/foto`;
@@ -6021,72 +7563,6 @@ function handleRealAcademyPhotoUpload(button) {
       p_caminho_storage: path,
       p_tipo_mime: file.type
     }, "a foto da academia");
-  });
-}
-
-function handleRealProfessorAcademySubmit(form) {
-  const button = form.querySelector("[data-real-professor-academy-save]");
-  const nameInput = form.querySelector('[name="nome"]');
-  const photoInput = form.querySelector('[name="foto_fundo_url"]');
-  const name = nameInput.value.trim();
-  const photoUrl = photoInput.value.trim();
-  const version = Number(form.dataset.academyVersion);
-
-  runButtonAction(button, {
-    feedback: form.querySelector('[role="alert"]'),
-    announcement: form.querySelector('[role="status"]'),
-    buttons: [button, nameInput, photoInput],
-    loadingText: "Salvando...",
-    loadingMessage: "Atualizando os dados da academia no banco.",
-    successMessage: "Academia atualizada no banco.",
-    errorMessage: "Não foi possível atualizar a academia. Tente novamente.",
-    successDelay: 0,
-    afterSuccess: () => { screenContent.innerHTML = renderRealProfessorAcademyScreen(); }
-  }, async () => {
-    if (!authClient || !realUser || !isRealActiveProfessor() ||
-        form.dataset.academyId !== realProfile.academia_id ||
-        !realProfessorAcademy || realProfessorAcademy.id !== form.dataset.academyId) {
-      return { errorMessage: "Só é possível editar a academia vinculada ao seu perfil de Professor ativo." };
-    }
-    if (Array.from(name).length < 2 || Array.from(name).length > 80) {
-      return { errorMessage: "Informe um nome com 2 a 80 caracteres." };
-    }
-    if (!Number.isSafeInteger(version) || version < 1) {
-      return { errorMessage: "Não foi possível verificar a versão atual. Recarregue a tela." };
-    }
-
-    try {
-      const { data, error } = await authClient.rpc("atualizar_academia", {
-        p_academia_id: form.dataset.academyId,
-        p_nome: name,
-        p_foto_fundo_url: photoUrl || null,
-        p_versao_esperada: version
-      });
-      if (error) {
-        logRealProfileSupabaseError("atualizar academia do Professor", error);
-        return { errorMessage: realAdminDatabaseErrorMessage(error, "updateAcademy") };
-      }
-
-      const result = Array.isArray(data) ? data[0] : data;
-      if (!result || result.codigo !== "ok") {
-        return { errorMessage: realAdminAcademyRpcMessage(result && result.codigo) };
-      }
-      const nextVersion = Number(result.versao);
-      if (!Number.isSafeInteger(nextVersion) || nextVersion < 1) {
-        return { errorMessage: "A academia foi salva, mas não foi possível confirmar a versão atual. Recarregue a tela." };
-      }
-      realProfessorAcademy = {
-        ...realProfessorAcademy,
-        nome: name,
-        foto_fundo_url: photoUrl || null,
-        versao_edicao: nextVersion
-      };
-      realProfessorAcademyState = "found";
-      realProfessorAcademyNotice = "";
-    } catch (error) {
-      logRealProfileSupabaseError("atualizar academia do Professor", error);
-      return { errorMessage: realAdminDatabaseErrorMessage(error, "updateAcademy") };
-    }
   });
 }
 
@@ -6102,12 +7578,15 @@ function handleRealProfessorPhotoSubmit(form) {
     successMessage: "Foto do Professor atualizada.",
     errorMessage: "Não foi possível enviar a foto do Professor.",
     successDelay: 0,
-    afterSuccess: () => loadRealProfessorPhotoSettings()
+    afterSuccess: async () => {
+      await loadRealProfessorPhotoSettings();
+      await loadRealUserPanelMedia();
+    }
   }, async () => {
     if (!authClient || !realUser || !isRealActiveProfessorAccount() || !realProfile) {
       return { errorMessage: "Somente Professor ativo pode enviar foto pessoal." };
     }
-    const file = fileInput.files && fileInput.files[0];
+    const file = getPreparedPhotoFile(fileInput);
     const validationError = validateStorageFile(file, ["image/jpeg", "image/png"], 5242880, "a foto");
     if (validationError) return { errorMessage: validationError };
     const path = `${realUser.id}/foto`;
@@ -6115,6 +7594,264 @@ function handleRealProfessorPhotoSubmit(form) {
       p_caminho_storage: path,
       p_tipo_mime: file.type
     }, "a foto do Professor");
+  });
+}
+
+function handleRealAvatarChoiceSave(button) {
+  const controls = button.closest("[data-real-avatar-choice-controls]");
+  const feedback = controls && controls.querySelector("#real-avatar-choice-error");
+  const announcement = controls && controls.querySelector("#real-avatar-choice-status");
+  const radios = controls ? Array.from(controls.querySelectorAll('input[name="real-avatar-choice"]')) : [];
+  const selected = radios.find((radio) => radio.checked);
+  const userId = realUser && realUser.id;
+  runButtonAction(button, {
+    feedback,
+    announcement,
+    buttons: [button, ...radios],
+    loadingText: "Salvando...",
+    loadingMessage: "Salvando o avatar escolhido.",
+    successMessage: "Avatar padrão atualizado.",
+    errorMessage: "Não foi possível salvar o avatar escolhido.",
+    successDelay: 0
+  }, async () => {
+    if (!authClient || !userId || !realProfile || realProfile.id !== userId) {
+      return { errorMessage: "Não foi possível confirmar o perfil. Recarregue a tela e tente novamente." };
+    }
+    if (!selected || !Object.prototype.hasOwnProperty.call(REAL_PERSON_AVATARS, selected.value)) {
+      return { errorMessage: "Escolha um avatar antes de salvar." };
+    }
+    try {
+      const { data, error } = await authClient.rpc("definir_avatar_escolhido", {
+        p_avatar_escolhido: selected.value
+      });
+      if (error) {
+        logRealProfileSupabaseError("salvar avatar escolhido", error);
+        return { errorMessage: "Não foi possível salvar o avatar. Tente novamente mais tarde." };
+      }
+      if (data !== true) {
+        return { errorMessage: "O avatar não foi salvo. Confira se sua conta ainda está ativa e tente novamente." };
+      }
+      realAvatarChoiceByProfile.set(userId, selected.value);
+      realAvatarChoiceOwnerId = userId;
+      realAvatarChoiceState = "ready";
+      updateRealAvatarFallbacks(userId);
+      void loadRealUserPanelMedia();
+      return {};
+    } catch (error) {
+      logRealProfileSupabaseError("salvar avatar escolhido", error);
+      return { errorMessage: "Não foi possível salvar o avatar. Verifique a conexão e tente novamente." };
+    }
+  });
+}
+
+function handleRealPhotoRemoval(button, isProfessorPhoto) {
+  const control = button.closest(".student-action-control");
+  const feedback = control && control.querySelector('[role="alert"]');
+  const announcement = control && control.querySelector('[role="status"]');
+  const userId = realUser && realUser.id;
+  const profile = realProfile;
+  const path = isProfessorPhoto ? realOwnProfessorPhotoPath : realOwnProfilePhotoPath;
+  const bucket = isProfessorPhoto ? "professores" : "perfis";
+  const rpcName = isProfessorPhoto
+    ? "remover_foto_professor_propria"
+    : "remover_foto_perfil_propria";
+  const label = isProfessorPhoto ? "foto do Professor" : "foto de perfil";
+  if (!window.confirm(`Remover sua ${label}? O avatar escolhido será exibido no lugar.`)) return;
+
+  runButtonAction(button, {
+    feedback,
+    announcement,
+    buttons: [button],
+    loadingText: "Removendo...",
+    loadingMessage: `Removendo a ${label}.`,
+    successMessage: "Foto removida. O avatar escolhido será exibido.",
+    errorMessage: `Não foi possível remover a ${label}.`,
+    successDelay: 1800,
+    afterSuccess: () => {
+      realOwnProfilePhotoPath = "";
+      realOwnProfessorPhotoPath = "";
+      void loadRealUserPanelMedia();
+      renderScreen("user-settings");
+    }
+  }, async () => {
+    if (!authClient || !userId || !profile || profile.id !== userId || !path) {
+      return { errorMessage: "Não foi possível localizar a foto atual. Atualize as Preferências e tente novamente." };
+    }
+    if (isProfessorPhoto ? !isRealActiveProfessorAccount() : !canEditRealProfilePhoto(profile)) {
+      return { errorMessage: "Este perfil não pode remover a foto enquanto estiver inativo ou sem idade adulta declarada." };
+    }
+    let storageRemoved = false;
+    try {
+      const { error: storageError } = await authClient.storage.from(bucket).remove([path]);
+      if (storageError) {
+        logRealProfileSupabaseError(`remover ${label} do Storage`, storageError);
+        return { errorMessage: `Não foi possível apagar a ${label} no armazenamento. Verifique a conexão e tente novamente.` };
+      }
+      storageRemoved = true;
+      const { data, error } = await authClient.rpc(rpcName, {
+        p_caminho_storage: path
+      });
+      if (error) {
+        logRealProfileSupabaseError(`limpar o registro da ${label}`, error);
+        return { errorMessage: `O arquivo foi removido, mas o registro da ${label} não pôde ser limpo. Tente novamente.` };
+      }
+      if (data !== true) {
+        return { errorMessage: `O arquivo foi removido, mas o registro da ${label} não pôde ser confirmado. Tente novamente.` };
+      }
+      return {};
+    } catch (error) {
+      logRealProfileSupabaseError(`remover ${label}`, error);
+      return {
+        errorMessage: storageRemoved
+          ? `O arquivo foi removido, mas o registro da ${label} não pôde ser confirmado. Tente novamente.`
+          : `Não foi possível remover a ${label}. Verifique a conexão e tente novamente.`
+      };
+    }
+  });
+}
+
+function waitForRealServiceWorkerActivation(registration) {
+  const worker = registration.installing || registration.waiting;
+  if (!worker || worker.state === "activated") return Promise.resolve();
+  if (registration.waiting === worker) worker.postMessage({ type: "TATAME_SKIP_WAITING" });
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      worker.removeEventListener("statechange", checkState);
+      reject(new Error("A instalação do service worker demorou demais."));
+    }, 15000);
+    const checkState = () => {
+      if (worker.state === "installed" && registration.waiting === worker) {
+        worker.postMessage({ type: "TATAME_SKIP_WAITING" });
+      }
+      if (worker.state === "activated") {
+        window.clearTimeout(timeout);
+        worker.removeEventListener("statechange", checkState);
+        resolve();
+      } else if (worker.state === "redundant") {
+        window.clearTimeout(timeout);
+        worker.removeEventListener("statechange", checkState);
+        reject(new Error("A instalação do service worker não foi concluída."));
+      }
+    };
+    worker.addEventListener("statechange", checkState);
+    checkState();
+  });
+}
+
+function requestRealServiceWorkerCacheRefresh(worker) {
+  if (typeof MessageChannel !== "function") {
+    return Promise.reject(new Error("O navegador não permite atualizar o cache do app."));
+  }
+  return new Promise((resolve, reject) => {
+    const channel = new MessageChannel();
+    const timeout = window.setTimeout(() => {
+      channel.port1.close();
+      reject(new Error("O service worker não respondeu à atualização."));
+    }, 20000);
+    channel.port1.onmessage = (event) => {
+      window.clearTimeout(timeout);
+      channel.port1.close();
+      if (event.data && event.data.type === "TATAME_REFRESH_STATIC_ASSETS" &&
+          event.data.success === true) {
+        resolve();
+      } else {
+        reject(new Error("O service worker não conseguiu atualizar os arquivos."));
+      }
+    };
+    try {
+      worker.postMessage({ type: "TATAME_REFRESH_STATIC_ASSETS" }, [channel.port2]);
+    } catch (error) {
+      window.clearTimeout(timeout);
+      channel.port1.close();
+      reject(error);
+    }
+  });
+}
+
+function handleAppUpdate(button) {
+  const control = button.closest(".user-panel-action");
+  if (!control) return;
+  runButtonAction(button, {
+    feedback: control.querySelector("#app-update-error"),
+    announcement: control.querySelector("#app-update-status"),
+    buttons: [button],
+    loadingText: "Verificando...",
+    loadingMessage: "Verificando atualizações do app.",
+    successMessage: "App atualizado. Recarregando...",
+    errorMessage: "Não foi possível atualizar o app.",
+    successDelay: 0,
+    afterSuccess: () => window.setTimeout(() => window.location.reload(), 900)
+  }, async () => {
+    if (!("serviceWorker" in navigator)) {
+      return { errorMessage: "Este navegador não oferece atualização automática do app." };
+    }
+    window.__tatameUpdatingApp = true;
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        return { errorMessage: "O app ainda não tem um service worker ativo. Atualize a página e tente novamente." };
+      }
+      await registration.update();
+      await waitForRealServiceWorkerActivation(registration);
+      const refreshedRegistration = await navigator.serviceWorker.getRegistration();
+      const worker = refreshedRegistration && refreshedRegistration.active;
+      if (!worker) {
+        return { errorMessage: "Não foi possível localizar o service worker ativo. Tente novamente." };
+      }
+      await requestRealServiceWorkerCacheRefresh(worker);
+      return {};
+    } catch (error) {
+      console.warn("Não foi possível atualizar o app.", error);
+      return {
+        errorMessage: navigator.onLine === false
+          ? "Conecte-se à internet e tente novamente para atualizar o app."
+          : "Não foi possível verificar a atualização. Tente novamente."
+      };
+    } finally {
+      window.__tatameUpdatingApp = false;
+    }
+  });
+}
+
+function handleRealProfilePhotoSubmit(form) {
+  const button = form.querySelector("[data-real-profile-photo-save]");
+  const fileInput = form.querySelector("#real-profile-photo-file");
+  const userId = realUser && realUser.id;
+  runButtonAction(button, {
+    feedback: form.querySelector("#real-profile-photo-error"),
+    announcement: form.querySelector("#real-profile-photo-status"),
+    buttons: [button, fileInput],
+    loadingText: "Enviando...",
+    loadingMessage: "Enviando a foto de perfil.",
+    successMessage: "Foto de perfil atualizada.",
+    errorMessage: "Não foi possível enviar a foto de perfil.",
+    successDelay: 0,
+    afterSuccess: async () => {
+      await loadRealProfilePhotoPreview(userId);
+      await loadRealUserPanelMedia();
+    }
+  }, async () => {
+    if (!authClient || !userId || !realProfile || realProfile.id !== userId) {
+      return { errorMessage: "Não foi possível confirmar o perfil. Recarregue a tela e tente novamente." };
+    }
+    if (!canShowRealProfilePhotoForm(realProfile)) {
+      return {
+        errorMessage: realProfile.papel === "aluno"
+          ? "Menores de idade usam somente avatar."
+          : "Este perfil não pode enviar foto de pessoa."
+      };
+    }
+    if (!canEditRealProfilePhoto(realProfile)) {
+      return { errorMessage: "O perfil precisa estar ativo para enviar foto." };
+    }
+    const file = getPreparedPhotoFile(fileInput);
+    const validationError = validateStorageFile(file, ["image/jpeg", "image/png"], 5242880, "a foto");
+    if (validationError) return { errorMessage: validationError };
+    const path = `${userId}/foto`;
+    return uploadRegisteredPhoto("perfis", path, file, "registrar_foto_perfil", {
+      p_caminho_storage: path,
+      p_tipo_mime: file.type
+    }, "a foto de perfil");
   });
 }
 
@@ -6203,7 +7940,7 @@ function handleRealAdminProfessorAction(button) {
   const deactivate = action === "deactivate";
   const confirmation = deactivate
     ? "Desativar este Professor? A academia poderá ficar sem Professor ativo."
-    : "Reativar este Professor? A operação será recusada se a academia já tiver outro Professor ativo.";
+    : "Reativar este Professor nesta academia?";
   if (!window.confirm(confirmation)) return;
   const functionName = deactivate ? "desativar_professor" : "reativar_professor";
   runButtonAction(button, {
@@ -6470,6 +8207,7 @@ function syncRealSessionPanel() {
     updateUserPanelProfile();
   } else {
     document.querySelector("#profile-button").hidden = true;
+    document.querySelector(".sidebar-profile-button").hidden = true;
   }
 }
 
@@ -6534,6 +8272,8 @@ function activateProfessorOnce(userId) {
 
 function clearRealAccountCaches() {
   realSessionCacheGeneration += 1;
+  realHomeProfileRequestSequence += 1;
+  realHomeProfileContext = { academyName: "", academyPhotoUrl: "", professor: null, ownPhotoUrl: "" };
   if (realProofViewerWindow && !realProofViewerWindow.closed) realProofViewerWindow.close();
   realProofViewerWindow = null;
   clearRealUserPanelMedia();
@@ -6558,7 +8298,7 @@ function clearRealAccountCaches() {
   realAdminStudentsRequestSequence += 1;
   realAdminDashboardRequestSequence += 1;
   realHomeRequestSequence += 1;
-  realProfessorAcademyRequestSequence += 1;
+  realAcademyDirectoryRequestSequence += 1;
   realFeatureRequestSequence += 1;
   realStudentDetailRequestSequence += 1;
 
@@ -6641,13 +8381,18 @@ function clearRealAccountCaches() {
   realCreatedAcademy = null;
   realAdminAcademies = [];
   realAcademyPhotoUrls = new Map();
+  realAcademyDirectory = [];
+  realAcademyDirectorySchedule = [];
+  realAcademyDirectoryState = "idle";
+  realAcademyDirectoryNotice = "";
   realAdminProfessorPhotoUrls = new Map();
-  realProfessorAcademy = null;
-  realProfessorAcademyPhotoUrl = "";
+  realAvatarChoiceByProfile = new Map();
+  realAvatarChoiceOwnerId = "";
+  realAvatarChoiceState = "idle";
   realOwnProfessorPhotoUrl = "";
+  realOwnProfessorPhotoPath = "";
+  realOwnProfilePhotoPath = "";
   realProfessorPhotoNotice = "";
-  realProfessorAcademyState = "idle";
-  realProfessorAcademyNotice = "";
   realAdminStudents = [];
   realAdminStudentsState = "idle";
   realAdminStudentsNotice = "";
@@ -6878,6 +8623,7 @@ async function updateRealSession(session, updateScreen = true) {
     realInstructorLinkNotice = "";
   }
   if (sequence !== authCheckSequence) return;
+  updateUserPanelProfile();
   renderNavigation();
   if (updateScreen) {
     if (currentScreen === "teacher-code" && isRealProfessorProfile()) {
@@ -7003,7 +8749,7 @@ function realGoogleLogin(button) {
       const redirectTo = redirectUrl.toString();
       const { data, error } = await authClient.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo, skipBrowserRedirect: true }
+        options: { redirectTo, skipBrowserRedirect: true, queryParams: { prompt: "select_account" } }
       });
       if (error || !data.url) return { errorMessage: "Não foi possível iniciar o login. Confira a conexão e tente novamente." };
       window.location.assign(data.url);
@@ -7739,6 +9485,14 @@ document.addEventListener("click", (event) => {
             screenContent.innerHTML = screenId === "student-detail"
               ? renderRealProfessorGraduationsScreen()
               : renderRealFeatureScreenById(screenId);
+            if (screenId === "student-detail") {
+              const selectedStudent = realProfessorGraduationStudents.find((student) =>
+                student.id === realSelectedGraduationStudentId
+              );
+              void loadRealLinkedProfilePhotoAvatars(selectedStudent ? [selectedStudent] : [], screenId);
+            } else if (screenId === "students") {
+              void loadRealLinkedProfilePhotoAvatars(realFeatureData.linkedStudents, screenId);
+            }
           }
         }, async () => {
           if (screenId === "student-detail") await loadRealStudentDetailData(false);
@@ -7810,33 +9564,20 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  if (target.closest("[data-open-tutorial]")) {
-    if (userPanel.open) closeUserPanel(openTutorial);
-    else openTutorial();
+  const openSidebarButton = target.closest("[data-open-sidebar]");
+  if (openSidebarButton instanceof HTMLButtonElement) {
+    openMobileMenu(openSidebarButton);
     return;
   }
 
-  if (target.closest("[data-tutorial-skip]")) {
+  const tutorialTopicButton = target.closest("[data-tutorial-topic]");
+  if (tutorialTopicButton instanceof HTMLButtonElement) {
+    openTutorial(Number(tutorialTopicButton.dataset.tutorialTopic), tutorialTopicButton);
+    return;
+  }
+
+  if (target.closest("[data-tutorial-close]")) {
     closeTutorial();
-    return;
-  }
-
-  if (target.closest("[data-tutorial-back]")) {
-    tutorialStepIndex = Math.max(0, tutorialStepIndex - 1);
-    renderTutorialStep();
-    document.querySelector("[data-tutorial-back]").focus();
-    return;
-  }
-
-  if (target.closest("[data-tutorial-next]")) {
-    const steps = tutorialStepsByRole[realProfile && realProfile.papel] || [];
-    if (tutorialStepIndex >= steps.length - 1) {
-      closeTutorial();
-    } else {
-      tutorialStepIndex += 1;
-      renderTutorialStep();
-      document.querySelector("[data-tutorial-next]").focus();
-    }
     return;
   }
 
@@ -7889,6 +9630,30 @@ document.addEventListener("click", (event) => {
 
   if (target.closest("[data-theme-toggle]")) {
     setTheme();
+    return;
+  }
+
+  const appUpdateButton = target.closest("[data-app-update]");
+  if (appUpdateButton instanceof HTMLButtonElement) {
+    handleAppUpdate(appUpdateButton);
+    return;
+  }
+
+  const avatarChoiceButton = target.closest("[data-real-avatar-choice-save]");
+  if (avatarChoiceButton instanceof HTMLButtonElement) {
+    handleRealAvatarChoiceSave(avatarChoiceButton);
+    return;
+  }
+
+  const profilePhotoRemoveButton = target.closest("[data-real-profile-photo-remove]");
+  if (profilePhotoRemoveButton instanceof HTMLButtonElement) {
+    handleRealPhotoRemoval(profilePhotoRemoveButton, false);
+    return;
+  }
+
+  const professorPhotoRemoveButton = target.closest("[data-real-professor-photo-remove]");
+  if (professorPhotoRemoveButton instanceof HTMLButtonElement) {
+    handleRealPhotoRemoval(professorPhotoRemoveButton, true);
     return;
   }
 
@@ -8172,6 +9937,18 @@ document.addEventListener("submit", (event) => {
 document.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
+  const retryButton = target.closest("[data-real-academy-directory-retry]");
+  if (retryButton instanceof HTMLButtonElement) {
+    event.preventDefault();
+    handleRealAcademyDirectoryRetry(retryButton);
+    return;
+  }
+  const removeScheduleButton = target.closest("[data-real-academy-schedule-delete]");
+  if (removeScheduleButton instanceof HTMLButtonElement) {
+    event.preventDefault();
+    handleRealAcademyScheduleDelete(removeScheduleButton);
+    return;
+  }
   const button = target.closest("[data-real-academy-photo-upload]");
   if (!(button instanceof HTMLButtonElement)) return;
   event.preventDefault();
@@ -8209,15 +9986,21 @@ document.addEventListener("submit", (event) => {
 });
 
 document.addEventListener("submit", (event) => {
-  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-professor-academy-form]")) return;
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-academy-schedule-form]")) return;
   event.preventDefault();
-  handleRealProfessorAcademySubmit(event.target);
+  handleRealAcademyScheduleSubmit(event.target);
 });
 
 document.addEventListener("submit", (event) => {
   if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-professor-photo-form]")) return;
   event.preventDefault();
   handleRealProfessorPhotoSubmit(event.target);
+});
+
+document.addEventListener("submit", (event) => {
+  if (!(event.target instanceof HTMLFormElement) || !event.target.matches("[data-real-profile-photo-form]")) return;
+  event.preventDefault();
+  handleRealProfilePhotoSubmit(event.target);
 });
 
 document.addEventListener("submit", (event) => {
@@ -8269,19 +10052,7 @@ document.addEventListener("submit", (event) => {
   }
 });
 
-menuButton.addEventListener("click", () => {
-  if (sidebar.classList.contains("is-open")) {
-    closeMobileMenu();
-    return;
-  }
-  sidebar.classList.add("is-open");
-  sidebarBackdrop.classList.add("is-visible");
-  sidebar.setAttribute("role", "dialog");
-  sidebar.setAttribute("aria-modal", "true");
-  menuButton.setAttribute("aria-expanded", "true");
-  sidebar.querySelector("a, button").focus();
-  document.querySelectorAll(".app-main, #mobile-navigation").forEach((element) => { element.inert = true; });
-});
+menuButton.addEventListener("click", () => openMobileMenu(menuButton));
 
 sidebarBackdrop.addEventListener("click", closeMobileMenu);
 
@@ -8290,7 +10061,6 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     event.preventDefault();
     closeMobileMenu();
-    menuButton.focus();
     return;
   }
   if (event.key !== "Tab") return;
@@ -8386,6 +10156,15 @@ tutorialDialog.addEventListener("keydown", (event) => {
   }
 });
 
+function updateRealBillingRuleFields(form) {
+  const discountType = form.querySelector("#real-billing-discount-type").value;
+  const durationType = form.querySelector("#real-billing-duration").value;
+  form.querySelector("#real-billing-discount-value").closest(".field").hidden = discountType !== "valor_fixo";
+  form.querySelector("#real-billing-discount-percent").closest(".field").hidden = discountType !== "percentual";
+  form.querySelector("#real-billing-reason").closest(".field").hidden = discountType !== "isencao";
+  form.querySelector("#real-billing-duration-months").closest(".field").hidden = durationType !== "n_meses";
+}
+
 function readRealBillingRuleForm(form) {
   const studentId = form.querySelector("#real-billing-student-id").value.trim();
   const startMonth = form.querySelector("#real-billing-start-month").value;
@@ -8395,8 +10174,8 @@ function readRealBillingRuleForm(form) {
   const discountValue = form.querySelector("#real-billing-discount-value").value.trim();
   const percentValue = form.querySelector("#real-billing-discount-percent").value.trim();
   const durationType = form.querySelector("#real-billing-duration").value;
-  const durationValue = form.querySelector("#real-billing-duration-months").value.trim();
-  const reasonValue = form.querySelector("#real-billing-reason").value.trim();
+  const durationValue = durationType === "n_meses" ? form.querySelector("#real-billing-duration-months").value.trim() : "";
+  const reasonValue = discountType === "isencao" ? form.querySelector("#real-billing-reason").value.trim() : "";
 
   if (!realBillingStudentNames.has(studentId)) {
     return { errorMessage: "Selecione um aluno vinculado." };
@@ -8420,16 +10199,12 @@ function readRealBillingRuleForm(form) {
   if (!["nenhum", "valor_fixo", "percentual", "isencao"].includes(discountType)) {
     return { errorMessage: "Escolha um tipo de desconto válido." };
   }
-  if (discountType !== "isencao" && reasonValue) {
-    return { errorMessage: "O motivo só pode ser informado quando a regra é uma isenção." };
-  }
   if (Array.from(reasonValue).length > 200) {
     return { errorMessage: "O motivo da isenção deve ter no máximo 200 caracteres." };
   }
   const durationMonths = durationValue === "" ? null : Number(durationValue);
   if (!["este_mes", "n_meses", "ate_remover"].includes(durationType) ||
-      (durationType === "n_meses" && (!Number.isInteger(durationMonths) || durationMonths < 1)) ||
-      (durationType !== "n_meses" && durationMonths !== null)) {
+      (durationType === "n_meses" && (!Number.isInteger(durationMonths) || durationMonths < 1))) {
     return { errorMessage: "Confira a duração da regra e o número de meses." };
   }
 
@@ -8486,6 +10261,11 @@ async function callRealPaymentRpc(functionName, parameters, role, failureMessage
 document.addEventListener("change", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
+  if (target.matches("#real-billing-discount-type, #real-billing-duration")) {
+    const form = target.closest("[data-real-billing-rule-form]");
+    if (form) updateRealBillingRuleFields(form);
+    return;
+  }
   if (target instanceof HTMLSelectElement && target.id === "real-student-payment-type") {
     const field = document.querySelector("#real-student-proof-field");
     const fileInput = document.querySelector("#real-student-proof-file");
@@ -9048,7 +10828,13 @@ document.addEventListener("click", (event) => {
       loadingMessage: "Atualizando graduações dos alunos vinculados.",
       successMessage: "Graduações atualizadas.",
       errorMessage: "Não foi possível carregar graduações. Tente novamente.",
-      afterSuccess: () => { screenContent.innerHTML = renderRealProfessorGraduationsScreen(); }
+      afterSuccess: () => {
+        screenContent.innerHTML = renderRealProfessorGraduationsScreen();
+        const selectedStudent = realProfessorGraduationStudents.find((student) =>
+          student.id === realSelectedGraduationStudentId
+        );
+        void loadRealLinkedProfilePhotoAvatars(selectedStudent ? [selectedStudent] : [], "student-detail");
+      }
     }, async () => {
       await loadRealProfessorGraduations(false);
       if (realProfessorGraduationsState === "error") return { errorMessage: realProfessorGraduationsNotice };
@@ -9186,6 +10972,78 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const analyzeProofButton = target.closest("[data-real-proof-analyze]");
+  if (analyzeProofButton) {
+    if (currentScreen !== "payment-review" || !isRealActiveProfessor()) return;
+    const paymentId = analyzeProofButton.dataset.realProofAnalyze;
+    const row = analyzeProofButton.closest("[data-real-payment-row]");
+    const payment = realProfessorPayments.find((item) => item.id === paymentId);
+    const charge = payment && realProfessorCharges.find((item) => item.id === payment.cobranca_id);
+    const proof = realProfessorPaymentProofs.get(paymentId);
+    const resultPanel = row && row.querySelector("[data-real-proof-analysis]");
+    const proofCreatedAt = proof ? Date.parse(proof.criado_em) : NaN;
+    if (!payment || payment.status !== "pendente" || payment.tipo !== "comprovante" ||
+        !charge || !proof || proof.estado_arquivo !== "ativo" || !resultPanel || !row ||
+        !Number.isFinite(proofCreatedAt) || proofCreatedAt <= Date.now() - 30 * 24 * 60 * 60 * 1000 ||
+        !REAL_PAYMENT_PROOF_MIME_TYPES.includes(proof.tipo_mime) ||
+        !Number.isInteger(proof.tamanho_bytes) || proof.tamanho_bytes < 1 ||
+        proof.tamanho_bytes > REAL_PAYMENT_PROOF_MAX_BYTES) return;
+
+    resultPanel.replaceChildren();
+    resultPanel.hidden = true;
+    let analysis = null;
+    const userId = realUser.id;
+    const sessionGeneration = realSessionCacheGeneration;
+    const isCurrentSession = () =>
+      currentScreen === "payment-review" &&
+      sessionGeneration === realSessionCacheGeneration &&
+      Boolean(realUser && realUser.id === userId);
+    runButtonAction(analyzeProofButton, {
+      feedback: row.querySelector("[role='alert']"),
+      announcement: row.querySelector("[role='status']"),
+      buttons: Array.from(row.querySelectorAll("button")),
+      loadingText: "Lendo...",
+      loadingMessage: "Lendo o comprovante localmente para identificar o valor.",
+      successMessage: "Leitura concluída. Confira o valor e compare com seu banco.",
+      errorMessage: "Não foi possível ler o comprovante. Confira se o arquivo está legível e tente novamente.",
+      successDelay: 0,
+      afterSuccess: () => {
+        if (!analysis || !resultPanel.isConnected) return;
+        resultPanel.innerHTML = realPaymentProofAnalysisMarkup(analysis, payment, charge);
+        resultPanel.hidden = false;
+      }
+    }, async () => {
+      const { data: proofFile, error } = await authClient.storage
+        .from("comprovantes")
+        .download(proof.caminho_storage);
+      if (error) {
+        logRealProfileSupabaseError("baixar comprovante para leitura local", error);
+        return { errorMessage: "Não foi possível carregar o comprovante. Confira a conexão e tente novamente." };
+      }
+      if (!(proofFile instanceof Blob) || proofFile.size < 1 ||
+          proofFile.size > REAL_PAYMENT_PROOF_MAX_BYTES) {
+        return { errorMessage: "O arquivo do comprovante está vazio ou excede o limite permitido." };
+      }
+      if (!isCurrentSession()) {
+        return { errorMessage: "A sessão mudou. Atualize os pagamentos e tente novamente." };
+      }
+      try {
+        analysis = await readRealPaymentProof(proofFile, proof.tipo_mime);
+      } catch (error) {
+        if (error instanceof RealPaymentProofReadError) {
+          return { errorMessage: error.message };
+        }
+        throw error;
+      }
+      if (!isCurrentSession()) {
+        analysis = null;
+        return { errorMessage: "A sessão mudou. Atualize os pagamentos e tente novamente." };
+      }
+      return {};
+    });
+    return;
+  }
+
   const realPaymentAction = target.closest("[data-real-payment-action]");
   if (realPaymentAction) {
     const action = realPaymentAction.dataset.realPaymentAction;
@@ -9269,8 +11127,7 @@ document.addEventListener("click", (event) => {
       form.querySelector("#real-billing-duration").value = rule.duracao_tipo;
       form.querySelector("#real-billing-duration-months").value = rule.duracao_meses || "";
       form.querySelector("#real-billing-reason").value = rule.motivo_isencao || "";
-      form.querySelector('[data-feature-counter="motivo_isencao"]').textContent =
-        `${form.querySelector("#real-billing-reason").value.length}/200 caracteres`;
+      updateRealBillingRuleFields(form);
       form.querySelector("#real-billing-student-id").focus();
       return {};
     });

@@ -19,6 +19,14 @@
   <script src="js/offline.js" defer></script>
   <script>
     if ("serviceWorker" in navigator) {
+      const hadServiceWorkerController = Boolean(navigator.serviceWorker.controller);
+      let refreshingForServiceWorker = false;
+      window.__tatameUpdatingApp = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!hadServiceWorkerController || refreshingForServiceWorker || window.__tatameUpdatingApp) return;
+        refreshingForServiceWorker = true;
+        window.location.reload();
+      });
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("./sw.js").catch((error) => {
           console.warn("Não foi possível registrar o service worker.", error);
@@ -42,10 +50,14 @@
       </div>
       <div class="sidebar-intro">
         <span class="eyebrow">NAVEGAÇÃO</span>
-        <p>As telas disponíveis seguem o papel da conta ativa.</p>
       </div>
       <nav class="screen-navigation" id="screen-navigation" aria-label="Telas por perfil"></nav>
       <div class="sidebar-footer">
+        <button class="sidebar-profile-button" type="button" data-open-user-panel aria-haspopup="dialog" aria-controls="user-panel" hidden>
+          <span class="sidebar-profile-avatar" aria-hidden="true"><img src="assets/avatars/avatar-masculino.jpg" alt=""></span>
+          <span class="sidebar-profile-copy"><strong id="sidebar-profile-name">Conta</strong><small id="sidebar-profile-role">Perfil</small></span>
+          <span class="sidebar-profile-arrow" aria-hidden="true">↗</span>
+        </button>
       </div>
     </aside>
 
@@ -64,7 +76,7 @@
           </div>
         </div>
         <button class="profile-button" id="profile-button" type="button" data-open-user-panel aria-label="Abrir painel do usuário" aria-haspopup="dialog" aria-controls="user-panel" hidden>
-          <span class="profile-orb" id="profile-button-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>
+          <span class="profile-orb" id="profile-button-avatar" aria-hidden="true"><img src="assets/avatars/avatar-masculino.jpg" alt=""></span>
           <span class="profile-button-copy"><strong>Visualizar perfil</strong><small>Sem sessão ativa</small></span>
           <span class="chevron" aria-hidden="true">⌄</span>
         </button>
@@ -78,7 +90,6 @@
         <span>Tatame · Gestão de academia</span>
         <span class="app-footer-links">
           <button class="text-link" type="button" data-theme-toggle aria-pressed="false">Tema: escuro</button>
-          <a class="text-link" href="demo.html">Demonstração interativa</a>
           <a class="text-link" href="privacidade.html">Política de privacidade</a>
           <button class="text-link" type="button" data-open-terms>Termo de consentimento</button>
         </span>
@@ -97,28 +108,30 @@
       <button class="icon-button" type="button" data-close-user-panel aria-label="Fechar painel do usuário">×</button>
     </div>
     <div class="user-panel-profile">
-      <span class="user-panel-avatar" id="user-panel-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>
+      <span class="user-panel-avatar" id="user-panel-avatar" aria-hidden="true"><img id="user-panel-profile-photo" src="assets/avatars/avatar-masculino.jpg" alt=""></span>
       <div class="user-panel-profile-copy">
         <strong id="user-panel-profile-name">Sem sessão ativa</strong>
         <small id="user-panel-profile-role">Perfil</small>
-        <small id="user-panel-profile-academy">Sem academia vinculada</small>
-        <div class="user-panel-profile-media">
-          <div class="user-panel-profile-media-item" id="user-panel-academy-media" hidden>
-            <img id="user-panel-academy-photo" alt="" hidden>
-            <small>Foto da academia</small>
-          </div>
-          <div class="user-panel-profile-media-item" id="user-panel-professor-media" hidden>
-            <img id="user-panel-professor-photo" alt="" hidden>
-            <small>Foto do Professor</small>
-          </div>
-        </div>
+        <small class="user-panel-profile-academy" id="user-panel-profile-academy" hidden>Sem academia vinculada<img class="user-panel-academy-photo" id="user-panel-academy-photo" alt="" hidden></small>
       </div>
+    </div>
+    <div class="user-panel-links" aria-label="Preferências" role="group">
+      <h3 class="user-panel-group-title">Preferências</h3>
+      <button class="user-panel-link" type="button" data-screen-target="user-settings">
+        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg></span><span><strong>Dados e foto do perfil</strong><small>Preferências, dados da conta e ajuda</small></span><span aria-hidden="true">›</span>
+      </button>
+      <button class="user-panel-theme" type="button" data-theme-toggle aria-pressed="false">Tema: escuro</button>
     </div>
     <div class="user-panel-links" aria-label="Ajuda" role="group">
       <h3 class="user-panel-group-title">Ajuda e suporte</h3>
-      <button class="user-panel-link" type="button" data-open-tutorial>
-        <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 17h.01"/></svg></span><span><strong>Ajuda e tutorial</strong><small>Tutorial e perguntas frequentes</small></span><span aria-hidden="true">›</span>
-      </button>
+      <details class="user-panel-tutorial" id="user-panel-tutorial" hidden>
+        <summary class="user-panel-link">
+          <span class="user-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 17h.01"/></svg></span>
+          <span><strong>Tutoriais por tópico</strong><small>Escolha o que deseja consultar</small></span>
+          <span aria-hidden="true">⌄</span>
+        </summary>
+        <div class="user-panel-tutorial-topics" id="user-panel-tutorial-topics"></div>
+      </details>
       <p><a class="text-link" href="privacidade.html">Política de privacidade</a></p>
     </div>
     <details class="user-panel-diagnostics" id="user-diagnostics" hidden>
@@ -135,8 +148,12 @@
         <p class="login-action-error" id="real-signout-error" role="alert"></p>
         <p class="field-help" id="real-signout-status" role="status" aria-live="polite"></p>
       </div>
+      <div class="user-panel-action">
+        <button class="button button--quiet button--action" type="button" data-app-update aria-describedby="app-update-error app-update-status"><span data-action-label>Atualizar app</span></button>
+        <p class="login-action-error" id="app-update-error" role="alert"></p>
+        <p class="field-help" id="app-update-status" role="status" aria-live="polite"></p>
+      </div>
     </div>
-    <p class="user-panel-note">O perfil e as permissões são definidos pelo banco.</p>
     <details class="user-panel-risk">
       <summary><span aria-hidden="true">⚠</span> Área de risco</summary>
       <p data-real-only hidden>A exclusão de conta real ainda não está disponível.</p>
@@ -153,34 +170,37 @@
     <div id="profile-onboarding-content"></div>
   </dialog>
 
-  <dialog class="photo-dialog photo-editor-dialog" id="photo-editor" aria-labelledby="photo-editor-title" aria-describedby="photo-editor-copy">
+  <dialog class="photo-crop-dialog" id="photo-crop-dialog" aria-labelledby="photo-crop-title" aria-describedby="photo-crop-instructions">
     <div class="dialog-heading">
       <div>
-        <span class="eyebrow">FOTO PRÓPRIA</span>
-        <h2 id="photo-editor-title">Ajustar foto</h2>
+        <span class="eyebrow">FOTO</span>
+        <h2 id="photo-crop-title">Ajustar enquadramento</h2>
       </div>
-      <button class="icon-button" type="button" data-cancel-photo-editor aria-label="Cancelar edição da foto">×</button>
+      <button class="icon-button" type="button" data-photo-crop-cancel aria-label="Cancelar ajuste da foto">×</button>
     </div>
-    <p id="photo-editor-copy" class="field-help">Ajuste zoom e enquadramento. O arquivo fica somente nesta sessão do navegador.</p>
-    <div class="photo-crop-preview"><img id="photo-editor-image" alt="Prévia da foto enquadrada"></div>
-    <div class="photo-editor-controls">
-      <div class="field">
-        <label for="photo-editor-zoom">Zoom</label>
-        <input id="photo-editor-zoom" type="range" min="1" max="3" step="0.05" value="1" aria-valuetext="Zoom 1x">
+    <div class="photo-crop-stage" id="photo-crop-stage" role="group" tabindex="0" aria-label="Área de enquadramento da foto">
+      <img id="photo-crop-image" alt="Prévia da foto selecionada">
+    </div>
+    <p class="photo-crop-instructions" id="photo-crop-instructions">Arraste a foto para escolher a região. Com a área focada, use as setas ou os botões direcionais; ajuste o zoom no controle. A foto só será enviada depois da confirmação.</p>
+    <div class="photo-crop-controls">
+      <div class="photo-crop-zoom">
+        <label for="photo-crop-zoom">Zoom <output id="photo-crop-zoom-value" for="photo-crop-zoom">100%</output></label>
+        <input id="photo-crop-zoom" type="range" min="1" max="3" step="0.01" value="1" aria-valuetext="Zoom 100%" disabled>
       </div>
-      <div class="field">
-        <label for="photo-editor-x">Enquadramento horizontal</label>
-        <input id="photo-editor-x" type="range" min="0" max="100" step="1" value="50">
-      </div>
-      <div class="field">
-        <label for="photo-editor-y">Enquadramento vertical</label>
-        <input id="photo-editor-y" type="range" min="0" max="100" step="1" value="50">
+      <div class="photo-crop-nudges" role="group" aria-label="Mover enquadramento">
+        <button class="icon-button photo-crop-up" type="button" data-photo-crop-move="up" aria-label="Mover foto para cima" disabled>↑</button>
+        <button class="icon-button photo-crop-left" type="button" data-photo-crop-move="left" aria-label="Mover foto para a esquerda" disabled>←</button>
+        <button class="icon-button photo-crop-right" type="button" data-photo-crop-move="right" aria-label="Mover foto para a direita" disabled>→</button>
+        <button class="icon-button photo-crop-down" type="button" data-photo-crop-move="down" aria-label="Mover foto para baixo" disabled>↓</button>
       </div>
     </div>
-    <div class="photo-editor-actions">
-      <button class="button button--primary button--action" type="button" data-save-profile-photo><span data-action-label>Salvar foto</span></button>
-      <p class="login-action-error" id="photo-editor-error" role="alert"></p>
-      <p class="field-help" id="photo-editor-status" role="status" aria-live="polite"></p>
+    <p class="photo-crop-error" id="photo-crop-error" role="alert" aria-live="assertive" aria-atomic="true"></p>
+    <p class="photo-crop-status" id="photo-crop-status" role="status" aria-live="polite" aria-atomic="true"></p>
+    <div class="photo-crop-actions">
+      <button class="button button--quiet" type="button" data-photo-crop-cancel>Cancelar</button>
+      <button class="button button--primary button--action" type="button" id="photo-crop-confirm" data-photo-crop-confirm aria-describedby="photo-crop-error photo-crop-status" disabled>
+        <span data-action-label>Usar enquadramento</span>
+      </button>
     </div>
   </dialog>
 
@@ -213,15 +233,12 @@
         <span class="eyebrow" id="tutorial-progress"></span>
         <h2 id="tutorial-title">Tutorial</h2>
       </div>
-      <button class="icon-button" type="button" data-tutorial-skip aria-label="Pular tutorial">×</button>
+      <button class="icon-button" type="button" data-tutorial-close aria-label="Fechar tutorial">×</button>
     </div>
     <div class="tutorial-illustration" id="tutorial-illustration"></div>
-    <h3 id="tutorial-step-title"></h3>
     <p id="tutorial-copy"></p>
     <div class="tutorial-actions">
-      <button class="button button--quiet" type="button" data-tutorial-back>Voltar</button>
-      <button class="button button--quiet" type="button" data-tutorial-skip>Pular</button>
-      <button class="button button--primary" type="button" data-tutorial-next>Próximo</button>
+      <button class="button button--primary" type="button" data-tutorial-close>Entendi</button>
     </div>
   </dialog>
 

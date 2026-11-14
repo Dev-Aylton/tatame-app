@@ -24,6 +24,7 @@
       <h1>Privacidade e consentimento</h1>
       <div class="privacy-draft-content">
         <p class="panel-copy">O aceite do termo é gravado com o identificador do perfil, a versão do termo e a data e hora. O Professor aceita na primeira vez. O Instrutor aceita depois de usar o convite. O Aluno novo aceita ao criar o perfil.</p>
+        <p class="panel-copy">O redesign reorganiza a navegação: barra lateral no computador e barra inferior com menu “Mais” no celular. A mudança visual não altera as permissões nem os dados acessíveis por perfil.</p>
 
         <section class="privacy-draft-section">
           <h2>1. Dados que o app guarda</h2>
@@ -31,41 +32,52 @@
           <ul>
             <li>e-mail da conta (login Google, ou e-mail e senha para Aluno e Instrutor);</li>
             <li>nome, papel, idade declarada (adulto ou menor de 18 anos) e vínculo com a academia;</li>
-            <li>nome da academia, pedidos de vínculo e vínculos entre Aluno e Professor;</li>
+            <li>nome da academia, grade semanal de aulas (dias e horários) e nome do Professor associado a cada aula; códigos e pedidos de vínculo, e vínculos entre Aluno e Professor;</li>
             <li>e-mail de Professor convidado e estado do convite; convites de Instrutor guardam o hash do token, datas e estado;</li>
             <li>nome e idade declarada de aluno sem conta;</li>
             <li>cobranças mensais: valor-base, vencimento, desconto, isenção (com motivo opcional de até 200 caracteres), estado e datas de envio;</li>
             <li>pagamentos: o Aluno registra aviso como Dinheiro ou Comprovante; o Professor pode lançar recebimento como Pix, Dinheiro, Transferência ou Outro. O app guarda valor, estado, referência e datas correspondentes;</li>
+            <li>fotos de perfil e da academia enviadas, além de metadados como formato, tamanho e data de atualização; escolha do avatar de perfil;</li>
             <li>notas privadas, feedbacks, metas e mensagens trocadas conforme os papéis e vínculos;</li>
             <li>dados de graduação, avisos e conteúdos de treino compartilhados nas telas do app.</li>
           </ul>
           <p>No cadastro por e-mail e senha, o app coleta nome e e-mail. A senha é tratada pelo Supabase Auth e não é guardada pelo app.</p>
           <p>A exportação baixa arquivos JSON ou CSV com dados já carregados e visíveis para a própria conta. Não é backup do servidor. Não pedimos data de nascimento, telefone nem WhatsApp. Pedimos que não escreva dados sensíveis no motivo da isenção.</p>
-          <p>O Aluno pode anexar opcionalmente ao aviso de pagamento um comprovante JPG, PNG ou PDF de até 10 MiB. O arquivo fica visível somente ao Aluno autor e ao Professor do vínculo. O app remove o arquivo do Storage quando o Professor confirma ou rejeita o aviso; na abertura da tela de pagamentos, também tenta remover arquivos com mais de 30 dias sem decisão. Nesse caso, o aviso continua pendente e ficam somente os registros.</p>
+          <p>O Aluno pode anexar opcionalmente ao aviso de pagamento um comprovante JPG, PNG ou PDF de até 10 MiB. Enquanto o arquivo está ativo e o pagamento aguarda decisão, ele fica acessível somente ao Aluno autor e ao Professor vinculado. Ao confirmar ou rejeitar, o app solicita a remoção do arquivo do Storage. Também tenta remover arquivos após 30 dias sem decisão; o aviso e os registros do pagamento permanecem.</p>
+          <p>Ao escolher “Ler valor”, o Professor pode analisar o comprovante no próprio navegador e comparar o valor identificado com o aviso do Aluno e o saldo da cobrança. O arquivo não é enviado a serviços externos de OCR; o resultado fica apenas na tela durante a revisão, não é salvo e não confirma o pagamento automaticamente. O Professor confere o comprovante e o recebimento no próprio banco antes de decidir.</p>
         </section>
 
         <section class="privacy-draft-section">
           <h2>2. Compartilhamento</h2>
           <p>O acesso depende do papel e dos vínculos:</p>
           <ul>
+            <li>todos os perfis autenticados podem consultar o nome das academias e as grades de aulas publicadas pelo Adm, com os dias, horários e nomes dos Professores;</li>
             <li>o Professor vê os Alunos vinculados a ele, suas cobranças e seus pagamentos;</li>
             <li>o Aluno vê apenas as cobranças que o Professor enviou a ele;</li>
             <li>o Instrutor vê apenas os dados de alunos e conteúdos compartilhados com ele; não vê pagamentos, notas privadas, feedbacks ou metas;</li>
             <li>o Adm não tem acesso às telas de pagamentos, notas privadas, feedbacks ou metas.</li>
           </ul>
-          <p>O app só controla pagamentos. Ele não processa dinheiro. O app não envia notificações push.</p>
-          <p>A foto da academia aceita JPG ou PNG de até 5 MiB e fica visível a todos os perfis autenticados. A foto do Professor aceita JPG ou PNG de até 5 MiB e fica visível aos Alunos vinculados a ele e ao Adm.</p>
+          <p>O Aluno pode solicitar vínculo usando um código; o vínculo depende da decisão do Professor. Alunos sem conta não entram nas cobranças mensais gravadas no banco real. A mensagem copiada na tela de cobranças não cria nem salva a cobrança e o texto não é armazenado.</p>
+          <p>O app só controla pagamentos: não processa dinheiro, não envia mensagens fora do app e não usa notificações push.</p>
         </section>
 
         <section class="privacy-draft-section">
           <h2>3. Menores de 18 anos</h2>
-          <p>A idade é só declarada, sem verificação. Menores usam somente avatar; o app não tem foto de pessoa para Aluno. Convites de Instrutor exigem declaração de adulto.</p>
+          <p>A idade é só declarada, sem verificação. Alunos menores ou sem idade declarada usam somente avatar; não enviam foto de pessoa. Convites de Instrutor exigem declaração de adulto.</p>
         </section>
 
         <section class="privacy-draft-section">
-          <h2>4. Fotos</h2>
-          <p>A foto da academia é armazenada no Storage; aceita JPG ou PNG de até 5 MiB e fica visível a todos os perfis autenticados. O Adm e o Professor ativo da academia podem enviá-la.</p>
-          <p>A foto do Professor é armazenada no Storage; aceita JPG ou PNG de até 5 MiB e fica visível aos Alunos vinculados e ao Adm. Somente o próprio Professor ativo pode enviá-la. Menores usam somente avatar; Adm e Instrutor não têm foto de pessoa.</p>
+          <h2>4. Fotos e avatares</h2>
+          <p>Fotos de pessoa aceitam JPG ou PNG de até 5 MiB e ficam em armazenamento privado. A exibição é quadrada, com cantos suavemente arredondados e corte centralizado; no painel do usuário, a foto é redonda.</p>
+          <ul>
+            <li>Adm: vê somente a própria foto de perfil; como exceção, pode ver a foto do Professor;</li>
+            <li>Aluno adulto e Instrutor: veem a própria foto e a do Professor vinculado; o Professor vinculado pode ver a foto deles;</li>
+            <li>Professor: vê a própria foto; a foto dele fica visível aos Alunos e Instrutores vinculados e ao Adm;</li>
+            <li>Aluno menor ou sem idade declarada: não tem foto de pessoa e usa avatar; pode ver a foto do Professor vinculado;</li>
+            <li>foto da academia: JPG ou PNG de até 5 MiB, visível a todos os perfis autenticados.</li>
+          </ul>
+          <p>Quando não há uma foto de pessoa visível, o app mostra o avatar escolhido nas Preferências: masculino ou feminino. O padrão é masculino. As imagens dos avatares são arquivos locais; a escolha é guardada no perfil. Um novo envio aceito substitui a foto anterior. Quem pode enviar foto de perfil também pode solicitar sua remoção nas Preferências, após confirmação; o app solicita a remoção do arquivo e do registro e informa se a operação não for concluída.</p>
+          <p>As regras acima são as decisões previstas para o produto. O acesso de Instrutor às fotos do Professor e o acesso do Professor às fotos de Instrutor ainda dependem de a política do banco reconhecer a relação de Instrutor; confirme essa configuração antes de considerar o acesso efetivo.</p>
         </section>
 
         <section class="privacy-draft-section">
@@ -75,7 +87,7 @@
 
         <section class="privacy-draft-section">
           <h2>6. Retenção</h2>
-          <p>Pagamentos e cobranças não são apagados, apenas mudam de estado (por exemplo, cancelada ou estornado). Um Professor substituído na academia é desativado, não apagado. A remoção física do comprovante é solicitada pelo app à API do Storage; o aviso e os registros permanecem.</p>
+          <p>Pagamentos e cobranças não são apagados, apenas mudam de estado (por exemplo, cancelada ou estornado). Um Professor substituído na academia é desativado, não apagado. A remoção física do comprovante é solicitada pelo app à API do Storage; se não for concluída, o app tenta novamente ao abrir pagamentos. O aviso e os registros permanecem.</p>
         </section>
 
         <section class="privacy-draft-section">
