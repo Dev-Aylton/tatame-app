@@ -66,7 +66,7 @@ const navigationGroups = [
   },
   {
     title: "Minha conta de aluno",
-    roles: ["student", "instructor"],
+    roles: ["student"],
     items: [
       ["student-payments", "Meus pagamentos", "▤"],
       ["student-grades", "Minhas graduações", "◇"]
@@ -78,8 +78,7 @@ const navigationGroups = [
     items: [
       ["students", "Alunos", "♧"],
       ["student-detail", "Ficha do aluno", "▧"],
-      ["teacher-code", "Código e convites", "⌁"],
-      ["role-management", "Papéis e autorizações", "◈"]
+      ["teacher-code", "Código e convites", "⌁"]
     ]
   },
   {
@@ -107,9 +106,9 @@ const navigationGroups = [
     title: "Comunicação",
     roles: ["student", "professor", "instructor"],
     items: [
-      ["teacher-chat", "Conversas", "✉"],
-      ["student-chat", "Conversa com o professor", "✉"],
-      ["instructor-chat", "Conversa com o professor", "✉"]
+      ["teacher-chat", "Conversas", "✉", ["professor"]],
+      ["student-chat", "Conversa com o professor", "✉", ["student"]],
+      ["instructor-chat", "Conversa com o professor", "✉", ["instructor"]]
     ]
   },
   {
@@ -120,7 +119,10 @@ const navigationGroups = [
   {
     title: "Planejamento",
     roles: ["professor", "instructor"],
-    items: [["training-plan", "Plano semanal", "▦"]]
+    items: [
+      ["delegated-lessons", "Aula delegada", "▣", ["professor"]],
+      ["training-plan", "Plano semanal", "▦"]
+    ]
   },
   {
     title: "Acompanhamento",
@@ -132,8 +134,7 @@ const navigationGroups = [
     roles: ["student", "professor", "instructor", "adm"],
     items: [
       ["academy", "Academia", "⌂"],
-      ["user-settings", "Preferências", "◎"],
-      ["privacy", "Privacidade", "◇"]
+      ["user-settings", "Preferências", "◎"]
     ]
   }
 ];
@@ -147,23 +148,28 @@ screenInfo["real-account"] = { title: "Conta", group: "Conta" };
 screenInfo["create-account"] = { title: "Criar conta", group: "Acesso" };
 screenInfo["forgot-password"] = { title: "Esqueci a senha", group: "Acesso" };
 screenInfo["password-recovery"] = { title: "Definir nova senha", group: "Acesso" };
-const roleScreens = {
-  adm: ["admin-home", "teacher-invites", "role-management", "academy", "user-settings", "privacy"],
-  professor: ["home", "students", "student-detail", "teacher-code", "role-management", "payment-review", "monthly-charges", "teacher-chat", "training-board", "training-plan", "academy", "user-settings", "privacy"],
-  instructor: ["home", "student-payments", "student-grades", "instructor-class", "instructor-chat", "training-board", "training-plan", "academy", "user-settings", "privacy"],
-  student: ["home", "student-payments", "student-grades", "student-chat", "student-progress", "training-board", "link-teacher", "academy", "user-settings", "privacy"]
-};
+const roleScreens = Object.fromEntries(
+  ["adm", "professor", "instructor", "student"].map((role) => [
+    role,
+    [...new Set(navigationGroups.flatMap((group) => group.items
+      .filter((item) => (item[3] || group.roles).includes(role))
+      .map(([id]) => id)))]
+  ])
+);
 const beltOrder = ["Branca", "Azul", "Roxa", "Marrom", "Preta", "Coral vermelha e preta", "Coral vermelha e branca", "Vermelha"];
 const tutorialStepsByRole = {
   adm: [
     ["admin-home", "Painel do Adm", "Consulte os indicadores e selecione um cartão para abrir academias, Professores, alunos ou convites."],
-    ["teacher-invites", "Professores convidados", "Gerencie convites de Professor e acompanhe os convites existentes."],
+    ["admin-students", "Alunos", "Pesquise alunos ativos por nome ou faixa e navegue entre as páginas da lista."],
+    ["teacher-invites", "Professores convidados", "Pesquise por e-mail, filtre o status e navegue entre as páginas dos convites."],
     ["academy", "Academias", "Cadastre os dados da academia e organize aulas por dia, Professor e horário. Para vincular Professores, use Professores convidados e escolha a academia."]
   ],
   professor: [
     ["home", "Início", "Acompanhe pagamentos a confirmar, cobranças atrasadas e atalhos para as tarefas mais usadas. Em Preferências e Academia, ajuste o zoom e o enquadramento da foto na prévia antes de enviar."],
-    ["payment-review", "Pagamentos a confirmar", "Leia o valor do comprovante para comparar com o aviso e o saldo da cobrança; confira no seu banco e confirme ou rejeite manualmente. Também pode lançar um recebimento."],
+    ["students", "Alunos", "Pesquise alunos vinculados ou sem conta, filtre pelo status e navegue entre as páginas das listas."],
+    ["payment-review", "Pagamentos a confirmar", "Pesquise por aluno ou referência e filtre a origem ou o status para localizar pagamentos. Leia o comprovante, confira no seu banco e confirme ou rejeite manualmente."],
     ["monthly-charges", "Cobranças mensais", "Configure regras de cobrança; os campos de desconto e duração aparecem conforme a opção escolhida. Acompanhe cobranças e filtre as atrasadas."],
+    ["delegated-lessons", "Aula delegada", "Delegue aulas somente a Instrutores vinculados e compartilhe o plano quando estiver pronto."],
     ["academy", "Academia", "Consulte as academias e os dias e horários de aula publicados pelo Adm."]
   ],
   instrutor: [
@@ -304,6 +310,10 @@ let realAdminStudents = [];
 let realAdminStudentsState = "idle";
 let realAdminStudentsNotice = "";
 let realAdminStudentsRequestSequence = 0;
+let realAdminInvites = [];
+const REAL_LIST_PAGE_SIZE = 20;
+const realListUiState = new Map();
+const realListDefinitions = new Map();
 let realAdminDashboardAcademies = [];
 let realAdminDashboardProfessors = [];
 let realAdminDashboardStudents = 0;
@@ -492,7 +502,7 @@ const navigationIconByScreen = {
   "student-payments": "payment", "student-grades": "grade", "student-chat": "message",
   "training-board": "grade", "training-plan": "lesson", "student-progress": "grade",
   students: "people", "student-detail": "profile",
-  "teacher-code": "link", "role-management": "shield",
+  "teacher-code": "link", "role-management": "shield", "delegated-lessons": "lesson",
   "payment-review": "payment", "monthly-charges": "payment",
   "teacher-chat": "message", "instructor-class": "lesson",
   "instructor-students": "people",
@@ -548,7 +558,7 @@ function renderNavigation() {
       ${group.items.map(([id, title]) => `
         <button class="nav-item" type="button" data-screen-target="${id}">
           <span class="nav-icon">${navigationIcon(id)}</span>
-          <span>${isRealProfessorProfile() && id === "role-management" ? "Aula delegada" : title}</span>
+          <span>${title}</span>
         </button>
       `).join("")}
     </section>
@@ -595,16 +605,15 @@ function canViewScreen(id) {
       id === "forgot-password" ||
       (id === "instructor-invite" && Boolean(realInstructorInviteToken));
   }
-  if (id === "home") return isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor();
+  const activeRoles = [];
+  if (isRealAdmSession()) activeRoles.push("adm");
+  if (isRealActiveProfessor()) activeRoles.push("professor");
+  if (isRealActiveInstructor()) activeRoles.push("instructor");
+  if (isRealActiveStudent()) activeRoles.push("student");
   return id === "user-settings" ||
-    (id === "link-teacher" && isRealActiveStudent()) ||
-    ["no-access", "instructor-invite"].includes(id) ||
-    (isRealAdmSession() && ["admin-home", "academy", "teacher-invites", "role-management", "admin-students"].includes(id)) ||
     (isRealProfessorProfile() && id === "teacher-code") ||
-    (id === "academy" && (isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor())) ||
-    (isRealActiveProfessor() && ["home", "monthly-charges", "payment-review", "student-detail", "students", "teacher-chat", "role-management", "training-board", "training-plan"].includes(id)) ||
-    (isRealActiveStudent() && ["home", "student-payments", "student-grades", "student-chat", "student-progress", "training-board"].includes(id)) ||
-    (isRealActiveInstructor() && ["home", "instructor-students", "instructor-class", "instructor-chat", "training-board", "training-plan"].includes(id));
+    ["no-access", "instructor-invite"].includes(id) ||
+    activeRoles.some((role) => roleScreens[role].includes(id));
 }
 
 function isRealStudentProfileCreationFlow() {
@@ -876,6 +885,129 @@ function gradeVisual(grade) {
 
 function emptyState(title, copy) {
   return `<div class="empty-state"><div><strong>${title}</strong><p>${copy}</p></div></div>`;
+}
+
+function getRealListUiState(key) {
+  if (!realListUiState.has(key)) {
+    realListUiState.set(key, { query: "", filter: "", page: 1 });
+  }
+  return realListUiState.get(key);
+}
+
+function resetRealListUiState() {
+  realListUiState.clear();
+  realListDefinitions.clear();
+}
+
+function normalizeRealListText(value) {
+  return String(value === null || value === undefined ? "" : value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .trim();
+}
+
+function getRealListView(definition) {
+  const state = getRealListUiState(definition.key);
+  const filterOptions = definition.filterOptions || [];
+  if (state.filter && !filterOptions.some((option) => option.value === state.filter)) {
+    state.filter = "";
+  }
+  const query = normalizeRealListText(state.query);
+  const filteredItems = definition.items.filter((item) => {
+    const matchesQuery = !query || normalizeRealListText(definition.getSearchText(item)).includes(query);
+    const matchesFilter = !state.filter || String(definition.getFilterValue(item)) === state.filter;
+    return matchesQuery && matchesFilter;
+  });
+  const pageCount = Math.max(1, Math.ceil(filteredItems.length / REAL_LIST_PAGE_SIZE));
+  state.page = Math.min(Math.max(1, state.page), pageCount);
+  const start = (state.page - 1) * REAL_LIST_PAGE_SIZE;
+  const pageItems = filteredItems.slice(start, start + REAL_LIST_PAGE_SIZE);
+  return {
+    page: state.page,
+    pageCount,
+    pageItems,
+    total: filteredItems.length,
+    start: filteredItems.length ? start + 1 : 0,
+    end: start + pageItems.length
+  };
+}
+
+function renderRealListPagination(definition, view) {
+  if (!view.total) {
+    return '<p class="field-help real-list-pagination-status" role="status" aria-live="polite">0 resultados</p>';
+  }
+  const key = escapeHtml(definition.key);
+  const label = escapeHtml(definition.label);
+  return `
+    <nav class="real-list-pagination" aria-label="Paginação: ${label}">
+      <button class="button button--small button--quiet" type="button" data-real-list-page="${key}" data-page-direction="-1"
+        aria-label="Página anterior: ${label}" aria-controls="real-list-results-${key}" ${view.page <= 1 ? "disabled" : ""}>Anterior</button>
+      <span class="field-help real-list-pagination-status" role="status" aria-live="polite">
+        Mostrando ${view.start}–${view.end} de ${view.total} · Página ${view.page} de ${view.pageCount}
+      </span>
+      <button class="button button--small button--quiet" type="button" data-real-list-page="${key}" data-page-direction="1"
+        aria-label="Próxima página: ${label}" aria-controls="real-list-results-${key}" ${view.page >= view.pageCount ? "disabled" : ""}>Próxima</button>
+    </nav>`;
+}
+
+function renderRealListCollection(definition) {
+  realListDefinitions.set(definition.key, definition);
+  const state = getRealListUiState(definition.key);
+  const view = getRealListView(definition);
+  const filterOptions = definition.filterOptions || [];
+  const safeKey = escapeHtml(definition.key);
+  const resultsId = `real-list-results-${safeKey}`;
+  const hasCriteria = normalizeRealListText(state.query) || state.filter;
+  const results = view.total
+    ? definition.renderItems(view.pageItems)
+    : emptyState(
+      hasCriteria ? "Nenhum resultado encontrado" : definition.emptyTitle,
+      hasCriteria ? "Ajuste a busca ou o filtro para ver outros resultados." : definition.emptyCopy
+    );
+  return `
+    <div class="form-grid real-list-controls">
+      <div class="field">
+        <label for="real-list-search-${safeKey}">Buscar ${escapeHtml(definition.label)}</label>
+        <input class="search-input" id="real-list-search-${safeKey}" type="search" autocomplete="off"
+          data-real-list-search="${safeKey}" aria-controls="${resultsId}"
+          placeholder="${escapeHtml(definition.searchPlaceholder)}" value="${escapeHtml(state.query)}">
+      </div>
+      ${filterOptions.length ? `
+        <div class="field">
+          <label for="real-list-filter-${safeKey}">${escapeHtml(definition.filterLabel)}</label>
+          <select id="real-list-filter-${safeKey}" data-real-list-filter="${safeKey}" aria-controls="${resultsId}">
+            <option value="">${escapeHtml(definition.filterDefaultLabel)}</option>
+            ${filterOptions.map((option) => `<option value="${escapeHtml(option.value)}"${option.value === state.filter ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+          </select>
+        </div>
+      ` : ""}
+    </div>
+    <div id="${resultsId}" data-real-list-results="${safeKey}" role="region" aria-label="Resultados: ${escapeHtml(definition.label)}">
+      ${results}
+    </div>
+    <div data-real-list-pagination="${safeKey}">${renderRealListPagination(definition, view)}</div>`;
+}
+
+function updateRealListCollection(key) {
+  const definition = realListDefinitions.get(key);
+  if (!definition) return false;
+  const results = Array.from(screenContent.querySelectorAll("[data-real-list-results]"))
+    .find((element) => element.dataset.realListResults === key);
+  const pagination = Array.from(screenContent.querySelectorAll("[data-real-list-pagination]"))
+    .find((element) => element.dataset.realListPagination === key);
+  if (!results || !pagination) return false;
+  const state = getRealListUiState(key);
+  const view = getRealListView(definition);
+  const hasCriteria = normalizeRealListText(state.query) || state.filter;
+  results.innerHTML = view.total
+    ? definition.renderItems(view.pageItems)
+    : emptyState(
+      hasCriteria ? "Nenhum resultado encontrado" : definition.emptyTitle,
+      hasCriteria ? "Ajuste a busca ou o filtro para ver outros resultados." : definition.emptyCopy
+    );
+  pagination.innerHTML = renderRealListPagination(definition, view);
+  return true;
 }
 
 function escapeHtml(value) {
@@ -1650,7 +1782,7 @@ function renderFeatureTextField(name, label, value, max, multiline = false, requ
 function featureDateMonday(value = "") {
   const date = value ? new Date(`${value}T12:00:00`) : new Date();
   const day = date.getDay();
-  date.setDate(date.getDate() + (day === 0 ? 1 : 8 - day));
+  date.setDate(date.getDate() - ((day + 6) % 7));
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
@@ -1803,13 +1935,14 @@ function renderRealConversations() {
   const threads = [...conversations.entries()].map(([id, messages]) => {
     const first = messages[0];
     const otherParty = isRealActiveProfessor() ? first.participante_nome || "Aluno vinculado" : "Professor";
+    const replyInputId = `feature-chat-reply-${id}`;
     return `<article class="panel-card">
       <h3>${escapeHtml(otherParty)}</h3>
       <div class="chat-thread" role="log" aria-live="polite">
         ${messages.map((message) => `<p><strong>${message.remetente_id === realUser.id ? "Você" : escapeHtml(otherParty)}:</strong> ${escapeHtml(message.texto)}</p>`).join("")}
       </div>
       <form data-feature-form="reply-conversation" data-feature-id="${escapeHtml(id)}">
-        <div class="field"><label>Mensagem</label><textarea name="texto" placeholder="Escreva sua mensagem" required minlength="1"></textarea></div>
+        <div class="field"><label for="${escapeHtml(replyInputId)}">Mensagem</label><textarea id="${escapeHtml(replyInputId)}" name="texto" placeholder="Escreva sua mensagem" required minlength="1"></textarea></div>
         ${featureSubmitButton("Responder")}
       </form>
     </article>`;
@@ -1859,14 +1992,14 @@ function renderRealDelegatedLessonScreen() {
           ${featureSubmitButton("Criar aula delegada")}
         </form>`
       : emptyState("Nenhum Instrutor vinculado", "Vincule um Instrutor antes de delegar uma aula.");
-    return `${heading("GESTÃO DE PAPÉIS", "Aula delegada", "Gerencie somente aulas delegadas a Instrutores vinculados.")}
+    return `${heading("PLANEJAMENTO", "Aula delegada", "Gerencie somente aulas delegadas a Instrutores vinculados.")}
       <div class="content-grid">
       ${panel("Nova aula delegada", createForm)}
       ${panel("Aulas delegadas", lessons.length ? lessons.map((lesson) => `<article class="panel-card">
         <strong>Aula do Instrutor</strong>
         <form data-feature-form="edit-delegated" data-feature-id="${escapeHtml(lesson.instrutor_id)}">
-          <div class="field"><label>Formato</label><select name="modo"><option value="plan" ${lesson.modo === "plan" ? "selected" : ""}>Plano</option><option value="free" ${lesson.modo === "free" ? "selected" : ""}>Treino livre</option></select></div>
-          <div class="field"><label>Plano decidido pelo Professor</label><textarea name="plano" ${lesson.modo === "free" ? "disabled" : ""}>${escapeHtml(lesson.plano || "")}</textarea></div>
+          <div class="field"><label for="feature-delegated-mode-${escapeHtml(lesson.instrutor_id)}">Formato</label><select id="feature-delegated-mode-${escapeHtml(lesson.instrutor_id)}" name="modo"><option value="plan" ${lesson.modo === "plan" ? "selected" : ""}>Plano</option><option value="free" ${lesson.modo === "free" ? "selected" : ""}>Treino livre</option></select></div>
+          <div class="field"><label for="feature-delegated-plan-${escapeHtml(lesson.instrutor_id)}">Plano decidido pelo Professor</label><textarea id="feature-delegated-plan-${escapeHtml(lesson.instrutor_id)}" name="plano" ${lesson.modo === "free" ? "disabled" : ""}>${escapeHtml(lesson.plano || "")}</textarea></div>
           ${featureSubmitButton("Salvar aula")}
         </form>
         ${lesson.compartilhada ? '<p class="field-help">Aula compartilhada com o Instrutor.</p>' : featureActionButton("share-delegated", lesson.instrutor_id, "Compartilhar")}
@@ -1891,7 +2024,7 @@ function renderRealFeatureScreenById(screenId) {
     "student-chat": renderRealConversations,
     "instructor-chat": renderRealConversations,
     "instructor-class": renderRealDelegatedLessonScreen,
-    "role-management": renderRealDelegatedLessonScreen
+    "delegated-lessons": renderRealDelegatedLessonScreen
   }[screenId];
   return renderer ? renderer() : "";
 }
@@ -1986,7 +2119,7 @@ async function loadRealFeatureScreen(screenId, updateView = true) {
           if (!isCurrentRequest()) return;
           realFeatureData.conversationProfessorId = link ? link.professor_id : null;
         }
-      } else if (["role-management", "instructor-class"].includes(screenId)) {
+      } else if (["delegated-lessons", "instructor-class"].includes(screenId)) {
         const delegated = await authClient.rpc("listar_aulas_delegadas");
         if (delegated.error) throw delegated.error;
         if (!Array.isArray(delegated.data)) throw new TypeError("Lista indisponível.");
@@ -2423,15 +2556,21 @@ function renderRealFeatureStudents() {
   const unregistered = realFeatureData.unregisteredStudents || [];
   const unregisteredNotes = realFeatureData.unregisteredNotes || [];
   const dropIns = realFeatureData.dropIns || [];
-  const dropInRows = dropIns.map((entry) => {
-    const student = unregistered.find((item) => item.id === entry.aluno_sem_conta_id);
-    return student ? `<li>${escapeHtml(student.nome)} · ${escapeHtml(entry.data_aula)}
-      ${featureActionButton("delete-drop-in", entry.id, "Excluir diária")}</li>` : "";
-  }).join("");
-  return `${heading("VISÃO DO PROFESSOR", "Alunos", "Gerencie trancamentos e aulas avulsas dos alunos sem conta.")}
-    ${renderRealExportButton("professor-students", "Exportar dados")}
-    <div class="content-grid">
-      ${panel("Alunos vinculados", registered.length ? registered.map((student) => `<article class="panel-card">
+  const linkedStudentsContent = registered.length
+    ? renderRealListCollection({
+      key: "professor-linked-students",
+      label: "alunos vinculados",
+      searchPlaceholder: "Nome do aluno",
+      filterLabel: "Status",
+      filterDefaultLabel: "Todos os status",
+      filterOptions: [
+        { value: "active", label: "Ativos" },
+        { value: "locked", label: "Trancados" }
+      ],
+      items: registered,
+      getSearchText: (student) => student.nome,
+      getFilterValue: (student) => student.status === "locked" ? "locked" : "active",
+      renderItems: (students) => students.map((student) => `<article class="panel-card">
         <div class="real-academy-list-item">
           ${renderRealLinkedProfileAvatar(student)}
           <div class="user-panel-profile-copy">
@@ -2439,8 +2578,26 @@ function renderRealFeatureStudents() {
           </div>
         </div>
         ${featureActionButton("toggle-linked-lock", student.id, student.status === "locked" ? "Destrancar" : "Trancar")}
-      </article>`).join("") : emptyState("Nenhum aluno vinculado", "Alunos vinculados aparecerão aqui."))}
-      ${panel("Alunos sem conta", unregistered.length ? unregistered.map((student) => `<article class="panel-card">
+      </article>`).join(""),
+      emptyTitle: "Nenhum aluno vinculado",
+      emptyCopy: "Alunos vinculados aparecerão aqui."
+    })
+    : emptyState("Nenhum aluno vinculado", "Alunos vinculados aparecerão aqui.");
+  const unregisteredStudentsContent = unregistered.length
+    ? renderRealListCollection({
+      key: "professor-unregistered-students",
+      label: "alunos sem conta",
+      searchPlaceholder: "Nome do aluno",
+      filterLabel: "Status",
+      filterDefaultLabel: "Todos os status",
+      filterOptions: [
+        { value: "active", label: "Ativos" },
+        { value: "locked", label: "Trancados" }
+      ],
+      items: unregistered,
+      getSearchText: (student) => student.nome,
+      getFilterValue: (student) => student.status === "locked" ? "locked" : "active",
+      renderItems: (students) => students.map((student) => `<article class="panel-card">
         <strong>${escapeHtml(student.nome)}</strong><small>${student.status === "locked" ? "Trancado" : "Ativo"}</small>
         ${featureActionButton("toggle-unregistered-lock", student.id, student.status === "locked" ? "Destrancar" : "Trancar")}
         <form data-feature-form="create-drop-in" data-student-id="${escapeHtml(student.id)}">
@@ -2452,7 +2609,21 @@ function renderRealFeatureStudents() {
           ${featureSubmitButton("Salvar nota")}
         </form>
         ${unregisteredNotes.filter((note) => note.aluno_sem_conta_id === student.id).map((note) => `<div class="private-note-entry"><p>${escapeHtml(note.texto)}</p>${featureActionButton("delete-note", note.id, "Excluir nota")}</div>`).join("")}
-      </article>`).join("") : emptyState("Nenhum aluno sem conta", "Alunos sem conta aparecerão aqui."))}
+      </article>`).join(""),
+      emptyTitle: "Nenhum aluno sem conta",
+      emptyCopy: "Alunos sem conta aparecerão aqui."
+    })
+    : emptyState("Nenhum aluno sem conta", "Alunos sem conta aparecerão aqui.");
+  const dropInRows = dropIns.map((entry) => {
+    const student = unregistered.find((item) => item.id === entry.aluno_sem_conta_id);
+    return student ? `<li>${escapeHtml(student.nome)} · ${escapeHtml(entry.data_aula)}
+      ${featureActionButton("delete-drop-in", entry.id, "Excluir diária")}</li>` : "";
+  }).join("");
+  return `${heading("VISÃO DO PROFESSOR", "Alunos", "Gerencie trancamentos e aulas avulsas dos alunos sem conta.")}
+    ${renderRealExportButton("professor-students", "Exportar dados")}
+    <div class="content-grid">
+      ${panel("Alunos vinculados", linkedStudentsContent)}
+      ${panel("Alunos sem conta", unregisteredStudentsContent)}
       ${panel("Aulas avulsas", dropInRows ? `<ul>${dropInRows}</ul>` : emptyState("Nenhuma diária", "As aulas avulsas registradas aparecerão aqui."))}
     </div>`;
 }
@@ -2864,7 +3035,7 @@ function renderScreen(id) {
   const isRealBilling = id === "monthly-charges" && isRealActiveProfessor();
   const isRealChatScreen = ["teacher-chat", "student-chat", "instructor-chat"].includes(id) &&
     (isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor());
-  const isRealDelegationScreen = (id === "role-management" && isRealActiveProfessor()) ||
+  const isRealDelegationScreen = (id === "delegated-lessons" && isRealActiveProfessor()) ||
     (id === "instructor-class" && isRealActiveInstructor());
   const isRealFeatureScreen = (
     ["training-board", "training-plan", "student-progress"].includes(id) ||
@@ -3029,9 +3200,7 @@ function renderScreen(id) {
   if (isRealAcademyDirectory) loadRealAcademyDirectory();
   if (id === "role-management" && isRealAdmSession()) loadRealAdminManagement();
   screenContent.querySelectorAll('input[type="email"]').forEach(updateEmailPreview);
-  const screenTitle = id === "role-management" && isRealProfessorProfile()
-    ? "Aula delegada"
-    : screenInfo[id].title;
+  const screenTitle = screenInfo[id].title;
   currentTitle.textContent = screenTitle;
   document.title = `${screenTitle} | Tatame`;
   document.querySelectorAll("#screen-navigation [data-screen-target], #mobile-navigation [data-screen-target]").forEach((item) => {
@@ -4082,6 +4251,52 @@ function renderRealProfessorPaymentsScreen() {
   const openCharges = realProfessorCharges.filter((charge) =>
     charge.status === "aberta" && realBillingBalance(charge, realProfessorPayments) > 0n
   );
+  const paymentSearchText = (payment) => {
+    const charge = chargeById.get(payment.cobranca_id);
+    return `${realBillingStudentNames.get(charge.aluno_id) || "Aluno sem nome"} ${payment.referencia || ""} ${payment.tipo || ""} ${charge.mes} ${charge.vencimento}`;
+  };
+  const pendingContent = pending.length
+    ? renderRealListCollection({
+      key: "professor-pending-payments",
+      label: "pagamentos aguardando confirmação",
+      searchPlaceholder: "Aluno ou referência",
+      filterLabel: "Origem",
+      filterDefaultLabel: "Todas as origens",
+      filterOptions: [
+        { value: "aluno", label: "Aviso do aluno" },
+        { value: "professor", label: "Lançamento do Professor" }
+      ],
+      items: pending,
+      getSearchText: paymentSearchText,
+      getFilterValue: (payment) => payment.origem,
+      renderItems: (items) => items.map((payment) =>
+        renderRealProfessorPaymentRow(payment, chargeById.get(payment.cobranca_id))
+      ).join(""),
+      emptyTitle: "Nenhum pagamento pendente encontrado",
+      emptyCopy: "Avisos enviados pelos alunos aparecerão aqui."
+    })
+    : emptyState("Nenhum pagamento pendente", "Avisos enviados pelos alunos aparecerão aqui.");
+  const historyContent = history.length
+    ? renderRealListCollection({
+      key: "professor-payment-history",
+      label: "histórico de pagamentos",
+      searchPlaceholder: "Aluno ou referência",
+      filterLabel: "Status",
+      filterDefaultLabel: "Todos os status",
+      filterOptions: Array.from(new Set(history.map((payment) => payment.status))).map((status) => ({
+        value: status,
+        label: realPaymentStatusLabel(status)
+      })),
+      items: history,
+      getSearchText: paymentSearchText,
+      getFilterValue: (payment) => payment.status,
+      renderItems: (items) => items.map((payment) =>
+        renderRealProfessorPaymentRow(payment, chargeById.get(payment.cobranca_id))
+      ).join(""),
+      emptyTitle: "Nenhum pagamento no histórico",
+      emptyCopy: "Os pagamentos confirmados, rejeitados, estornados ou desfeitos aparecerão aqui."
+    })
+    : emptyState("Nenhum pagamento no histórico", "Os pagamentos confirmados, rejeitados, estornados ou desfeitos aparecerão aqui.");
   scheduleRealPaymentUndoRefresh();
   return `
     ${heading("VISÃO DO PROFESSOR", "Pagamentos a confirmar", "Confirme ou rejeite avisos e registre recebimentos. O app controla pagamentos, mas não movimenta dinheiro.")}
@@ -4090,12 +4305,8 @@ function renderRealProfessorPaymentsScreen() {
     ${realBillingStudentsState === "error" ? `<div class="notice notice--pending" role="alert">${escapeHtml(realBillingStudentsNotice)}</div>` : ""}
     <div class="content-grid">
       <div class="stack">
-        ${panel("Aguardando confirmação", pending.length
-          ? pending.map((payment) => renderRealProfessorPaymentRow(payment, chargeById.get(payment.cobranca_id))).join("")
-          : emptyState("Nenhum pagamento pendente", "Avisos enviados pelos alunos aparecerão aqui."))}
-        ${panel("Histórico de pagamentos", history.length
-          ? history.map((payment) => renderRealProfessorPaymentRow(payment, chargeById.get(payment.cobranca_id))).join("")
-          : emptyState("Nenhum pagamento no histórico", "Os pagamentos confirmados, rejeitados, estornados ou desfeitos aparecerão aqui."))}
+        ${panel("Aguardando confirmação", pendingContent)}
+        ${panel("Histórico de pagamentos", historyContent)}
       </div>
       ${panel("Lançar dinheiro recebido", openCharges.length ? `
         <form data-real-professor-payment-form novalidate>
@@ -6333,6 +6544,12 @@ async function loadRealAdminStudents(renderScreen = true) {
 }
 
 function renderRealAdminStudentsScreen() {
+  const beltFilterOptions = Array.from(new Set(realAdminStudents.map((student) =>
+    student.faixa || "__sem-faixa__"
+  ))).map((belt) => ({
+    value: belt,
+    label: belt === "__sem-faixa__" ? "Sem graduação registrada" : `Faixa ${belt}`
+  }));
   const studentsContent = realAdminStudentsState === "checking"
     ? '<p class="field-help" role="status" aria-live="polite">Carregando alunos...</p>'
     : realAdminStudentsState === "error"
@@ -6345,12 +6562,25 @@ function renderRealAdminStudentsScreen() {
           <p class="field-help" id="real-admin-students-retry-status" role="status" aria-live="polite"></p>
         </div>`
       : realAdminStudents.length
-        ? `<ul aria-label="Alunos ativos">${realAdminStudents.map((student) => {
-          const graduation = student.faixa && Number.isInteger(student.grau)
-            ? `Faixa ${escapeHtml(student.faixa)} · ${student.grau} grau${student.grau === 1 ? "" : "s"}`
-            : "Sem graduação registrada";
-          return `<li><strong>${escapeHtml(student.nome)}</strong><br><small>${graduation}</small></li>`;
-        }).join("")}</ul>`
+        ? renderRealListCollection({
+          key: "admin-students",
+          label: "alunos ativos",
+          searchPlaceholder: "Nome ou faixa",
+          filterLabel: "Faixa",
+          filterDefaultLabel: "Todas as faixas",
+          filterOptions: beltFilterOptions,
+          items: realAdminStudents,
+          getSearchText: (student) => `${student.nome} ${student.faixa || ""} ${student.grau === null ? "" : student.grau}`,
+          getFilterValue: (student) => student.faixa || "__sem-faixa__",
+          renderItems: (students) => `<ul aria-label="Alunos ativos">${students.map((student) => {
+            const graduation = student.faixa && Number.isInteger(student.grau)
+              ? `Faixa ${escapeHtml(student.faixa)} · ${student.grau} grau${student.grau === 1 ? "" : "s"}`
+              : "Sem graduação registrada";
+            return `<li><strong>${escapeHtml(student.nome)}</strong><br><small>${graduation}</small></li>`;
+          }).join("")}</ul>`,
+          emptyTitle: "Nenhum aluno ativo encontrado",
+          emptyCopy: "Alunos ativos aparecerão aqui."
+        })
         : '<div class="empty-state"><div><strong>Nenhum aluno ativo encontrado</strong></div></div>';
   return `
     ${heading("VISÃO DO ADM", "Alunos", "Consulte somente o nome e a faixa/grau atuais dos alunos ativos.")}
@@ -6474,6 +6704,9 @@ function renderRealAdminDashboardScreen() {
   }
 
   const academyNames = new Map(realAdminDashboardAcademies.map((academy) => [academy.id, academy.nome]));
+  const academiesWithoutActiveProfessor = realAdminDashboardAcademies.filter((academy) =>
+    !realAdminDashboardProfessors.some((professor) => professor.academia_id === academy.id)
+  );
   const academiesContent = realAdminDashboardAcademies.length
     ? `<ul aria-label="Academias">${realAdminDashboardAcademies.map((academy) => {
       const photoUrl = realAcademyPhotoUrls.get(academy.id);
@@ -6500,6 +6733,21 @@ function renderRealAdminDashboardScreen() {
     ? `<p>${realAdminDashboardPendingInvites} convite(s) de Professor aguardando aceite.</p>`
     : `${emptyState("Nenhum convite pendente", "Convites pendentes aparecerão aqui.")}
        ${button("Convidar Professor", "teacher-invites", "button button--quiet")}`;
+  const academiesWithoutProfessorContent = academiesWithoutActiveProfessor.length
+    ? `<p>${academiesWithoutActiveProfessor.length} ${academiesWithoutActiveProfessor.length === 1 ? "academia" : "academias"} sem Professor ativo.</p>
+       <ul aria-label="Academias sem Professor ativo">${academiesWithoutActiveProfessor.map((academy) =>
+         `<li>${escapeHtml(academy.nome)}</li>`
+       ).join("")}</ul>
+       <div class="form-actions">
+         ${button("Convidar Professor", "teacher-invites", "button button--quiet")}
+         ${button("Gerenciar Professores", "role-management", "button button--quiet")}
+       </div>`
+    : emptyState(
+      "Nenhuma academia sem Professor ativo",
+      realAdminDashboardAcademies.length
+        ? "Todas as academias têm pelo menos um Professor ativo."
+        : "Cadastre uma academia para acompanhar seus Professores."
+    );
 
   return `${title}
     <div class="card-grid card-grid--four">
@@ -6512,6 +6760,7 @@ function renderRealAdminDashboardScreen() {
       ${panel("Academias", academiesContent)}
       ${panel("Professores ativos", professorsContent)}
       ${panel("Convites de Professor", invitationsContent)}
+      ${panel("Academias sem Professor ativo", academiesWithoutProfessorContent)}
     </div>`;
 }
 
@@ -6904,9 +7153,7 @@ function renderRealAdminInviteRows(invites) {
   if (!invites.length) return `<p class="field-help">Nenhum convite encontrado.</p>`;
   const academyNames = new Map(realAdminAcademies.map((academy) => [academy.id, academy.nome]));
   return invites.map((invite, index) => {
-    const statusLabel = invite.status === "convidado" ? "Convidado"
-      : invite.status === "ativo" ? "Ativo"
-        : invite.status === "revogado" ? "Revogado" : invite.status;
+    const statusLabel = realAdminInviteStatusLabel(invite.status);
     const errorId = `real-invite-delete-error-${index}`;
     const statusId = `real-invite-delete-status-${index}`;
     const academyPhotoUrl = realAcademyPhotoUrls.get(invite.academia_id);
@@ -6931,6 +7178,12 @@ function renderRealAdminInviteRows(invites) {
   }).join("");
 }
 
+function realAdminInviteStatusLabel(status) {
+  return status === "convidado" ? "Convidado"
+    : status === "ativo" ? "Ativo"
+      : status === "revogado" ? "Revogado" : status;
+}
+
 async function loadRealAdminInvites() {
   const sessionGeneration = realSessionCacheGeneration;
   const userId = realUser && realUser.id;
@@ -6939,6 +7192,7 @@ async function loadRealAdminInvites() {
     Boolean(realUser && realUser.id === userId && isRealAdmSession());
   const guardError = realAdminGuardError();
   realAdminAcademies = [];
+  realAdminInvites = [];
   const academySelect = screenContent.querySelector("#real-invite-academy");
   const inviteList = screenContent.querySelector("#real-invite-list");
   const academyError = screenContent.querySelector("#real-invite-academy-error");
@@ -7002,8 +7256,37 @@ async function loadRealAdminInvites() {
       logRealAdminDatabaseError("listar convites de professor", error);
       if (listError) listError.textContent = realAdminDatabaseErrorMessage(error, "read");
       success = false;
-    } else if (inviteList) {
-      inviteList.innerHTML = renderRealAdminInviteRows(data || []);
+    } else if (!Array.isArray(data) || data.some((invite) =>
+      !invite || typeof invite.email !== "string" || !invite.email.trim() ||
+      typeof invite.status !== "string" || !invite.status.trim()
+    )) {
+      throw new TypeError("Lista de convites indisponível.");
+    } else {
+      realAdminInvites = data;
+      if (inviteList) {
+        inviteList.innerHTML = realAdminInvites.length
+          ? renderRealListCollection({
+            key: "admin-invites",
+            label: "convites",
+            searchPlaceholder: "E-mail",
+            filterLabel: "Status",
+            filterDefaultLabel: "Todos os status",
+            filterOptions: Array.from(new Set(realAdminInvites.map((invite) => invite.status))).map((status) => ({
+              value: status,
+              label: realAdminInviteStatusLabel(status)
+            })),
+            items: realAdminInvites,
+            getSearchText: (invite) => {
+              const academyName = realAdminAcademies.find((academy) => academy.id === invite.academia_id);
+              return `${invite.email} ${academyName ? academyName.nome : ""} ${realAdminInviteStatusLabel(invite.status)}`;
+            },
+            getFilterValue: (invite) => invite.status,
+            renderItems: renderRealAdminInviteRows,
+            emptyTitle: "Nenhum convite encontrado",
+            emptyCopy: "Os convites cadastrados aparecerão aqui."
+          })
+          : emptyState("Nenhum convite encontrado", "Os convites cadastrados aparecerão aqui.");
+      }
       if (listError) listError.textContent = "";
     }
   } catch (error) {
@@ -8396,6 +8679,8 @@ function clearRealAccountCaches() {
   realAdminStudents = [];
   realAdminStudentsState = "idle";
   realAdminStudentsNotice = "";
+  realAdminInvites = [];
+  resetRealListUiState();
   realAdminDashboardAcademies = [];
   realAdminDashboardProfessors = [];
   realAdminDashboardStudents = 0;
@@ -9906,11 +10191,27 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("input", (event) => {
   const target = event.target;
+  const search = target instanceof HTMLInputElement && target.closest("[data-real-list-search]");
+  if (search instanceof HTMLInputElement) {
+    const state = getRealListUiState(search.dataset.realListSearch);
+    state.query = search.value;
+    state.page = 1;
+    updateRealListCollection(search.dataset.realListSearch);
+    return;
+  }
   if (target instanceof HTMLInputElement && target.type === "email") updateEmailPreview(target);
 });
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target instanceof HTMLSelectElement && target.matches("[data-real-list-filter]")) {
+    const key = target.dataset.realListFilter;
+    const state = getRealListUiState(key);
+    state.filter = target.value;
+    state.page = 1;
+    updateRealListCollection(key);
+    return;
+  }
   if (target instanceof HTMLSelectElement && target.id === "real-admin-academy" && isRealAdmSession()) {
     loadRealAdminManagementForAcademy(target.value);
   }
@@ -9923,6 +10224,28 @@ document.addEventListener("change", (event) => {
       !/^\d{4}-(0[1-9]|1[0-2])$/.test(target.value)) return;
   realProfessorMetricsMonth = target.value;
   screenContent.innerHTML = renderRealProfessorPaymentsScreen();
+});
+
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const pageButton = target.closest("[data-real-list-page]");
+  if (!(pageButton instanceof HTMLButtonElement) || pageButton.disabled) return;
+  const key = pageButton.dataset.realListPage;
+  const pagination = pageButton.closest("[data-real-list-pagination]");
+  const state = getRealListUiState(key);
+  const direction = pageButton.dataset.pageDirection;
+  state.page += direction === "1" ? 1 : -1;
+  if (!pagination || !updateRealListCollection(key)) {
+    state.page += direction === "1" ? -1 : 1;
+    return;
+  }
+  const replacementButtons = pagination && Array.from(pagination.querySelectorAll("[data-real-list-page]"));
+  const focusTarget = replacementButtons && (
+    replacementButtons.find((button) => button.dataset.pageDirection === direction && !button.disabled) ||
+    replacementButtons.find((button) => !button.disabled)
+  );
+  if (focusTarget) focusTarget.focus();
 });
 
 document.addEventListener("submit", (event) => {

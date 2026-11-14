@@ -81,9 +81,10 @@ const checks = [
         areas.has("Interface responsiva") &&
         areas.has("Privacidade e LGPD") &&
         areas.has("Instrutor") &&
+        areas.has("Professor") &&
         areas.has("Fotos e avatar") &&
         areas.has("Segurança e publicação") &&
-        casesF1.length === 63 &&
+        casesF1.length === 70 &&
         casesF2.length === 3 &&
         casesF3.length === 1 &&
         cases.some((testCase) => testCase.id === "F1-AUTH-04") &&
@@ -94,6 +95,13 @@ const checks = [
         cases.some((testCase) => testCase.id === "F1-PRIV-03") &&
         cases.some((testCase) => testCase.id === "F1-PRIV-04") &&
         cases.some((testCase) => testCase.id === "F1-ACAD-01") &&
+        cases.some((testCase) => testCase.id === "F1-ACAD-02" && testCase.fase === "F1") &&
+        cases.some((testCase) => testCase.id === "F1-PLAN-01") &&
+        cases.some((testCase) => testCase.id === "F1-ADM-01") &&
+        cases.some((testCase) => testCase.id === "F1-ADM-02") &&
+        cases.some((testCase) => testCase.id === "F1-ADM-03") &&
+        cases.some((testCase) => testCase.id === "F1-PAG-14") &&
+        cases.some((testCase) => testCase.id === "F1-PROF-01") &&
         cases.some((testCase) => testCase.id === "F1-AVATAR-01") &&
         cases.some((testCase) => testCase.id === "F1-PAG-08") &&
         cases.filter((testCase) => testCase.area === "Instrutor" && testCase.revisao).length === 5 &&

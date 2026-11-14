@@ -1518,6 +1518,25 @@ form[data-register-teacher-cash] .form-grid {
   gap: 14px;
 }
 
+.real-list-controls {
+  margin-bottom: 14px;
+}
+
+.real-list-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.real-list-pagination-status {
+  min-width: 0;
+  flex: 1;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
 .cash-entry-fields--student {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -3977,6 +3996,16 @@ body[data-theme="light"] .button--primary {
   .form-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
+  }
+
+  .real-list-pagination {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .real-list-pagination-status {
+    grid-column: 1 / -1;
+    grid-row: 1;
   }
 
   .real-instructor-invite-row {

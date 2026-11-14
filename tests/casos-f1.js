@@ -507,6 +507,17 @@ window.CASOS_ACEITE_F1 = [
     esperado: "O Adm administra nome, foto e grade; vários Professores ativos podem ser vinculados à mesma academia e associados a horários. Todos os perfis autenticados consultam as academias e a grade, sem poder alterá-las. Mural e grade permanece inalterado."
   },
   {
+    id: "F1-ACAD-02",
+    fase: "F1",
+    area: "Academia",
+    titulo: "Adm edita academia e vê os dados atualizados",
+    perfil: "Adm",
+    regras: "Somente Adm edita; atualizações devem refletir nos dados exibidos da academia.",
+    precondicoes: "O preview local está aberto no perfil Adm e contém uma academia e um Professor de demonstração.",
+    passos: ["Abrir Academia e alterar o nome da academia de demonstração.", "Salvar as alterações.", "Abrir o Painel do Adm e conferir o novo nome na lista de academias e junto ao Professor.", "Voltar a Academia e confirmar que o nome salvo continua preenchido."],
+    esperado: "A edição é salva sem erro, o novo nome aparece de forma consistente nas telas do Adm e permanece ao reabrir a edição. Nenhum dado real é usado."
+  },
+  {
     id: "F1-AVATAR-01",
     area: "Fotos e avatar",
     titulo: "Consentimento, idade e fotos respeitam as permissões",
@@ -635,5 +646,65 @@ window.CASOS_ACEITE_F1 = [
     precondicoes: "Contas fictícias e arquivos de imagem de teste sem dados pessoais; não usar conta nem foto real.",
     passos: ["Escolher JPG e PNG nos fluxos de foto pessoal e de academia, onde disponíveis, e conferir que a prévia abre antes do envio.", "Ajustar zoom, arrastar a imagem, usar as setas por toque e teclado e confirmar o enquadramento.", "Repetir cancelando a prévia e conferir que nenhuma foto é enviada; selecionar novamente o mesmo arquivo.", "Testar tipo inválido, arquivo acima de 5 MiB e imagem não decodificável; conferir mensagens acessíveis e claras.", "Conferir foco, leitor de tela, tema claro/escuro e larguras de 360, 390, 430 e 768 px. Verificar que comprovantes não abrem o enquadrador."],
     esperado: "Só a imagem enquadrada e confirmada pode ser enviada; o recorte quadrado respeita o zoom e a região escolhida. Cancelamento e falhas não aplicam a foto, os comprovantes mantêm o arquivo original, o controle funciona por toque e teclado e não aparecem avisos genéricos de elegibilidade junto ao envio."
+  },
+  {
+    id: "F1-PLAN-01",
+    area: "Planejamento",
+    titulo: "Plano semanal inicia na segunda-feira da semana atual",
+    perfil: "Professor",
+    regras: "Padrão semanal começa na segunda-feira",
+    precondicoes: "Professor autenticado no preview com dados fictícios.",
+    passos: ["Abrir Planejamento sem escolher uma data e conferir que a semana exibida começa na segunda-feira da semana atual.", "Repetir com datas de referência numa segunda-feira, sábado e domingo; conferir a segunda-feira correspondente.", "Selecionar outra semana e conferir que a navegação manual continua exibindo a semana escolhida."],
+    esperado: "A semana padrão começa na segunda-feira da semana atual, inclusive quando a data de abertura é sábado ou domingo; a navegação manual entre semanas permanece funcionando."
+  },
+  {
+    id: "F1-ADM-01",
+    area: "Painel administrativo",
+    titulo: "Adm encontra academias sem Professor ativo",
+    perfil: "Adm",
+    regras: "Indicador derivado de academias e Professores ativos já cadastrados",
+    precondicoes: "Há academias fictícias, incluindo uma sem Professor ativo e outra com Professor ativo.",
+    passos: ["Abrir o Painel do Adm e conferir que a academia sem Professor ativo aparece na seção de atenção.", "Usar o atalho Convidar Professor ou Gerenciar Professores para resolver a pendência com um perfil fictício.", "Reabrir o painel e confirmar que a academia deixa de aparecer na seção de atenção."],
+    esperado: "O painel destaca somente academias sem Professor ativo e oferece atalho para gerenciar Professores; a pendência desaparece após a associação ou reativação. Nenhum dado pessoal novo é coletado."
+  },
+  {
+    id: "F1-ADM-02",
+    area: "Painel administrativo",
+    titulo: "Adm pesquisa, filtra e pagina alunos ativos",
+    perfil: "Adm",
+    regras: "Busca sem distinção entre maiúsculas/minúsculas ou acentos; faixa e paginação independentes dos dados carregados.",
+    precondicoes: "Ambiente de teste com mais de 20 alunos fictícios ativos, incluindo faixas diferentes e aluno sem graduação.",
+    passos: ["Abrir Alunos e verificar que a primeira página mostra até 20 registros e informa o total.", "Pesquisar pelo nome com e sem acento e conferir que a lista acompanha o texto digitado.", "Filtrar por faixa e por sem graduação; conferir que busca e filtro podem ser combinados.", "Avançar e voltar páginas e conferir que os controles desabilitam nos limites e retornam à primeira página ao mudar os critérios."],
+    esperado: "A lista mostra somente alunos ativos, busca e faixa combinam corretamente, páginas exibem até 20 registros e o total e os limites são anunciados sem alterar os dados."
+  },
+  {
+    id: "F1-ADM-03",
+    area: "Painel administrativo",
+    titulo: "Adm pesquisa, filtra e pagina convites",
+    perfil: "Adm",
+    regras: "Busca por e-mail, filtro pelo status e paginação local dos convites carregados.",
+    precondicoes: "Ambiente de teste com mais de 20 convites fictícios em status diferentes.",
+    passos: ["Abrir Professores convidados e verificar o total e o limite de 20 registros por página.", "Pesquisar pelo e-mail e filtrar por Convidado, Ativo e Revogado.", "Combinar busca e status, limpar a busca e verificar que o status continua selecionado.", "Navegar entre páginas e conferir que ações de excluir continuam disponíveis somente para convites aguardando ação."],
+    esperado: "A busca e o filtro combinam-se sem misturar status, a paginação mantém as ações corretas e não modifica convites até que uma ação explícita seja executada."
+  },
+  {
+    id: "F1-PAG-14",
+    area: "Pagamentos",
+    titulo: "Professor pesquisa, filtra e pagina pagamentos",
+    perfil: "Professor",
+    regras: "Busca por aluno/referência, origem nos pendentes, status no histórico e paginação independente por lista.",
+    precondicoes: "Ambiente de teste com mais de 20 pagamentos fictícios pendentes e mais de 20 no histórico.",
+    passos: ["Abrir Pagamentos a confirmar e verificar que pendentes e histórico têm controles e páginas independentes.", "Pesquisar por nome de aluno ou referência e filtrar pendentes por Aviso do aluno ou Lançamento do Professor.", "No histórico, filtrar por status e combinar com a busca.", "Navegar até os limites das duas listas e conferir total, faixa exibida e botões anterior/próxima."],
+    esperado: "Cada lista mostra até 20 pagamentos por página, busca e filtros não alteram status nem disparam ações financeiras e as contagens permanecem independentes."
+  },
+  {
+    id: "F1-PROF-01",
+    area: "Professor",
+    titulo: "Professor pesquisa, filtra e pagina alunos",
+    perfil: "Professor",
+    regras: "Listas separadas para alunos vinculados e sem conta; filtros de status e paginação independentes.",
+    precondicoes: "Ambiente de teste com mais de 20 alunos fictícios vinculados e mais de 20 sem conta, com status ativo e trancado.",
+    passos: ["Abrir Alunos e verificar que cada lista tem busca e paginação próprias.", "Pesquisar por nome e filtrar por Ativos ou Trancados em cada lista.", "Avançar e voltar páginas, conferir total e limites e mudar o filtro para confirmar que a página volta ao início.", "Conferir que ações de trancar, destrancar, registrar diária e salvar nota continuam associadas ao aluno correto."],
+    esperado: "Busca, status e paginação atuam somente na lista correspondente; os dados e ações de cada aluno permanecem corretos."
   }
 ];
