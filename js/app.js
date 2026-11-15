@@ -176,12 +176,14 @@ const tutorialStepsByRole = {
     ["home", "Início", "Confira a aula delegada para hoje, quando houver, e acesse o treino compartilhado e os alunos vinculados. Em Preferências, ajuste o zoom e o enquadramento da foto na prévia antes de enviar."],
     ["instructor-class", "Treino compartilhado", "Consulte a aula compartilhada pelo Professor e registre se seguiu a orientação."],
     ["instructor-students", "Alunos vinculados", "Consulte somente os nomes e a faixa/grau atuais dos alunos vinculados ao seu Professor."],
+    ["user-settings", "Excluir conta", "A exclusão remove seus dados próprios. Vínculos e registros compartilhados são preservados; se houver dados relacionados que não possam ser mantidos sem sua conta, a exclusão será bloqueada."],
     ["academy", "Academia", "Consulte as academias e os dias e horários de aula publicados pelo Adm."]
   ],
   aluno: [
     ["home", "Início", "Consulte a situação das cobranças do mês e os atalhos para pagamentos, graduações e conversa. Se seu perfil puder enviar foto, ajuste o zoom e o enquadramento na prévia antes de aplicar; menores usam somente avatar."],
     ["student-payments", "Meus pagamentos", "Consulte cobranças e avise um pagamento. Se enviar comprovante, o Professor pode ler o valor automaticamente para ajudar na conferência; a decisão continua manual."],
     ["student-grades", "Minhas graduações", "Acompanhe sua faixa atual e o histórico registrado pelo Professor."],
+    ["user-settings", "Excluir conta", "A exclusão remove seus dados próprios. Vínculos e registros compartilhados são preservados; se houver dados relacionados que não possam ser mantidos sem sua conta, a exclusão será bloqueada."],
     ["academy", "Academia", "Consulte as academias e os dias e horários de aula publicados pelo Adm."]
   ]
 };
@@ -1207,7 +1209,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
 
     <section class="privacy-draft-section">
       <${headingTag}>5. Exclusão de conta</${headingTag}>
-      <p>A exclusão da conta ainda está em construção.</p>
+      <p>Alunos e Instrutores podem excluir a conta pela Zona de perigo no painel do usuário. A exclusão remove a conta, os dados próprios e o histórico de consentimento. Vínculos, cobranças, graduações, conversas e outros registros compartilhados são preservados; se houver registros que impeçam uma exclusão segura, a solicitação será bloqueada. Contas de Professor não podem ser excluídas, mas podem ser desativadas pelo Adm quando necessário. Contas de Adm não podem ser excluídas.</p>
     </section>
 
     <section class="privacy-draft-section">
@@ -1217,7 +1219,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
 
     <section class="privacy-draft-section">
       <${headingTag}>7. Direitos e solicitações</${headingTag}>
-      <p>O titular pode pedir informação, correção ou exclusão pelo contato abaixo. O app não tem autosserviço para esses pedidos.</p>
+      <p>Pedidos de informação e correção podem ser feitos pelo contato abaixo. Alunos e Instrutores podem solicitar a exclusão no painel do usuário; se houver registros compartilhados que precisem ser preservados, o app bloqueará a ação. Nesse caso, fale com o Professor ou Adm da academia.</p>
     </section>
 
     <section class="privacy-draft-section privacy-draft-contact">
@@ -8483,7 +8485,7 @@ function syncRealSessionPanel() {
   realSession.hidden = !realUser;
   document.querySelector("#real-session-email").textContent = realUser ? realUser.email || "E-mail não disponível" : "";
   document.querySelector(".user-panel-links[aria-label='Ajuda']").hidden = !realUser;
-  document.querySelector(".user-panel-risk [data-real-only]").hidden = !realUser;
+  syncAccountDeletionAvailability();
   if (realUser) {
     document.querySelector("#profile-button").hidden = false;
     document.querySelector(".profile-button-copy").innerHTML = "<strong>Conta real</strong><small>Sessão conectada</small>";
@@ -8499,6 +8501,28 @@ function logRealProfileSupabaseError(action, error) {
     code: error && typeof error.code === "string" ? error.code : null,
     message: error && typeof error.message === "string" ? error.message : ""
   });
+}
+
+function syncAccountDeletionAvailability() {
+  const riskZone = document.querySelector(".user-panel-risk");
+  const deleteAccountButton = document.querySelector("[data-open-account-delete]");
+  const deleteAvailability = document.querySelector("#account-delete-availability");
+  const canDeleteAccount = Boolean(realUser && realProfile && ["aluno", "instrutor"].includes(realProfile.papel));
+  riskZone.hidden = !realUser;
+  deleteAccountButton.hidden = !canDeleteAccount;
+  deleteAvailability.hidden = canDeleteAccount;
+  if (!canDeleteAccount) {
+    document.querySelector("#account-delete-confirmation").hidden = true;
+    if (!realProfile) {
+      deleteAvailability.textContent = "A exclusão só fica disponível após confirmar o tipo da conta.";
+    } else if (realProfile.papel === "professor") {
+      deleteAvailability.textContent = "A conta de Professor não pode ser excluída. O Adm pode desativá-la quando necessário.";
+    } else if (realProfile.papel === "adm") {
+      deleteAvailability.textContent = "Contas de Adm não podem ser excluídas.";
+    } else {
+      deleteAvailability.textContent = "A exclusão está disponível apenas para contas de aluno e instrutor.";
+    }
+  }
 }
 
 function realProfileErrorMessage(error) {
@@ -8908,6 +8932,7 @@ async function updateRealSession(session, updateScreen = true) {
     realInstructorLinkNotice = "";
   }
   if (sequence !== authCheckSequence) return;
+  syncAccountDeletionAvailability();
   updateUserPanelProfile();
   renderNavigation();
   if (updateScreen) {
@@ -9314,6 +9339,99 @@ function signOutRealAccount(button) {
       recordDiagnostic("Erro ao sair");
       console.error("Não foi possível encerrar a sessão.");
       return { errorMessage: "Não foi possível sair. Confira a conexão e tente novamente." };
+    } finally {
+      realSignoutInProgress = false;
+    }
+  });
+}
+
+async function accountDeletionErrorMessage(error) {
+  const response = error && error.context;
+  if (response instanceof Response) {
+    let details = null;
+    try {
+      details = await response.clone().json();
+    } catch (parseError) {
+      details = null;
+    }
+    if (details && details.code === "protected_records") {
+      return "A conta não foi excluída. Há vínculos ou registros compartilhados que precisam ser preservados. Fale com o Professor ou Adm da academia.";
+    }
+    if (details && details.code === "unauthenticated") {
+      return "Sua sessão expirou. Entre novamente e refaça a solicitação.";
+    }
+    if (details && details.code === "role_not_allowed") {
+      return "A exclusão está disponível apenas para contas de aluno e instrutor.";
+    }
+    if (details && details.code === "server_not_configured" || response.status === 404) {
+      return "A exclusão ainda não está habilitada no servidor. Fale com o suporte.";
+    }
+  }
+  if (navigator.onLine === false) return "Sem conexão. Conecte-se à internet e tente novamente.";
+  return "Não foi possível concluir a exclusão. Tente novamente mais tarde.";
+}
+
+function resetAccountDeletionConfirmation(focusTrigger = false) {
+  const confirmation = document.querySelector("#account-delete-confirmation");
+  const input = document.querySelector("#account-delete-confirmation-text");
+  const confirmButton = document.querySelector("#account-delete-submit");
+  const trigger = document.querySelector("[data-open-account-delete]");
+  confirmation.hidden = true;
+  input.value = "";
+  confirmButton.disabled = true;
+  delete confirmButton.dataset.actionState;
+  confirmButton.removeAttribute("aria-busy");
+  confirmButton.removeAttribute("aria-label");
+  confirmButton.querySelector("[data-action-label]").textContent = "Confirmar exclusão";
+  document.querySelector("#account-delete-error").textContent = "";
+  document.querySelector("#account-delete-status").textContent = "";
+  trigger.hidden = false;
+  if (focusTrigger) trigger.focus();
+}
+
+document.querySelector("#account-delete-confirmation-text").addEventListener("input", (event) => {
+  document.querySelector("#account-delete-submit").disabled = event.target.value !== "EXCLUIR";
+});
+
+function deleteRealAccount(button) {
+  runButtonAction(button, {
+    feedback: document.querySelector("#account-delete-error"),
+    announcement: document.querySelector("#account-delete-status"),
+    buttons: [button],
+    loadingText: "Excluindo...",
+    loadingMessage: "Excluindo a conta e removendo os dados próprios.",
+    successMessage: "Conta excluída.",
+    successLabel: "Conta excluída",
+    errorMessage: "Não foi possível concluir a exclusão. Tente novamente mais tarde.",
+    successDelay: 0,
+    afterSuccess: () => {
+      void updateRealSession(null);
+      closeUserPanel();
+    }
+  }, async () => {
+    if (!authClient || !realUser) return { errorMessage: "Não há sessão ativa para excluir." };
+    if (!realProfile || !["aluno", "instrutor"].includes(realProfile.papel)) {
+      return { errorMessage: "A exclusão está disponível apenas para contas de aluno e instrutor." };
+    }
+    if (document.querySelector("#account-delete-confirmation-text").value !== "EXCLUIR") {
+      return { errorMessage: "Digite EXCLUIR para confirmar a exclusão." };
+    }
+
+    const { error } = await authClient.functions.invoke("excluir-conta", { body: {} });
+    if (error) return { errorMessage: await accountDeletionErrorMessage(error) };
+
+    realSignoutInProgress = true;
+    try {
+      const { error: signOutError } = await authClient.auth.signOut({ scope: "local" });
+      if (signOutError) {
+        recordDiagnostic("Falha ao limpar a sessão após excluir a conta");
+        console.error("A conta foi excluída, mas a sessão local não foi limpa.");
+        return { successMessage: "Conta excluída. Feche e reabra o aplicativo para encerrar esta sessão." };
+      }
+    } catch (error) {
+      recordDiagnostic("Falha ao limpar a sessão após excluir a conta");
+      console.error("A conta foi excluída, mas a sessão local não foi limpa.");
+      return { successMessage: "Conta excluída. Feche e reabra o aplicativo para encerrar esta sessão." };
     } finally {
       realSignoutInProgress = false;
     }
@@ -9814,6 +9932,32 @@ document.addEventListener("click", (event) => {
   const realSignout = target.closest("[data-real-signout]");
   if (realSignout instanceof HTMLButtonElement) {
     signOutRealAccount(realSignout);
+    return;
+  }
+
+  const openAccountDeletion = target.closest("[data-open-account-delete]");
+  if (openAccountDeletion instanceof HTMLButtonElement) {
+    openAccountDeletion.hidden = true;
+    const confirmation = document.querySelector("#account-delete-confirmation");
+    const input = document.querySelector("#account-delete-confirmation-text");
+    confirmation.hidden = false;
+    input.value = "";
+    document.querySelector("#account-delete-submit").disabled = true;
+    document.querySelector("#account-delete-error").textContent = "";
+    document.querySelector("#account-delete-status").textContent = "";
+    input.focus();
+    return;
+  }
+
+  const cancelAccountDeletion = target.closest("[data-cancel-account-delete]");
+  if (cancelAccountDeletion instanceof HTMLButtonElement) {
+    resetAccountDeletionConfirmation(true);
+    return;
+  }
+
+  const confirmAccountDeletion = target.closest("[data-confirm-account-delete]");
+  if (confirmAccountDeletion instanceof HTMLButtonElement) {
+    deleteRealAccount(confirmAccountDeletion);
     return;
   }
 
