@@ -161,15 +161,22 @@ const tutorialStepsByRole = {
   adm: [
     ["admin-home", "Painel do Adm", "Consulte os indicadores e selecione um cartão para abrir academias, Professores, alunos ou convites."],
     ["admin-students", "Alunos", "Pesquise alunos ativos por nome ou faixa e navegue entre as páginas da lista."],
+    ["home", "Início do Aluno", "Acompanhe o resumo da sua conta de Aluno e acesse os próximos passos."],
+    ["student-payments", "Meus pagamentos", "Consulte suas cobranças e avise um pagamento ao Professor vinculado."],
+    ["student-grades", "Minhas graduações", "Acompanhe sua faixa atual e o histórico registrado pelo Professor."],
+    ["student-chat", "Conversa com o Professor", "Envie e consulte mensagens da conversa vinculada à sua conta."],
+    ["training-board", "Mural e grade", "Consulte a grade, os avisos e as perguntas frequentes do Professor."],
+    ["student-progress", "Feedbacks e metas", "Consulte os feedbacks e as metas vinculados à sua conta."],
     ["teacher-invites", "Professores convidados", "Pesquise por e-mail, filtre o status e navegue entre as páginas dos convites."],
     ["academy", "Academias", "Cadastre os dados da academia e organize aulas por dia, Professor e horário. Para vincular Professores, use Professores convidados e escolha a academia."]
   ],
   professor: [
     ["home", "Início", "Acompanhe pagamentos a confirmar, cobranças atrasadas e atalhos para as tarefas mais usadas. Em Preferências e Academia, ajuste o zoom e o enquadramento da foto na prévia antes de enviar."],
     ["students", "Alunos", "Pesquise alunos vinculados ou sem conta, filtre pelo status e navegue entre as páginas das listas."],
-    ["payment-review", "Pagamentos a confirmar", "Pesquise por aluno ou referência e filtre a origem ou o status para localizar pagamentos. Leia o comprovante, confira no seu banco e confirme ou rejeite manualmente."],
+    ["payment-review", "Pagamentos a confirmar", "Pesquise por aluno ou referência e filtre a origem ou o status para localizar pagamentos. Leia o comprovante, confira no seu banco e confirme ou rejeite manualmente. Registre recebimentos em dinheiro ou Pix. Para diárias avulsas, abra a autorização no painel da conta, marque a caixa e escolha Diária avulsa; você pode excluir lançamentos ou retirar a autorização, apagando todas as diárias."],
     ["monthly-charges", "Cobranças mensais", "Configure regras de cobrança; os campos de desconto e duração aparecem conforme a opção escolhida. Acompanhe cobranças e filtre as atrasadas."],
     ["delegated-lessons", "Aula delegada", "Delegue aulas somente a Instrutores vinculados e compartilhe o plano quando estiver pronto."],
+    ["training-plan", "Plano semanal", "Crie e edite planos, marque treinos para remover e salve as alterações. Compartilhe o plano somente com o Instrutor vinculado."],
     ["academy", "Academia", "Consulte as academias e os dias e horários de aula publicados pelo Adm."]
   ],
   instrutor: [
@@ -198,6 +205,10 @@ let realUser = null;
 let realProfile = null;
 let realProfileState = "checking";
 let realProfileNotice = "";
+let realAdmStudentAccess = false;
+let realAdmStudentAccessState = "idle";
+let realAdmStudentAccessNotice = "";
+let realAdmStudentAccessRequestSequence = 0;
 let realInstructorLink = null;
 let realInstructorLinkState = "idle";
 let realInstructorLinkNotice = "";
@@ -268,6 +279,10 @@ let realProfessorPaymentProofs = new Map();
 let realProfessorPaymentsState = "idle";
 let realProfessorPaymentsNotice = "";
 let realProfessorPaymentsRequestSequence = 0;
+let realDailyAuthorization = null;
+let realDailyEntries = [];
+let realDailyRequestSequence = 0;
+let realDailyState = "idle";
 let realPaymentProofTesseractScriptPromise = null;
 let realPaymentProofOcrWorkerPromise = null;
 let realPaymentProofPdfjsPromise = null;
@@ -534,7 +549,12 @@ function navigationIcon(id) {
 function renderNavigation() {
   const isRealStudentInstructor = isRealActiveStudent() && isRealActiveInstructor();
   const visibleGroups = isRealAdmSession()
-    ? navigationGroups.filter((group) => group.roles.includes("adm"))
+    ? navigationGroups.filter((group) =>
+      group.roles.includes("adm") ||
+      (hasRealStudentAccess() && group.roles.includes("student") && !["Início", "Vínculo"].includes(group.title))
+    ).map((group) => hasRealStudentAccess() && group.title === "Minha conta de aluno"
+      ? { ...group, items: [["home", "Início do Aluno"], ...group.items] }
+      : group)
     : isRealProfessorProfile()
       ? navigationGroups.filter((group) => group.roles.includes("professor"))
     : isRealStudentInstructor
@@ -574,7 +594,9 @@ function renderMobileNavigation() {
   const isRealStudentInstructor = isRealActiveStudent() && isRealActiveInstructor();
   const isUnlinkedStudent = isRealActiveStudent() && realHomeData && realHomeData.hasLink === false;
   const items = isRealAdmSession()
-      ? ["admin-home", "admin-students", "teacher-invites", "role-management"]
+      ? (hasRealStudentAccess()
+        ? ["admin-home", "home", "student-payments", "student-grades"]
+        : ["admin-home", "admin-students", "teacher-invites", "role-management"])
           .filter(canViewScreen)
       : isRealProfessorProfile()
         ? ["home", "payment-review", "monthly-charges", "students"]
@@ -592,6 +614,8 @@ function renderMobileNavigation() {
     const info = screenInfo[id] || { title: id, group: "" };
     const label = id === "instructor-students" && isRealStudentInstructor
       ? "Instrutor"
+      : id === "home" && isRealAdmSession()
+        ? "Aluno"
       : mobileNavigationLabels[id] || info.title;
     return `<button type="button" data-screen-target="${id}" aria-label="${info.title}"><span class="mobile-nav-icon">${navigationIcon(id)}</span><span class="mobile-nav-label">${label}</span></button>`;
   }).join("")}<button type="button" data-open-sidebar aria-controls="app-sidebar" aria-expanded="false" aria-label="Abrir navegação completa"><span class="mobile-nav-icon">${navigationIcon("more")}</span><span class="mobile-nav-label">Mais</span></button>`;
@@ -607,11 +631,12 @@ function canViewScreen(id) {
       id === "forgot-password" ||
       (id === "instructor-invite" && Boolean(realInstructorInviteToken));
   }
+  if (isRealAdmSession() && id === "link-teacher") return false;
   const activeRoles = [];
   if (isRealAdmSession()) activeRoles.push("adm");
   if (isRealActiveProfessor()) activeRoles.push("professor");
   if (isRealActiveInstructor()) activeRoles.push("instructor");
-  if (isRealActiveStudent()) activeRoles.push("student");
+  if (hasRealStudentAccess()) activeRoles.push("student");
   return id === "user-settings" ||
     (isRealProfessorProfile() && id === "teacher-code") ||
     ["no-access", "instructor-invite"].includes(id) ||
@@ -666,6 +691,11 @@ function renderRealProfileOnboarding(stage) {
         : "Se você aceitar um convite de Instrutor, o registro ocorrerá após o convite ser consumido. Leia a política de privacidade antes de continuar.";
     content.innerHTML = `
       <p id="profile-onboarding-copy" class="profile-onboarding-copy">${consentCopy}</p>
+      ${role === "professor" ? `
+        <p>Para ajudar no seu controle, o Tatame pode guardar os valores recebidos em diárias, sem identificar visitantes. Você decide se quer usar essa função e pode retirar sua autorização no painel da conta.</p>
+        <p>As diárias ficam salvas até você excluí-las, retirar a autorização ou ter a conta desativada. Ao retirar a autorização, todas são excluídas e não retornam se você autorizar novamente.</p>
+        <label class="profile-onboarding-option"><input id="real-daily-consent" type="checkbox"><span>Autorizo o registro de diárias avulsas (opcional)</span></label>
+      ` : ""}
       <div class="profile-onboarding-links">
         <button class="link-simples-modal" type="button" data-open-privacy>Ler política</button>
       </div>
@@ -1164,6 +1194,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
         <li>nome e idade declarada de aluno sem conta;</li>
         <li>cobranças mensais: valor-base, vencimento, desconto, isenção (com motivo opcional de até 200 caracteres), estado e datas de envio;</li>
         <li>pagamentos: o Aluno registra aviso como Dinheiro ou Comprovante; o Professor pode lançar recebimento como Pix, Dinheiro, Transferência ou Outro. O app guarda valor, estado, referência e datas correspondentes;</li>
+        <li>diárias avulsas, se autorizadas pelo Professor: valor, tipo de recebimento, data e identificação do Professor, sem identificação do visitante;</li>
         <li>fotos de perfil e da academia enviadas, além de metadados como formato, tamanho e data de atualização; escolha do avatar de perfil;</li>
         <li>notas privadas, feedbacks, metas e mensagens trocadas conforme os papéis e vínculos;</li>
         <li>dados de graduação, avisos e conteúdos de treino compartilhados nas telas do app.</li>
@@ -1182,7 +1213,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
         <li>o Professor vê os Alunos vinculados a ele, suas cobranças e seus pagamentos;</li>
         <li>o Aluno vê apenas as cobranças que o Professor enviou a ele;</li>
         <li>o Instrutor vê apenas os dados de alunos e conteúdos compartilhados com ele; não vê pagamentos, notas privadas, feedbacks ou metas;</li>
-        <li>o Adm não tem acesso às telas de pagamentos, notas privadas, feedbacks ou metas.</li>
+        <li>o Adm só acessa os recursos de Aluno quando possui acesso confirmado por vínculo ativo com um Professor; nesse caso, vê apenas os próprios dados.</li>
       </ul>
       <p>O Aluno pode solicitar vínculo usando um código; o vínculo depende da decisão do Professor. Alunos sem conta não entram nas cobranças mensais gravadas no banco real. A mensagem copiada na tela de cobranças não cria nem salva a cobrança e o texto não é armazenado.</p>
       <p>O app só controla pagamentos: não processa dinheiro, não envia mensagens fora do app e não usa notificações push.</p>
@@ -1215,6 +1246,8 @@ function renderPrivacyDraftContent(headingTag = "h2") {
     <section class="privacy-draft-section">
       <${headingTag}>6. Retenção</${headingTag}>
       <p>Pagamentos e cobranças não são apagados, apenas mudam de estado (por exemplo, cancelada ou estornado). Um Professor substituído na academia é desativado, não apagado. A remoção física do comprovante é solicitada pelo app à API do Storage; se não for concluída, o app tenta novamente ao abrir pagamentos. O aviso e os registros permanecem.</p>
+      <p>As diárias avulsas ficam até o Professor excluir cada lançamento, retirar a autorização ou ter a conta desativada. Ao retirar a autorização, todas as diárias são excluídas. O Professor pode autorizar novamente, mas os lançamentos excluídos não são recuperados.</p>
+      <p>O app registra a autorização das diárias com o identificador do Professor e a data do aceite.</p>
     </section>
 
     <section class="privacy-draft-section">
@@ -1710,7 +1743,7 @@ function renderRealUserSettingsScreen() {
         ${profilePhotoPanel}
         ${panel("Perguntas frequentes", `
           <div class="real-help-faq">
-            <details><summary>Quem pode consultar pagamentos?</summary><p>O Professor consulta pagamentos dos alunos vinculados e cada Aluno consulta somente os próprios pagamentos. Adm e Instrutor não têm acesso a essas telas.</p></details>
+            <details><summary>Quem pode consultar pagamentos?</summary><p>O Professor consulta pagamentos dos alunos vinculados; o Aluno e o Adm com acesso de Aluno consultam somente os próprios pagamentos. O Instrutor não tem acesso a essa tela.</p></details>
           </div>
         `)}
       </div>
@@ -1789,7 +1822,7 @@ function featureDateMonday(value = "") {
 }
 
 function renderRealTrainingBoard() {
-  if (!isRealActiveProfessor() && !isRealActiveStudent() && !isRealActiveInstructor()) return featureAccessNotice();
+  if (!isRealActiveProfessor() && !hasRealStudentAccess() && !isRealActiveInstructor()) return featureAccessNotice();
   if (realFeatureData.state !== "found") return renderFeatureLoadState();
   const canEdit = isRealActiveProfessor();
   const grades = realFeatureData.grades || [];
@@ -1849,13 +1882,17 @@ function renderRealTrainingBoard() {
     </div>`;
 }
 
-function renderPlanItemEditor(item = {}) {
+function renderPlanItemEditor(item = {}, index = 0) {
   const days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
-  return `<div class="form-grid" data-plan-item>
-    <div class="field"><label>Dia do treino</label><select name="dia" aria-label="Dia do treino">${days.map((day, index) => `<option value="${index}" ${Number(item.dia) === index ? "selected" : ""}>${day}</option>`).join("")}</select></div>
-    <div class="field"><label>Tema</label><input name="tema" aria-label="Tema" maxlength="80" placeholder="Ex.: Treino técnico" value="${escapeHtml(item.tema || "")}" required minlength="1"><small class="field-help" data-feature-counter="tema">${(item.tema || "").length}/80 caracteres</small></div>
-    <div class="field field--wide"><label>Descrição</label><textarea name="descricao" aria-label="Descrição" maxlength="300" placeholder="Ex.: Sequência de posições para a guarda.">${escapeHtml(item.descricao || "")}</textarea><small class="field-help" data-feature-counter="descricao">${(item.descricao || "").length}/300 caracteres</small></div>
-  </div>`;
+  return `<section class="plan-item-editor" data-plan-item>
+    <h4 class="plan-item-editor__title">Treino ${index + 1}</h4>
+    <div class="form-grid">
+      <div class="field"><label>Dia do treino</label><select name="dia" aria-label="Dia do treino">${days.map((day, dayIndex) => `<option value="${dayIndex}" ${Number(item.dia) === dayIndex ? "selected" : ""}>${day}</option>`).join("")}</select></div>
+      <div class="field"><label>Tema</label><input name="tema" aria-label="Tema" maxlength="80" placeholder="Ex.: Treino técnico" value="${escapeHtml(item.tema || "")}" required minlength="1"><small class="field-help" data-feature-counter="tema">${(item.tema || "").length}/80 caracteres</small></div>
+      <div class="field field--wide"><label>Descrição</label><textarea name="descricao" aria-label="Descrição" maxlength="300" placeholder="Ex.: Sequência de posições para a guarda.">${escapeHtml(item.descricao || "")}</textarea><small class="field-help" data-feature-counter="descricao">${(item.descricao || "").length}/300 caracteres</small></div>
+    </div>
+    <label class="plan-item-editor__remove"><input type="checkbox" name="remover"> Remover este treino ao salvar</label>
+  </section>`;
 }
 
 function renderAddPlanItemButton(controlId) {
@@ -1898,7 +1935,10 @@ function renderRealTrainingPlan() {
         ${featureSubmitButton("Salvar tema")}
       </form>
     </article>`).join("") : "";
-  return `${heading("PLANEJAMENTO", "Plano semanal", "O compartilhamento libera o plano somente ao Instrutor vinculado.")}
+  const description = canEdit
+    ? "Crie e edite planos, marque treinos para remover e salve as alterações. Só o Instrutor vinculado vê os planos compartilhados."
+    : "Consulte os planos semanais compartilhados pelo Professor.";
+  return `${heading("PLANEJAMENTO", "Plano semanal", description)}
     <div class="content-grid">
       ${panel("Planos semanais", `${canEdit ? `<form data-feature-form="create-plan">
         <div class="field"><label for="feature-week-start">Segunda-feira da semana</label><input id="feature-week-start" type="date" name="semana_inicio" value="${featureDateMonday()}" required></div>
@@ -1915,7 +1955,7 @@ function renderRealTrainingPlan() {
 }
 
 function renderRealStudentProgress() {
-  if (!isRealActiveStudent()) return featureAccessNotice();
+  if (!hasRealStudentAccess()) return featureAccessNotice();
   if (realFeatureData.state !== "found") return renderFeatureLoadState();
   const feedbacks = realFeatureData.feedbacks || [];
   const goals = realFeatureData.goals || [];
@@ -1927,7 +1967,7 @@ function renderRealStudentProgress() {
 }
 
 function renderRealConversations() {
-  if (!isRealActiveProfessor() && !isRealActiveStudent() && !isRealActiveInstructor()) return featureAccessNotice();
+  if (!isRealActiveProfessor() && !hasRealStudentAccess() && !isRealActiveInstructor()) return featureAccessNotice();
   if (realFeatureData.state !== "found") return renderFeatureLoadState();
   const conversations = new Map();
   (realFeatureData.conversations || []).forEach((message) => {
@@ -1951,7 +1991,7 @@ function renderRealConversations() {
   }).join("") || emptyState("Nenhuma conversa", "As conversas com seu Professor aparecerão aqui.");
   const fixedRecipientId = isRealActiveInstructor()
     ? realInstructorLink && realInstructorLink.professor_id
-    : isRealActiveStudent()
+    : hasRealStudentAccess()
       ? realFeatureData.conversationProfessorId
       : "";
   const canCreate = isRealActiveProfessor()
@@ -2044,7 +2084,7 @@ async function loadRealFeatureScreen(screenId, updateView = true) {
   realFeatureData.error = "";
   if (updateView && currentScreen === screenId) screenContent.innerHTML = renderRealFeatureScreenById(screenId);
   if (!authClient || !realUser ||
-      !(isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor())) {
+      !(isRealActiveProfessor() || hasRealStudentAccess() || isRealActiveInstructor())) {
     realFeatureData.state = "error";
     realFeatureData.error = "Esta conta não tem permissão para consultar estes dados.";
   } else {
@@ -2113,7 +2153,7 @@ async function loadRealFeatureScreen(screenId, updateView = true) {
           realFeatureData.conversationRecipients = profiles.data
             .filter((row) => typeof row.id === "string" && typeof row.nome === "string")
             .map((row) => ({ id: row.id, nome: row.nome }));
-        } else if (isRealActiveStudent()) {
+        } else if (hasRealStudentAccess()) {
           const { data: link, error: linkError } = await authClient.from("vinculos")
             .select("professor_id").eq("aluno_id", realUser.id).maybeSingle();
           if (linkError) throw linkError;
@@ -2415,7 +2455,7 @@ async function loadRealStudentGraduations(renderScreen = true) {
   realStudentGraduationsState = "checking";
   realStudentGraduationsNotice = "";
   realStudentGraduationsOwnerId = "";
-  if (!authClient || !userId || !isRealActiveStudent()) {
+  if (!authClient || !userId || !hasRealStudentAccess()) {
     realStudentGraduationsState = "error";
     realStudentGraduationsNotice = "Esta tela exige uma conta real de Aluno ativa.";
     if (renderScreen && currentScreen === screenId) screenContent.innerHTML = renderRealStudentGraduationsScreen();
@@ -2519,9 +2559,10 @@ async function runRealFeatureRpc(functionName, parameters, expectsUuid) {
   const validRole = professorOnly.includes(functionName)
     ? isRealActiveProfessor()
     : professorOrStudent.includes(functionName)
-      ? isRealActiveProfessor() || isRealActiveStudent()
-      : ["professor", "aluno", "instrutor"].includes(realProfile && realProfile.papel) &&
-        (isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor());
+      ? isRealActiveProfessor() || hasRealStudentAccess()
+      : (["professor", "aluno", "instrutor"].includes(realProfile && realProfile.papel) &&
+          (isRealActiveProfessor() || hasRealStudentAccess() || isRealActiveInstructor())) ||
+        (isRealAdmSession() && hasRealStudentAccess());
   if (!validRole) return { errorMessage: "Sua conta não tem permissão para esta ação." };
   const { data, error } = await authClient.rpc(functionName, parameters);
   if (error) {
@@ -2540,7 +2581,7 @@ async function reloadRealFeatureScreen() {
 }
 
 function renderRealExportButton(action, label) {
-  if (!isRealActiveProfessor() && !isRealActiveStudent()) return "";
+  if (!isRealActiveProfessor() && !hasRealStudentAccess()) return "";
   const safeAction = escapeHtml(action);
   return `<div class="student-action-control">
     <button class="button button--quiet button--action" type="button" data-real-export="${safeAction}" aria-describedby="real-export-error-${safeAction} real-export-status-${safeAction}">
@@ -2821,11 +2862,11 @@ async function loadRealHomeProfileContext(professorId) {
 }
 
 function renderRealHomeScreen() {
-  if (!isRealActiveProfessor() && !isRealActiveStudent() && !isRealActiveInstructor()) {
+  if (!isRealActiveProfessor() && !hasRealStudentAccess() && !isRealActiveInstructor()) {
     return featureAccessNotice();
   }
   const isProfessor = isRealActiveProfessor();
-  const isStudent = isRealActiveStudent();
+  const isStudent = hasRealStudentAccess();
   const isInstructor = isRealActiveInstructor();
   const profileHeader = renderRealHomeProfileHeader();
   const title = isProfessor
@@ -2875,8 +2916,11 @@ function renderRealHomeScreen() {
   if (isStudent) {
     const counts = data.monthCounts || { pending: 0, paid: 0, late: 0, exempt: 0 };
     if (!data.hasLink) {
+      const linkAction = isRealAdmSession()
+        ? `<p>Vincule sua conta ao Professor na área Academia do painel do Adm.</p>${button("Abrir Academia", "academy", "button button--primary")}`
+        : `<p>Vincule seu perfil a um Professor para consultar os dados da academia.</p>${button("Vincular a um Professor", "link-teacher", "button button--primary")}`;
       return `${title}${profileHeader}
-        ${panel("Próxima ação", `<p>Vincule seu perfil a um Professor para consultar os dados da academia.</p>${button("Vincular a um Professor", "link-teacher", "button button--primary")}`)}`;
+        ${panel("Próxima ação", linkAction)}`;
     }
     const hasPending = counts.pending > 0 || counts.late > 0;
     return `${title}${profileHeader}<div class="stack">
@@ -2936,7 +2980,7 @@ async function loadRealHomeData(renderScreen = true) {
         pendingPayments: realProfessorPayments.filter((payment) => payment.status === "pendente").length,
         lateCharges
       };
-    } else if (isRealActiveStudent()) {
+    } else if (hasRealStudentAccess()) {
       const { data: link, error } = await authClient.from("vinculos")
         .select("professor_id").eq("aluno_id", realUser.id).maybeSingle();
       if (error) throw error;
@@ -2995,12 +3039,12 @@ async function loadRealHomeData(renderScreen = true) {
   }
 
   if (isCurrentRequest()) {
-    const professorId = isRealActiveStudent()
+    const professorId = hasRealStudentAccess()
       ? realHomeData && realHomeData.professorId
       : isRealActiveInstructor() && realInstructorLink
         ? realInstructorLink.professor_id
         : "";
-    void loadRealHomeProfileContext(professorId);
+    if (!isRealAdmSession()) void loadRealHomeProfileContext(professorId);
     renderNavigation();
     if (renderScreen) screenContent.innerHTML = renderRealHomeScreen();
   }
@@ -3012,15 +3056,15 @@ function renderScreen(id) {
   const isRealAdmin = isRealAdmSession();
   const isRealAdminHome = id === "admin-home" && isRealAdmin;
   const isRealHome = id === "home" &&
-    (isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor());
+    (isRealActiveProfessor() || hasRealStudentAccess() || isRealActiveInstructor());
   const isRealAcademyDirectory = id === "academy" &&
     (isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor());
   const isRealUserSettings = id === "user-settings" && Boolean(realUser);
   const isRealStudentLink = id === "link-teacher" && isRealActiveStudent();
-  const isRealStudentPayments = id === "student-payments" && isRealActiveStudent();
+  const isRealStudentPayments = id === "student-payments" && hasRealStudentAccess();
   const isRealProfessorPayments = id === "payment-review" && isRealActiveProfessor();
   const isRealProfessorGraduations = id === "student-detail" && isRealActiveProfessor();
-  const isRealStudentGraduations = id === "student-grades" && isRealActiveStudent();
+  const isRealStudentGraduations = id === "student-grades" && hasRealStudentAccess();
   const realAdminRenderer = isRealAdmin
     ? {
       "admin-home": renderRealAdminDashboardScreen,
@@ -3036,13 +3080,13 @@ function renderScreen(id) {
   const isRealTeacherCode = id === "teacher-code" && isRealProfessorProfile();
   const isRealBilling = id === "monthly-charges" && isRealActiveProfessor();
   const isRealChatScreen = ["teacher-chat", "student-chat", "instructor-chat"].includes(id) &&
-    (isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor());
+    (isRealActiveProfessor() || hasRealStudentAccess() || isRealActiveInstructor());
   const isRealDelegationScreen = (id === "delegated-lessons" && isRealActiveProfessor()) ||
     (id === "instructor-class" && isRealActiveInstructor());
   const isRealFeatureScreen = (
     ["training-board", "training-plan", "student-progress"].includes(id) ||
       isRealChatScreen || isRealDelegationScreen
-  ) && (isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor());
+  ) && (isRealActiveProfessor() || hasRealStudentAccess() || isRealActiveInstructor());
   const isRealStudentsScreen = id === "students" && isRealActiveProfessor();
   const isRealInstructorStudents = id === "instructor-students" && isRealActiveInstructor();
   const isRealInstructorInvite = id === "instructor-invite" &&
@@ -3729,7 +3773,7 @@ function setRealProofCleanupNotice(message) {
 
 async function uploadPaymentProof(paymentId, file) {
   const failureMessage = "Não foi possível registrar o comprovante. Atualize os pagamentos e tente novamente.";
-  if (!authClient || !realUser || !isRealActiveStudent() || typeof paymentId !== "string" || !paymentId) {
+  if (!authClient || !realUser || !hasRealStudentAccess() || typeof paymentId !== "string" || !paymentId) {
     return { errorMessage: "Esta ação exige uma conta real de Aluno ativa." };
   }
   const validationError = validateStorageFile(
@@ -3805,7 +3849,7 @@ async function uploadPaymentProof(paymentId, file) {
 async function removeRegisteredPaymentProof(paymentId, path, role) {
   const failureMessage = "Não foi possível remover o comprovante. Ele será tentado novamente ao atualizar os pagamentos.";
   if (!authClient || !realUser || !["student", "professor"].includes(role) ||
-      !(role === "student" ? isRealActiveStudent() : isRealActiveProfessor())) {
+      !(role === "student" ? hasRealStudentAccess() : isRealActiveProfessor())) {
     return { errorMessage: "Esta ação exige uma conta ativa com a permissão necessária." };
   }
   const proofs = role === "student" ? realStudentPaymentProofs : realProfessorPaymentProofs;
@@ -4253,6 +4297,19 @@ function renderRealProfessorPaymentsScreen() {
   const openCharges = realProfessorCharges.filter((charge) =>
     charge.status === "aberta" && realBillingBalance(charge, realProfessorPayments) > 0n
   );
+  const dailyHistory = realDailyEntries.length
+    ? `<p>Total registrado: <strong>${formatRealBillingCents(realDailyEntries.reduce((total, entry) => total + realBillingIntegerCents(entry.valor_centavos), 0n))}</strong></p>${realDailyEntries.map((entry) => `
+        <article class="notice notice--info">
+          <p><strong>${formatRealBillingCents(entry.valor_centavos)}</strong> · ${escapeHtml(entry.tipo)} · ${escapeHtml(realBillingTimestamp(entry.criado_em))}</p>
+          <details class="student-action-control">
+            <summary>Excluir diária</summary>
+            <p>A exclusão é permanente.</p>
+            <button class="button button--danger button--action" type="button" data-delete-daily="${escapeHtml(entry.id)}" aria-describedby="daily-delete-error-${escapeHtml(entry.id)} daily-delete-status-${escapeHtml(entry.id)}"><span data-action-label>Excluir diária</span></button>
+            <p class="login-action-error" id="daily-delete-error-${escapeHtml(entry.id)}" role="alert"></p>
+            <p class="field-help" id="daily-delete-status-${escapeHtml(entry.id)}" role="status" aria-live="polite"></p>
+          </details>
+        </article>`).join("")}`
+    : '<p>Nenhuma diária registrada.</p>';
   const paymentSearchText = (payment) => {
     const charge = chargeById.get(payment.cobranca_id);
     return `${realBillingStudentNames.get(charge.aluno_id) || "Aluno sem nome"} ${payment.referencia || ""} ${payment.tipo || ""} ${charge.mes} ${charge.vencimento}`;
@@ -4309,38 +4366,98 @@ function renderRealProfessorPaymentsScreen() {
       <div class="stack">
         ${panel("Aguardando confirmação", pendingContent)}
         ${panel("Histórico de pagamentos", historyContent)}
+        ${realDailyState === "found" && realDailyAuthorization ? panel("Diárias avulsas", dailyHistory) : ""}
       </div>
-      ${panel("Lançar dinheiro recebido", openCharges.length ? `
+      ${panel("Lançar recebimento", openCharges.length || (realDailyState === "found" && realDailyAuthorization) ? `
         <form data-real-professor-payment-form novalidate>
           <div class="form-grid">
             <div class="field">
               <label for="real-professor-charge">Cobrança aberta</label>
               <select id="real-professor-charge" required>
                 ${openCharges.map((charge) => `<option value="${escapeHtml(charge.id)}">${escapeHtml(realBillingStudentNames.get(charge.aluno_id) || "Aluno sem nome")} · ${escapeHtml(formatRealDate(charge.mes).slice(3))} · saldo ${formatRealBillingCents(realBillingBalance(charge, realProfessorPayments))}</option>`).join("")}
+                ${realDailyState === "found" && realDailyAuthorization ? '<option value="diaria-avulsa">Diária avulsa</option>' : ""}
               </select>
             </div>
             <div class="field">
               <label for="real-professor-payment-amount">Valor recebido</label>
-              <input id="real-professor-payment-amount" type="number" min="0.01" step="0.01" max="${realBillingCentsInput(realBillingBalance(openCharges[0], realProfessorPayments))}" required>
+              <input id="real-professor-payment-amount" type="number" min="0.01" step="0.01" ${openCharges.length ? `max="${realBillingCentsInput(realBillingBalance(openCharges[0], realProfessorPayments))}"` : ""} required>
             </div>
             <div class="field">
               <label for="real-professor-payment-type">Tipo</label>
-              <select id="real-professor-payment-type" required><option value="Dinheiro">Dinheiro</option></select>
+              <select id="real-professor-payment-type" required><option value="Dinheiro">Dinheiro</option><option value="Pix">Pix</option></select>
             </div>
-            <div class="field">
+            <div class="field" id="real-professor-payment-reference-field" ${openCharges.length ? "" : "hidden"}>
               <label for="real-professor-payment-reference">Referência</label>
-              <input id="real-professor-payment-reference" type="text" maxlength="120" placeholder="Mensalidade" required>
+              <input id="real-professor-payment-reference" type="text" maxlength="120" placeholder="Mensalidade / diária" required>
             </div>
           </div>
           <div class="student-action-control">
-            <button class="button button--primary button--action" type="submit" data-real-professor-payment-submit aria-describedby="real-professor-payment-error real-professor-payment-status"><span data-action-label>Registrar recebido em dinheiro</span></button>
+            <button class="button button--primary button--action" type="submit" data-real-professor-payment-submit aria-describedby="real-professor-payment-error real-professor-payment-status"><span data-action-label>Registrar recebimento</span></button>
             <p class="login-action-error student-action-error" id="real-professor-payment-error" role="alert"></p>
             <p class="field-help" id="real-professor-payment-status" role="status" aria-live="polite"></p>
           </div>
         </form>
-      ` : '<div class="notice notice--info">Não há cobrança aberta com saldo para lançar.</div>')}
+      ` : `<div class="notice notice--info">Não há cobrança aberta com saldo para lançar.${realDailyState === "found" && !realDailyAuthorization ? " Para usar diárias avulsas, autorize no painel da conta." : ""}</div>`)}
+      ${realDailyState === "error" ? '<div class="notice notice--pending" role="alert">Não foi possível consultar as diárias. Abra o painel da conta para tentar novamente.</div>' : ""}
     </div>
   `;
+}
+
+function syncRealDailyPanel() {
+  const section = document.querySelector("#daily-authorization-panel");
+  const checkbox = section.querySelector("[data-daily-authorization]");
+  const description = section.querySelector("#daily-authorization-description");
+  const retry = section.querySelector("[data-daily-retry]");
+  section.hidden = !isRealActiveProfessorAccount();
+  if (section.hidden) return;
+  checkbox.disabled = realDailyState !== "found" || checkbox.hasAttribute("aria-busy") || !section.querySelector("#daily-revoke-confirmation").hidden;
+  checkbox.checked = realDailyState === "found" && Boolean(realDailyAuthorization);
+  retry.hidden = realDailyState !== "error" && !retry.hasAttribute("aria-busy");
+  description.textContent = realDailyState === "found"
+    ? (realDailyAuthorization ? "Autorização ativa." : "Autorização não concedida.")
+    : realDailyState === "error" ? "Não foi possível consultar a autorização. Tente novamente." : "Consultando autorização...";
+}
+
+async function loadRealDailyData(renderPayments = true) {
+  if (!authClient || !realUser || !isRealActiveProfessorAccount()) return;
+  const sequence = ++realDailyRequestSequence;
+  const userId = realUser.id;
+  const generation = realSessionCacheGeneration;
+  realDailyState = "checking";
+  syncRealDailyPanel();
+  try {
+    const authorization = await authClient.from("autorizacoes_diarias_avulsas").select("professor_id").eq("professor_id", userId).maybeSingle();
+    if (sequence !== realDailyRequestSequence || generation !== realSessionCacheGeneration || !realUser || realUser.id !== userId) return;
+    if (authorization.error) throw authorization.error;
+    const entries = [];
+    let page;
+    do {
+      const result = await authClient.from("diarias_avulsas").select("id,valor_centavos,tipo,criado_em")
+        .eq("professor_id", userId).order("criado_em", { ascending: false }).order("id", { ascending: false })
+        .range(entries.length, entries.length + 499);
+      if (sequence !== realDailyRequestSequence || generation !== realSessionCacheGeneration || !realUser || realUser.id !== userId) return;
+      if (result.error) throw result.error;
+      if (!Array.isArray(result.data) || result.data.some((entry) =>
+        !entry || typeof entry.id !== "string" || !/^[1-9]\d*$/.test(String(entry.valor_centavos)) ||
+        !["Dinheiro", "Pix"].includes(entry.tipo) || typeof entry.criado_em !== "string"
+      )) throw new TypeError("Diárias indisponíveis.");
+      page = result.data;
+      entries.push(...page);
+    } while (page.length === 500);
+    realDailyAuthorization = Boolean(authorization.data);
+    realDailyEntries = entries;
+    realDailyState = "found";
+  } catch (error) {
+    if (sequence !== realDailyRequestSequence || generation !== realSessionCacheGeneration || !realUser || realUser.id !== userId) return;
+    logRealProfileSupabaseError("consultar diárias avulsas", error);
+    realDailyAuthorization = null;
+    realDailyEntries = [];
+    realDailyState = "error";
+  }
+  syncRealDailyPanel();
+  if (renderPayments && currentScreen === "payment-review" && realProfessorPaymentsState === "found") {
+    screenContent.innerHTML = renderRealProfessorPaymentsScreen();
+  }
 }
 
 async function loadRealStudentPayments(renderScreen = true, allowHome = false) {
@@ -4352,7 +4469,7 @@ async function loadRealStudentPayments(renderScreen = true, allowHome = false) {
   realStudentCharges = [];
   realStudentPayments = [];
   realStudentPaymentProofs = new Map();
-  if (!authClient || !realUser || !isRealActiveStudent() || !realProfile || !realProfile.academia_id) {
+  if (!authClient || !realUser || !hasRealStudentAccess() || !realProfile || !realProfile.academia_id) {
     realStudentPaymentsState = "error";
     realStudentPaymentsNotice = "Esta tela exige um perfil de Aluno ativo vinculado a uma academia.";
     if (renderScreen && !allowHome && currentScreen === screenId) {
@@ -4528,6 +4645,7 @@ async function loadRealProfessorPaymentsData(renderScreen = true, allowHome = fa
   if (renderScreen && !allowHome && currentScreen === screenId) {
     screenContent.innerHTML = renderRealProfessorPaymentsScreen();
   }
+  if (!allowHome) void loadRealDailyData();
   try {
     const [chargesResult, academyResult] = await Promise.all([
       authClient.from("cobrancas_mensais")
@@ -4988,7 +5106,7 @@ function renderRealUnregisteredStudents() {
       <div class="form-grid">
         <div class="field field--wide">
           <label for="real-unregistered-name">Nome do aluno</label>
-          <input id="real-unregistered-name" name="nome" type="text" autocomplete="off" placeholder="Nome completo do aluno" maxlength="160" aria-describedby="real-unregistered-create-help">
+          <input id="real-unregistered-name" name="nome" type="text" autocomplete="off" placeholder="Nome completo do aluno" maxlength="80" aria-describedby="real-unregistered-create-help">
           <small class="field-help" id="real-unregistered-create-help">Informe de 1 a 80 caracteres. Não é necessário telefone, e-mail ou data de nascimento.</small>
         </div>
         <div class="field field--wide">
@@ -5921,6 +6039,55 @@ function isRealActiveStudent() {
     realProfile.papel === "aluno" && realProfile.ativo === true);
 }
 
+function hasRealStudentAccess() {
+  return isRealActiveStudent() || Boolean(isRealAdmSession() &&
+    realAdmStudentAccessState === "found" && realAdmStudentAccess);
+}
+
+async function loadRealAdmStudentAccess(userId) {
+  const sequence = ++realAdmStudentAccessRequestSequence;
+  realAdmStudentAccess = false;
+  realAdmStudentAccessState = "checking";
+  realAdmStudentAccessNotice = "";
+  if (!authClient || !userId || !isRealAdmSession()) {
+    realAdmStudentAccessState = "error";
+    realAdmStudentAccessNotice = "Não foi possível verificar seu acesso de Aluno. Recarregue a página e tente novamente.";
+    return false;
+  }
+
+  try {
+    const { data, error } = await authClient.rpc("tem_acesso_aluno");
+    if (error) throw error;
+    if (sequence !== realAdmStudentAccessRequestSequence ||
+        !realUser || realUser.id !== userId) return false;
+    if (typeof data !== "boolean") throw new TypeError("Resposta de acesso de Aluno indisponível.");
+    realAdmStudentAccess = data;
+    realAdmStudentAccessState = "found";
+    return true;
+  } catch (error) {
+    if (sequence !== realAdmStudentAccessRequestSequence ||
+        !realUser || realUser.id !== userId) return false;
+    logRealProfileSupabaseError("verificar acesso de Aluno do Adm", error);
+    realAdmStudentAccessState = "error";
+    realAdmStudentAccessNotice = navigator.onLine === false
+      ? "Falha de rede ao verificar o acesso de Aluno. Verifique a conexão e tente novamente."
+      : "Não foi possível verificar o acesso de Aluno. Tente novamente.";
+    return false;
+  }
+}
+
+function refreshRealAdmStudentAccessAfterChange() {
+  const userId = realUser && realUser.id;
+  if (!userId || !isRealAdmSession()) return;
+  void loadRealAdmStudentAccess(userId).then((verified) => {
+    if (!realUser || realUser.id !== userId || !isRealAdmSession()) return;
+    renderNavigation();
+    renderUserPanelTutorialTopics();
+    if (!canViewScreen(currentScreen)) renderScreen(realInitialScreen());
+    if (!verified) showToast(realAdmStudentAccessNotice, "error");
+  });
+}
+
 function isRealActiveInstructor() {
   return Boolean(realUser && realProfileState === "found" && realProfile &&
     realProfile.ativo === true &&
@@ -6590,6 +6757,30 @@ function renderRealAdminStudentsScreen() {
   `;
 }
 
+function renderRealAdmStudentAccessNotice() {
+  if (!isRealAdmSession() ||
+      (realAdmStudentAccessState === "found" && realAdmStudentAccess)) return "";
+  const failed = realAdmStudentAccessState === "error";
+  const message = realAdmStudentAccessState === "checking"
+    ? "Verificando o vínculo ativo com um Professor..."
+    : failed
+      ? realAdmStudentAccessNotice
+      : "Meus pagamentos, Minhas graduações e os demais recursos de Aluno serão liberados quando sua conta estiver vinculada a um Professor ativo.";
+  const role = failed ? 'role="alert"' : 'role="status" aria-live="polite"';
+  const action = realAdmStudentAccessState === "checking" ? "" : `
+    <div class="student-action-control">
+      <button class="button button--quiet button--action" type="button" data-real-adm-student-access-retry aria-describedby="real-adm-student-access-retry-error real-adm-student-access-retry-status">
+        <span data-action-label>Verificar vínculo</span>
+      </button>
+      <p class="login-action-error student-action-error" id="real-adm-student-access-retry-error" role="alert"></p>
+      <p class="field-help" id="real-adm-student-access-retry-status" role="status" aria-live="polite"></p>
+    </div>`;
+  return `<div class="notice ${failed ? "notice--pending" : "notice--info"}">
+    <p id="real-adm-student-access-message" ${role}>${escapeHtml(message)}</p>
+    ${action}
+  </div>`;
+}
+
 async function loadRealAdminDashboard(renderScreen = true) {
   const sequence = ++realAdminDashboardRequestSequence;
   const sessionGeneration = realSessionCacheGeneration;
@@ -6691,11 +6882,12 @@ async function loadRealAdminDashboard(renderScreen = true) {
 
 function renderRealAdminDashboardScreen() {
   const title = heading("VISÃO DO ADM", "Painel do Adm", "Resumo das academias, Professores ativos, alunos e convites pendentes.");
+  const studentAccessNotice = renderRealAdmStudentAccessNotice();
   if (realAdminDashboardState === "checking" || realAdminDashboardState === "idle") {
-    return `${title}<div class="notice notice--info" role="status">Carregando o resumo administrativo...</div>`;
+    return `${title}${studentAccessNotice}<div class="notice notice--info" role="status">Carregando o resumo administrativo...</div>`;
   }
   if (realAdminDashboardState === "error") {
-    return `${title}<div class="notice notice--pending" role="alert">${escapeHtml(realAdminDashboardNotice)}</div>
+    return `${title}${studentAccessNotice}<div class="notice notice--pending" role="alert">${escapeHtml(realAdminDashboardNotice)}</div>
       <div class="student-action-control">
         <button class="button button--primary button--action" type="button" data-real-admin-dashboard-retry aria-describedby="real-admin-dashboard-retry-error real-admin-dashboard-retry-status">
           <span data-action-label>Tentar novamente</span>
@@ -6751,7 +6943,7 @@ function renderRealAdminDashboardScreen() {
         : "Cadastre uma academia para acompanhar seus Professores."
     );
 
-  return `${title}
+  return `${title}${studentAccessNotice}
     <div class="card-grid card-grid--four">
       ${metric("ACADEMIAS", String(realAdminDashboardAcademies.length), "Cadastradas", "gold", "academy")}
       ${metric("PROFESSORES ATIVOS", String(realAdminDashboardProfessors.length), "Papel Professor", "green", "role-management")}
@@ -8154,7 +8346,10 @@ function handleRealAdminBindSubmit(form) {
     loadingMessage: "Vinculando sua conta Adm ao Professor.",
     successMessage: "Conta Adm vinculada à academia.",
     errorMessage: "Não foi possível vincular o Adm ao Professor. Tente novamente.",
-    afterSuccess: () => { loadRealAdminManagementForAcademy(academyId); }
+    afterSuccess: () => {
+      loadRealAdminManagementForAcademy(academyId);
+      refreshRealAdmStudentAccessAfterChange();
+    }
   }, async () => {
     const guardError = realAdminGuardError();
     if (guardError) return { errorMessage: guardError };
@@ -8194,7 +8389,10 @@ function handleRealAdminSwitchSubmit(form) {
     successMessage: "Troca de Professor concluída.",
     errorMessage: "Não foi possível trocar o Professor. Tente novamente.",
     successDelay: 0,
-    afterSuccess: () => { loadRealAdminManagementForAcademy(academyId); }
+    afterSuccess: () => {
+      loadRealAdminManagementForAcademy(academyId);
+      refreshRealAdmStudentAccessAfterChange();
+    }
   }, async () => {
     const guardError = realAdminGuardError();
     if (guardError) return { errorMessage: guardError };
@@ -8237,7 +8435,10 @@ function handleRealAdminProfessorAction(button) {
     successMessage: deactivate ? "Professor desativado." : "Professor reativado.",
     errorMessage: "Não foi possível alterar o estado do Professor. Tente novamente.",
     successDelay: 0,
-    afterSuccess: () => { loadRealAdminManagementForAcademy(screenContent.querySelector("#real-admin-academy").value); }
+    afterSuccess: () => {
+      loadRealAdminManagementForAcademy(screenContent.querySelector("#real-admin-academy").value);
+      refreshRealAdmStudentAccessAfterChange();
+    }
   }, async () => {
     const guardError = realAdminGuardError();
     if (guardError) return { errorMessage: guardError };
@@ -8358,7 +8559,9 @@ const actionResetTimers = new WeakMap();
 
 async function runButtonAction(button, { feedback, announcement, buttons, loadingText, loadingMessage, successMessage, successLabel, errorMessage, afterSuccess, disableAfterSuccess = false, successDelay = 2500 }, action) {
   if (button.disabled) return;
-  const label = button.querySelector("[data-action-label]");
+  const label = button instanceof HTMLInputElement && button.type === "checkbox"
+    ? button.closest("label")?.querySelector("[data-action-label]")
+    : button.querySelector("[data-action-label]");
   if (!label || !feedback || !announcement) {
     recordDiagnostic("Erro ao iniciar uma ação");
     console.error("Não foi possível exibir o estado da ação.");
@@ -8486,6 +8689,7 @@ function syncRealSessionPanel() {
   document.querySelector("#real-session-email").textContent = realUser ? realUser.email || "E-mail não disponível" : "";
   document.querySelector(".user-panel-links[aria-label='Ajuda']").hidden = !realUser;
   syncAccountDeletionAvailability();
+  syncRealDailyPanel();
   if (realUser) {
     document.querySelector("#profile-button").hidden = false;
     document.querySelector(".profile-button-copy").innerHTML = "<strong>Conta real</strong><small>Sessão conectada</small>";
@@ -8612,6 +8816,10 @@ function clearRealAccountCaches() {
   realProfile = null;
   realProfileState = "idle";
   realProfileNotice = "";
+  realAdmStudentAccessRequestSequence += 1;
+  realAdmStudentAccess = false;
+  realAdmStudentAccessState = "idle";
+  realAdmStudentAccessNotice = "";
   realInstructorLink = null;
   realInstructorLinkState = "idle";
   realInstructorLinkNotice = "";
@@ -8669,6 +8877,10 @@ function clearRealAccountCaches() {
   realProfessorPaymentProofs = new Map();
   realProfessorPaymentsState = "idle";
   realProfessorPaymentsNotice = "";
+  realDailyAuthorization = null;
+  realDailyEntries = [];
+  realDailyState = "idle";
+  realDailyRequestSequence += 1;
   realProofCleanupRunning = false;
   realProofCleanupNotice = "";
   realProfessorGraduationStudents = [];
@@ -8770,6 +8982,10 @@ async function updateRealSession(session, updateScreen = true) {
     if (previousUser) clearPendingRealSignupName();
     realProfile = null;
     realProfileNotice = "";
+    realAdmStudentAccessRequestSequence += 1;
+    realAdmStudentAccess = false;
+    realAdmStudentAccessState = "idle";
+    realAdmStudentAccessNotice = "";
     realInstructorLink = null;
     realInstructorLinkState = "idle";
     realInstructorLinkNotice = "";
@@ -8844,6 +9060,10 @@ async function updateRealSession(session, updateScreen = true) {
   }
   realProfileState = "checking";
   realProfile = null;
+  realAdmStudentAccessRequestSequence += 1;
+  realAdmStudentAccess = false;
+  realAdmStudentAccessState = "idle";
+  realAdmStudentAccessNotice = "";
   if (currentScreen === "teacher-code") {
     realTeacherCodeState = "checking";
     screenContent.innerHTML = renderRealTeacherCodeScreen();
@@ -8931,6 +9151,7 @@ async function updateRealSession(session, updateScreen = true) {
     realInstructorLinkState = "idle";
     realInstructorLinkNotice = "";
   }
+  if (isRealAdmSession()) await loadRealAdmStudentAccess(realUser.id);
   if (sequence !== authCheckSequence) return;
   syncAccountDeletionAvailability();
   updateUserPanelProfile();
@@ -9631,6 +9852,13 @@ document.addEventListener("click", (event) => {
           if (result !== "ok") {
             return { errorMessage: "Não foi possível registrar seu consentimento. Tente novamente." };
           }
+          const dailyConsent = profileOnboardingDialog.querySelector("#real-daily-consent");
+          if (dailyConsent && dailyConsent.checked) {
+            const dailyResult = await callRealPaymentRpc("autorizar_diarias_avulsas", {}, "professor-account", "Não foi possível registrar a autorização para diárias. Tente novamente.");
+            if (dailyResult.errorMessage || dailyResult.data !== true) {
+              return { errorMessage: dailyResult.errorMessage || "Não foi possível registrar a autorização para diárias. Tente novamente." };
+            }
+          }
         }
       });
 
@@ -9685,11 +9913,20 @@ document.addEventListener("click", (event) => {
           form.querySelector('[role="alert"]').textContent = "Escolha uma segunda-feira para iniciar a semana.";
           return;
         }
-        const items = [...form.querySelectorAll("[data-plan-item]")].map((row) => ({
-          dia: Number(row.querySelector('[name="dia"]').value),
-          tema: row.querySelector('[name="tema"]').value.trim(),
-          descricao: row.querySelector('[name="descricao"]').value.trim()
-        }));
+        const items = [...form.querySelectorAll("[data-plan-item]")]
+          .filter((row) => {
+            const removeCheckbox = row.querySelector('[name="remover"]');
+            return !(removeCheckbox instanceof HTMLInputElement && removeCheckbox.checked);
+          })
+          .map((row) => ({
+            dia: Number(row.querySelector('[name="dia"]').value),
+            tema: row.querySelector('[name="tema"]').value.trim(),
+            descricao: row.querySelector('[name="descricao"]').value.trim()
+          }));
+        if (formType === "create-plan" && items.length === 0) {
+          form.querySelector('[role="alert"]').textContent = "Mantenha ao menos um treino para criar o plano.";
+          return;
+        }
         if (items.some((item) => !item.tema || item.tema.length > 80 || item.descricao.length > 300)) {
           form.querySelector('[role="alert"]').textContent = "Confira os temas (1 a 80 caracteres) e descrições (até 300 caracteres).";
           return;
@@ -9866,7 +10103,8 @@ document.addEventListener("click", (event) => {
           errorMessage: "Não foi possível adicionar o campo de treino. Tente novamente."
         }, async () => {
           if (!form.isConnected) return { errorMessage: "O formulário não está mais disponível. Atualize a tela." };
-          control.insertAdjacentHTML("beforebegin", renderPlanItemEditor());
+          const itemIndex = form.querySelectorAll("[data-plan-item]").length;
+          control.insertAdjacentHTML("beforebegin", renderPlanItemEditor({}, itemIndex));
           return {};
         });
         return;
@@ -10021,6 +10259,106 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-open-user-panel]")) {
     updateUserPanelProfile();
     userPanel.showModal();
+    if (isRealActiveProfessorAccount()) void loadRealDailyData(realDailyState !== "found");
+    return;
+  }
+
+  const dailyRetryButton = target.closest("[data-daily-retry]");
+  if (dailyRetryButton instanceof HTMLButtonElement) {
+    void runButtonAction(dailyRetryButton, {
+      feedback: document.querySelector("#daily-authorization-error"),
+      announcement: document.querySelector("#daily-authorization-status"),
+      buttons: [dailyRetryButton],
+      loadingText: "Consultando...",
+      loadingMessage: "Consultando autorização.",
+      successMessage: "Autorização consultada.",
+      errorMessage: "Não foi possível consultar a autorização. Tente novamente.",
+      afterSuccess: () => { dailyRetryButton.hidden = true; }
+    }, async () => {
+      await loadRealDailyData();
+      if (realDailyState !== "found") return { errorMessage: "Não foi possível consultar a autorização. Tente novamente." };
+    });
+    return;
+  }
+
+  const dailyAuthorization = target.closest("[data-daily-authorization]");
+  if (dailyAuthorization instanceof HTMLInputElement) {
+    dailyAuthorization.checked = Boolean(realDailyAuthorization);
+    if (realDailyState === "found" && realDailyAuthorization) {
+      document.querySelector("#daily-revoke-confirmation").hidden = false;
+      dailyAuthorization.disabled = true;
+      document.querySelector("[data-confirm-daily-revoke]").focus();
+    } else if (realDailyState === "found") {
+      let authorized = false;
+      void runButtonAction(dailyAuthorization, {
+        feedback: document.querySelector("#daily-authorization-error"),
+        announcement: document.querySelector("#daily-authorization-status"),
+        buttons: [dailyAuthorization],
+        loadingText: "Autorizando...",
+        loadingMessage: "Registrando autorização.",
+        successMessage: "Diárias autorizadas.",
+        errorMessage: "Não foi possível autorizar. Tente novamente."
+      }, async () => {
+        const result = await callRealPaymentRpc("autorizar_diarias_avulsas", {}, "professor-account", "Não foi possível autorizar. Tente novamente.");
+        if (result.errorMessage) return result;
+        if (result.data !== true) return { errorMessage: "Não foi possível confirmar a autorização. Tente novamente." };
+        authorized = true;
+      }).then(() => {
+        if (authorized) void loadRealDailyData();
+      });
+    }
+    return;
+  }
+
+  if (target.closest("[data-cancel-daily-revoke]")) {
+    document.querySelector("#daily-revoke-confirmation").hidden = true;
+    const checkbox = document.querySelector("[data-daily-authorization]");
+    checkbox.disabled = realDailyState !== "found";
+    checkbox.focus();
+    return;
+  }
+
+  const revokeDailyButton = target.closest("[data-confirm-daily-revoke]");
+  if (revokeDailyButton instanceof HTMLButtonElement) {
+    runButtonAction(revokeDailyButton, {
+      feedback: document.querySelector("#daily-authorization-error"),
+      announcement: document.querySelector("#daily-authorization-status"),
+      buttons: [revokeDailyButton, document.querySelector("[data-cancel-daily-revoke]")],
+      loadingText: "Excluindo...",
+      loadingMessage: "Retirando autorização e excluindo diárias.",
+      successMessage: "Autorização retirada e diárias excluídas.",
+      errorMessage: "Não foi possível retirar a autorização. Tente novamente.",
+      afterSuccess: () => {
+        document.querySelector("#daily-revoke-confirmation").hidden = true;
+        void loadRealDailyData();
+      }
+    }, async () => {
+      const result = await callRealPaymentRpc("revogar_diarias_avulsas", {}, "professor-account", "Não foi possível retirar a autorização. Tente novamente.");
+      if (result.errorMessage) return result;
+      if (result.data !== true) return { errorMessage: "Não foi possível confirmar a exclusão. Tente novamente." };
+    });
+    return;
+  }
+
+  const deleteDailyButton = target.closest("[data-delete-daily]");
+  if (deleteDailyButton instanceof HTMLButtonElement) {
+    const id = deleteDailyButton.dataset.deleteDaily;
+    const control = deleteDailyButton.closest(".student-action-control");
+    runButtonAction(deleteDailyButton, {
+      feedback: control.querySelector(".login-action-error"),
+      announcement: control.querySelector("[role='status']"),
+      buttons: [deleteDailyButton],
+      loadingText: "Excluindo...",
+      loadingMessage: "Excluindo diária.",
+      successMessage: "Diária excluída.",
+      errorMessage: "Não foi possível excluir a diária. Tente novamente.",
+      afterSuccess: () => { void loadRealDailyData(); }
+    }, async () => {
+      if (!realDailyEntries.some((entry) => entry.id === id)) return { errorMessage: "Diária não encontrada. Atualize a tela." };
+      const result = await callRealPaymentRpc("excluir_diaria_avulsa", { p_diaria_id: id }, "professor", "Não foi possível excluir a diária. Tente novamente.");
+      if (result.errorMessage) return result;
+      if (result.data !== true) return { errorMessage: "Não foi possível confirmar a exclusão. Atualize a tela." };
+    });
     return;
   }
 
@@ -10030,6 +10368,7 @@ document.addEventListener("click", (event) => {
   }
 
   if (target.closest("[data-open-privacy]")) {
+    event.preventDefault();
     privacyDialog.showModal();
     return;
   }
@@ -10348,6 +10687,15 @@ document.addEventListener("input", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target instanceof HTMLInputElement && target.name === "remover") {
+    const planItem = target.closest("[data-plan-item]");
+    if (planItem) {
+      planItem.querySelectorAll("input:not([type='checkbox']), select, textarea").forEach((control) => {
+        control.disabled = target.checked;
+      });
+      return;
+    }
+  }
   if (target instanceof HTMLSelectElement && target.matches("[data-real-list-filter]")) {
     const key = target.dataset.realListFilter;
     const state = getRealListUiState(key);
@@ -10708,7 +11056,8 @@ async function callRealBillingRpc(functionName, parameters, failureMessage) {
 }
 
 async function callRealPaymentRpc(functionName, parameters, role, failureMessage) {
-  const allowed = role === "student" ? isRealActiveStudent() : isRealActiveProfessor();
+  const allowed = role === "student" ? hasRealStudentAccess()
+    : role === "professor-account" ? isRealActiveProfessorAccount() : isRealActiveProfessor();
   if (!authClient || !realUser || !allowed) {
     return { errorMessage: "Esta ação exige uma conta ativa com a permissão necessária." };
   }
@@ -10772,7 +11121,13 @@ document.addEventListener("change", (event) => {
     const amount = document.querySelector("#real-professor-payment-amount");
     if (charge && amount instanceof HTMLInputElement) {
       amount.max = realBillingCentsInput(realBillingBalance(charge, realProfessorPayments));
+    } else if (amount instanceof HTMLInputElement) {
+      amount.removeAttribute("max");
     }
+    const referenceField = document.querySelector("#real-professor-payment-reference-field");
+    const reference = document.querySelector("#real-professor-payment-reference");
+    if (referenceField) referenceField.hidden = target.value === "diaria-avulsa";
+    if (reference instanceof HTMLInputElement && target.value === "diaria-avulsa") reference.value = "";
     return;
   }
   if (!(target instanceof HTMLInputElement) || !target.matches("[data-real-billing-month]") ||
@@ -10915,6 +11270,18 @@ document.addEventListener("submit", (event) => {
       const amount = parseRealBillingCents(form.querySelector("#real-professor-payment-amount").value);
       const type = form.querySelector("#real-professor-payment-type").value;
       const reference = form.querySelector("#real-professor-payment-reference").value.trim();
+      if (chargeId === "diaria-avulsa") {
+        if (!realDailyAuthorization || !amount || !["Pix", "Dinheiro"].includes(type)) {
+          return { errorMessage: "Confira a autorização, o valor e o tipo de recebimento." };
+        }
+        const result = await callRealPaymentRpc("registrar_diaria_avulsa", {
+          p_valor_centavos: amount,
+          p_tipo: type
+        }, "professor", "Não foi possível registrar a diária. Verifique a autorização e tente novamente.");
+        if (result.errorMessage) return result;
+        if (typeof result.data !== "string" || !result.data) return { errorMessage: "Não foi possível confirmar o registro da diária. Atualize a tela antes de tentar novamente." };
+        return {};
+      }
       const balance = charge ? realBillingBalance(charge, realProfessorPayments) : 0n;
       if (!charge || charge.status !== "aberta" || balance <= 0n ||
           !["Pix", "Dinheiro", "Transferência", "Outro"].includes(type) ||
@@ -11029,7 +11396,7 @@ document.addEventListener("click", (event) => {
   const retryHome = target.closest("[data-real-home-retry]");
   if (retryHome) {
     if (currentScreen !== "home" ||
-        !(isRealActiveProfessor() || isRealActiveStudent() || isRealActiveInstructor())) return;
+        !(isRealActiveProfessor() || hasRealStudentAccess() || isRealActiveInstructor())) return;
     const control = retryHome.closest(".student-action-control");
     if (!control) return;
     runButtonAction(retryHome, {
@@ -11132,7 +11499,7 @@ document.addEventListener("click", (event) => {
         data = { alunos: students };
         filename = "tatame-alunos";
       } else if (action === "student-data") {
-        if (!isRealActiveStudent() || currentScreen !== "student-payments" ||
+        if (!hasRealStudentAccess() || currentScreen !== "student-payments" ||
             realStudentPaymentsState !== "found") {
           return { errorMessage: "Carregue seus pagamentos antes de exportar." };
         }
@@ -11153,6 +11520,44 @@ document.addEventListener("click", (event) => {
       }
 
       window.exportarDados(data, filename);
+    });
+    return;
+  }
+
+  const retryAdmStudentAccess = target.closest("[data-real-adm-student-access-retry]");
+  if (retryAdmStudentAccess) {
+    runButtonAction(retryAdmStudentAccess, {
+      feedback: document.querySelector("#real-adm-student-access-retry-error"),
+      announcement: document.querySelector("#real-adm-student-access-retry-status"),
+      buttons: [retryAdmStudentAccess],
+      loadingText: "Verificando...",
+      loadingMessage: "Verificando seu vínculo com um Professor.",
+      successMessage: "Verificação concluída.",
+      errorMessage: "Não foi possível verificar o vínculo. Tente novamente.",
+      successDelay: 0
+    }, async () => {
+      const userId = realUser && realUser.id;
+      const verified = await loadRealAdmStudentAccess(userId);
+      if (!verified) return { errorMessage: realAdmStudentAccessNotice || "Não foi possível verificar o vínculo. Tente novamente." };
+      renderNavigation();
+      renderUserPanelTutorialTopics();
+      const message = document.querySelector("#real-adm-student-access-message");
+      const notice = message && message.closest(".notice");
+      if (message) {
+        message.textContent = realAdmStudentAccess
+          ? "Seu acesso de Aluno está ativo. As telas e recursos estão disponíveis na navegação."
+          : "O vínculo ativo com um Professor ainda não foi encontrado.";
+      }
+      if (notice) {
+        notice.className = "notice notice--info";
+        message.setAttribute("role", "status");
+        message.setAttribute("aria-live", "polite");
+      }
+      return {
+        successMessage: realAdmStudentAccess
+          ? "Acesso de Aluno liberado."
+          : "Verificação concluída; o vínculo ativo ainda não foi encontrado."
+      };
     });
     return;
   }
@@ -11178,7 +11583,7 @@ document.addEventListener("click", (event) => {
   const receiptButton = target.closest("[data-real-payment-receipt]");
   if (receiptButton) {
     const professorView = currentScreen === "payment-review" && isRealActiveProfessor();
-    const studentView = currentScreen === "student-payments" && isRealActiveStudent();
+    const studentView = currentScreen === "student-payments" && hasRealStudentAccess();
     if (!professorView && !studentView) return;
     const chargeId = receiptButton.dataset.realPaymentReceipt;
     const control = receiptButton.closest(".student-action-control");
@@ -11214,7 +11619,7 @@ document.addEventListener("click", (event) => {
 
   if (target.closest("[data-real-payment-receipt-back]")) {
     if (!(isRealActiveProfessor() && currentScreen === "payment-review") &&
-        !(isRealActiveStudent() && currentScreen === "student-payments")) return;
+        !(hasRealStudentAccess() && currentScreen === "student-payments")) return;
     realPaymentReceiptChargeId = "";
     screenContent.innerHTML = currentScreen === "payment-review"
       ? renderRealProfessorPaymentsScreen()
@@ -11370,7 +11775,7 @@ document.addEventListener("click", (event) => {
 
   const retryProofButton = target.closest("[data-real-student-proof-upload]");
   if (retryProofButton) {
-    if (currentScreen !== "student-payments" || !isRealActiveStudent()) return;
+    if (currentScreen !== "student-payments" || !hasRealStudentAccess()) return;
     const paymentId = retryProofButton.dataset.realStudentProofUpload;
     const row = retryProofButton.closest(".student-proof-retry");
     const fileInput = row && row.querySelector('input[type="file"]');
