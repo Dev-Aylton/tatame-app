@@ -51,6 +51,10 @@ O app registra informações de cobrança e pagamento, mas não processa transa�
 - O parser de comprovantes usa arquivos locais de PDF.js e Tesseract.js no navegador. A leitura de imagens e PDFs não é enviada a um serviço externo de OCR; o Professor confere o comprovante e decide manualmente.
 - As alterações do banco são organizadas em migrations SQL em `supabase/migrations/`; não há migração automática durante a execução do app.
 
+### Exclusão de conta
+
+A exclusão de contas de aluno e instrutor é feita pela Edge Function `excluir-conta`, que valida a sessão, verifica registros compartilhados e usa a chave de serviço somente no servidor. Antes de habilitar o fluxo em produção, aplique manualmente `supabase/migrations/20261115_31_consentimentos_exclusao.sql`, publique a função e configure `SUPABASE_SERVICE_ROLE_KEY` como segredo no Supabase. Nunca coloque essa chave no app ou no repositório. Contas com vínculos ou registros compartilhados são preservadas e a exclusão é bloqueada.
+
 ![Leitura local de comprovante](docs/img/leitura-comprovante.gif)
 
 ## Decisões técnicas

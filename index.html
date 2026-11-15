@@ -154,9 +154,40 @@
         <p class="field-help" id="app-update-status" role="status" aria-live="polite"></p>
       </div>
     </div>
-    <details class="user-panel-risk">
-      <summary><span aria-hidden="true">⚠</span> Área de risco</summary>
-      <p data-real-only hidden>A exclusão de conta real ainda não está disponível.</p>
+    <details class="user-panel-risk" hidden>
+      <summary>
+        <span class="user-panel-risk-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.8 19a1.4 1.4 0 0 0 1.2 2h16a1.4 1.4 0 0 0 1.2-2L12 3Z"/><path d="M12 9v4m0 3h.01"/></svg>
+        </span>
+        <span class="user-panel-risk-title">
+          <strong>Zona de perigo</strong>
+          <small>Exclusão permanente de conta</small>
+        </span>
+        <span class="user-panel-risk-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div class="user-panel-risk-content">
+        <p>Excluir a conta remove seus dados próprios e encerra o acesso. A ação não pode ser desfeita.</p>
+        <p>Vínculos e registros compartilhados são preservados. Se houver dados que impeçam uma exclusão segura, a solicitação será bloqueada.</p>
+        <p class="user-panel-risk-availability" id="account-delete-availability">A exclusão está disponível apenas para contas de aluno e instrutor.</p>
+        <button class="button button--danger button--action user-panel-delete-trigger" type="button" data-open-account-delete hidden>
+          <span data-action-label>Excluir minha conta</span>
+        </button>
+        <div class="user-panel-risk-confirmation" id="account-delete-confirmation" hidden>
+          <p><strong>Confirme a exclusão</strong><br>Digite <strong>EXCLUIR</strong> para continuar. Registros que precisem ser preservados podem impedir a conclusão.</p>
+          <label class="field" for="account-delete-confirmation-text">
+            Digite EXCLUIR
+            <input id="account-delete-confirmation-text" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          </label>
+          <div class="user-panel-risk-actions">
+            <button class="button button--danger button--action" id="account-delete-submit" type="button" data-confirm-account-delete aria-describedby="account-delete-error account-delete-status" disabled>
+              <span data-action-label>Confirmar exclusão</span>
+            </button>
+            <button class="button button--quiet" type="button" data-cancel-account-delete>Cancelar</button>
+          </div>
+          <p class="login-action-error" id="account-delete-error" role="alert"></p>
+          <p class="field-help" id="account-delete-status" role="status" aria-live="polite"></p>
+        </div>
+      </div>
     </details>
   </dialog>
 
