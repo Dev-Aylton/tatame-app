@@ -168,7 +168,7 @@ const tutorialStepsByRole = {
     ["training-board", "Mural e grade", "Consulte a grade, os avisos e as perguntas frequentes do Professor."],
     ["student-progress", "Feedbacks e metas", "Consulte os feedbacks e as metas vinculados à sua conta."],
     ["teacher-invites", "Professores convidados", "Pesquise por e-mail, filtre o status e navegue entre as páginas dos convites."],
-    ["academy", "Academias", "Cadastre os dados da academia e organize aulas por dia, Professor e horário. Para vincular Professores, use Professores convidados e escolha a academia."]
+    ["academy", "Academias", "Cadastre nome e telefone institucional da academia e organize aulas por dia, Professor e horário. O contato é exibido ao Adm, Professor, Instrutor e aos Alunos vinculados a Professor ativo daquela academia. Para vincular Professores, use Professores convidados e escolha a academia."]
   ],
   professor: [
     ["home", "Início", "Acompanhe pagamentos a confirmar, cobranças atrasadas e atalhos para as tarefas mais usadas. Em Preferências e Academia, ajuste o zoom e o enquadramento da foto na prévia antes de enviar."],
@@ -177,21 +177,21 @@ const tutorialStepsByRole = {
     ["monthly-charges", "Cobranças mensais", "Configure regras de cobrança; os campos de desconto e duração aparecem conforme a opção escolhida. Acompanhe cobranças e filtre as atrasadas."],
     ["delegated-lessons", "Aula delegada", "Delegue aulas somente a Instrutores vinculados e compartilhe o plano quando estiver pronto."],
     ["training-plan", "Plano semanal", "Crie e edite planos, marque treinos para remover e salve as alterações. Compartilhe o plano somente com o Instrutor vinculado."],
-    ["academy", "Academia", "Consulte as academias e os dias e horários de aula publicados pelo Adm."]
+    ["academy", "Academia", "Consulte os dados e a grade das academias; o telefone aparece quando cadastrado."]
   ],
   instrutor: [
     ["home", "Início", "Confira a aula delegada para hoje, quando houver, e acesse o treino compartilhado e os alunos vinculados. Em Preferências, ajuste o zoom e o enquadramento da foto na prévia antes de enviar."],
     ["instructor-class", "Treino compartilhado", "Consulte a aula compartilhada pelo Professor e registre se seguiu a orientação."],
     ["instructor-students", "Alunos vinculados", "Consulte somente os nomes e a faixa/grau atuais dos alunos vinculados ao seu Professor."],
     ["user-settings", "Excluir conta", "A exclusão remove seus dados próprios. Vínculos e registros compartilhados são preservados; se houver dados relacionados que não possam ser mantidos sem sua conta, a exclusão será bloqueada."],
-    ["academy", "Academia", "Consulte as academias e os dias e horários de aula publicados pelo Adm."]
+    ["academy", "Academia", "Consulte os dados e a grade das academias; o telefone aparece quando cadastrado."]
   ],
   aluno: [
     ["home", "Início", "Consulte a situação das cobranças do mês e os atalhos para pagamentos, graduações e conversa. Se seu perfil puder enviar foto, ajuste o zoom e o enquadramento na prévia antes de aplicar; menores usam somente avatar."],
     ["student-payments", "Meus pagamentos", "Consulte cobranças e avise um pagamento. Se enviar comprovante, o Professor pode ler o valor automaticamente para ajudar na conferência; a decisão continua manual."],
     ["student-grades", "Minhas graduações", "Acompanhe sua faixa atual e o histórico registrado pelo Professor."],
     ["user-settings", "Excluir conta", "A exclusão remove seus dados próprios. Vínculos e registros compartilhados são preservados; se houver dados relacionados que não possam ser mantidos sem sua conta, a exclusão será bloqueada."],
-    ["academy", "Academia", "Consulte as academias e os dias e horários de aula publicados pelo Adm."]
+    ["academy", "Academia", "Consulte somente a academia do Professor ao qual seu perfil está vinculado, incluindo o telefone de contato quando cadastrado."]
   ]
 };
 const tutorialIllustrations = [
@@ -1189,7 +1189,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
       <ul>
         <li>e-mail da conta (login Google, ou e-mail e senha para Aluno e Instrutor);</li>
         <li>nome, papel, idade declarada (adulto ou menor de 18 anos) e vínculo com a academia;</li>
-        <li>nome da academia, grade semanal de aulas (dias e horários) e nome do Professor associado a cada aula; códigos e pedidos de vínculo, e vínculos entre Aluno e Professor;</li>
+        <li>nome e telefone institucional de contato da academia, grade semanal de aulas (dias e horários) e nome do Professor associado a cada aula; códigos e pedidos de vínculo, e vínculos entre Aluno e Professor;</li>
         <li>e-mail de Professor convidado e estado do convite; convites de Instrutor guardam o hash do token, datas e estado;</li>
         <li>nome e idade declarada de aluno sem conta;</li>
         <li>cobranças mensais: valor-base, vencimento, desconto, isenção (com motivo opcional de até 200 caracteres), estado e datas de envio;</li>
@@ -1200,7 +1200,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
         <li>dados de graduação, avisos e conteúdos de treino compartilhados nas telas do app.</li>
       </ul>
       <p>No cadastro por e-mail e senha, o app coleta nome e e-mail. A senha é tratada pelo Supabase Auth e não é guardada pelo app.</p>
-      <p>A exportação baixa arquivos JSON ou CSV com dados já carregados e visíveis para a própria conta. Não é backup do servidor. Não pedimos data de nascimento, telefone nem WhatsApp. Pedimos que não escreva dados sensíveis no motivo da isenção.</p>
+      <p>A exportação baixa arquivos JSON ou CSV com dados já carregados e visíveis para a própria conta. Não é backup do servidor. O telefone cadastrado pelo Adm é o contato institucional da academia, não o telefone pessoal do Aluno. Não pedimos data de nascimento nem WhatsApp. Pedimos que não escreva dados sensíveis no motivo da isenção.</p>
       <p>O Aluno pode anexar opcionalmente ao aviso de pagamento um comprovante JPG, PNG ou PDF de até 10 MiB. Enquanto o arquivo está ativo e o pagamento aguarda decisão, ele fica acessível somente ao Aluno autor e ao Professor vinculado. Ao confirmar ou rejeitar, o app solicita a remoção do arquivo do Storage. Também tenta remover arquivos após 30 dias sem decisão; o aviso e os registros do pagamento permanecem.</p>
       <p>Ao escolher “Ler valor”, o Professor pode analisar o comprovante no próprio navegador e comparar o valor identificado com o aviso do Aluno e o saldo da cobrança. O arquivo não é enviado a serviços externos de OCR; o resultado fica apenas na tela durante a revisão, não é salvo e não confirma o pagamento automaticamente. O Professor confere o comprovante e o recebimento no próprio banco antes de decidir.</p>
     </section>
@@ -1209,7 +1209,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
       <${headingTag}>2. Compartilhamento</${headingTag}>
       <p>O acesso depende do papel e dos vínculos:</p>
       <ul>
-        <li>todos os perfis autenticados podem consultar o nome das academias e as grades de aulas publicadas pelo Adm, com os dias, horários e nomes dos Professores;</li>
+        <li>Adm, Professor e Instrutor podem consultar as academias e suas grades; cada Aluno consulta somente a academia do Professor ativo ao qual está vinculado. O telefone institucional, quando cadastrado, fica disponível aos mesmos perfis autorizados daquela academia;</li>
         <li>o Professor vê os Alunos vinculados a ele, suas cobranças e seus pagamentos;</li>
         <li>o Aluno vê apenas as cobranças que o Professor enviou a ele;</li>
         <li>o Instrutor vê apenas os dados de alunos e conteúdos compartilhados com ele; não vê pagamentos, notas privadas, feedbacks ou metas;</li>
@@ -1232,7 +1232,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
         <li>Aluno adulto e Instrutor: veem a própria foto e a do Professor vinculado; o Professor vinculado pode ver a foto deles;</li>
         <li>Professor: vê a própria foto; a foto dele fica visível aos Alunos e Instrutores vinculados e ao Adm;</li>
         <li>Aluno menor ou sem idade declarada: não tem foto de pessoa e usa avatar; pode ver a foto do Professor vinculado;</li>
-        <li>foto da academia: JPG ou PNG de até 5 MiB, visível a todos os perfis autenticados.</li>
+        <li>foto da academia: JPG ou PNG de até 5 MiB, visível ao Adm, Professor e Instrutor, e aos Alunos vinculados a um Professor ativo daquela academia.</li>
       </ul>
       <p>Quando não há uma foto de pessoa visível, o app mostra o avatar escolhido nas Preferências: masculino ou feminino. O padrão é masculino. As imagens dos avatares são arquivos locais; a escolha é guardada no perfil. Um novo envio aceito substitui a foto anterior. Quem pode enviar foto de perfil também pode solicitar sua remoção nas Preferências, após confirmação; o app solicita a remoção do arquivo e do registro e informa se a operação não for concluída.</p>
       <p>As regras acima são as decisões previstas para o produto. O acesso de Instrutor às fotos do Professor e o acesso do Professor às fotos de Instrutor ainda dependem de a política do banco reconhecer a relação de Instrutor; confirme essa configuração antes de considerar o acesso efetivo.</p>
@@ -6958,11 +6958,34 @@ function renderRealAdminDashboardScreen() {
     </div>`;
 }
 
+function validateRealAcademyPhone(form) {
+  const phone = form.querySelector('[name="telefone"]').value.trim();
+  if (!phone) return { value: null };
+  const digits = phone.replace(/\D/g, "");
+  if (
+    phone.length > 32 ||
+    !/^\+?[0-9(). -]+$/.test(phone) ||
+    digits.length < 7 ||
+    digits.length > 15
+  ) {
+    return { errorMessage: "Informe um telefone com 7 a 15 números; pode usar +, espaços, parênteses, pontos ou hífens." };
+  }
+  return { value: phone };
+}
+
+function renderRealAcademyPhone(phone) {
+  if (typeof phone !== "string" || !phone.trim()) return "";
+  const normalized = phone.trim();
+  const digits = normalized.replace(/\D/g, "");
+  const dialString = `${normalized.startsWith("+") ? "+" : ""}${digits}`;
+  return `<p><strong>Telefone:</strong> <a href="tel:${dialString}">${escapeHtml(normalized)}</a></p>`;
+}
+
 function renderRealAdminAcademyResult() {
   if (realCreatedAcademy) {
     const photoUrl = realAcademyPhotoUrls.get(realCreatedAcademy.id);
     const photoMessage = photoUrl ? "Foto da academia cadastrada." : "Sem foto da academia.";
-    return `<div class="notice notice--info"><strong>Academia lida do banco:</strong> ${escapeHtml(realCreatedAcademy.nome)}<br><small>${photoMessage}</small></div>
+    return `<div class="notice notice--info"><strong>Academia lida do banco:</strong> ${escapeHtml(realCreatedAcademy.nome)}${renderRealAcademyPhone(realCreatedAcademy.telefone)}<small>${photoMessage}</small></div>
       ${photoUrl ? `<img class="real-media-preview" src="${escapeHtml(photoUrl)}" alt="Foto da academia ${escapeHtml(realCreatedAcademy.nome)}">` : '<p class="field-help">Nenhuma foto da academia cadastrada.</p>'}`;
   }
   if (realCreatedAcademyId) {
@@ -6980,6 +7003,11 @@ function renderRealAdminAcademyScreen() {
           <div class="field field--wide">
             <label for="academy-name">Nome da academia</label>
             <input id="academy-name" name="name" aria-required="true" autocomplete="organization" placeholder="Ex.: Academia Central">
+          </div>
+          <div class="field field--wide">
+            <label for="academy-phone">Telefone de contato da academia (opcional)</label>
+            <input id="academy-phone" name="telefone" type="tel" inputmode="tel" autocomplete="off" maxlength="32" placeholder="Ex.: +55 (DD) NNNNN-NNNN">
+            <small class="field-help">Exibido ao Adm, Professor e Instrutor, e aos Alunos vinculados a um Professor ativo desta academia.</small>
           </div>
           <div class="field field--wide">
             <label for="academy-new-photo-file">Foto da academia (opcional)</label>
@@ -7007,7 +7035,14 @@ function renderRealAdminAcademyScreen() {
 }
 
 function renderRealAcademyDirectoryScreen() {
-  const title = heading("ACADEMIAS", "Academias", "Consulte as academias e a grade de aulas publicada pelo Adm.");
+  const isStudent = isRealActiveStudent();
+  const title = heading(
+    "ACADEMIAS",
+    "Academias",
+    isStudent
+      ? "Consulte a academia do Professor ao qual seu perfil está vinculado."
+      : "Consulte as academias e a grade de aulas publicada pelo Adm."
+  );
   if (realAcademyDirectoryState === "checking") {
     return `${title}<p class="field-help" role="status" aria-live="polite">Carregando academias e horários...</p>`;
   }
@@ -7023,6 +7058,9 @@ function renderRealAcademyDirectoryScreen() {
       </div>`;
   }
   if (!realAcademyDirectory.length) {
+    if (isStudent) {
+      return `${title}${emptyState("Nenhuma academia vinculada", "Vincule seu perfil a um Professor ativo para consultar os dados da academia.")}`;
+    }
     return `${title}${emptyState("Nenhuma academia cadastrada", "As academias cadastradas pelo Adm aparecerão aqui.")}`;
   }
 
@@ -7051,6 +7089,7 @@ function renderRealAcademyDirectoryScreen() {
         ${photoUrl
           ? `<img class="real-media-preview" src="${escapeHtml(photoUrl)}" alt="Foto da academia ${escapeHtml(academy.nome)}">`
           : '<p class="field-help">Foto da academia não cadastrada.</p>'}
+        ${renderRealAcademyPhone(academy.telefone)}
         <h3>Grade de aulas</h3>
         ${scheduleTable}
       `, "academy-directory-card");
@@ -7106,6 +7145,11 @@ function renderRealAdminAcademyRows(scheduleRows, activeProfessors) {
             <div class="field field--wide">
               <label for="real-academy-edit-name-${index}">Nome da academia</label>
               <input id="real-academy-edit-name-${index}" name="nome" value="${escapeHtml(academy.nome)}" autocomplete="organization" maxlength="80" required>
+            </div>
+            <div class="field field--wide">
+              <label for="real-academy-edit-phone-${index}">Telefone de contato da academia (opcional)</label>
+              <input id="real-academy-edit-phone-${index}" name="telefone" type="tel" inputmode="tel" autocomplete="off" maxlength="32" value="${escapeHtml(academy.telefone || "")}">
+              <small class="field-help">Exibido ao Adm, Professor e Instrutor, e aos Alunos vinculados a um Professor ativo desta academia.</small>
             </div>
             <div class="field field--wide">
               <label for="real-academy-edit-upload-${index}">Foto da academia</label>
@@ -7401,7 +7445,7 @@ async function loadRealAdminInvites() {
   let success = true;
   try {
     const { data, error } = await authClient.from("academias")
-      .select("id,nome,foto_fundo_url,versao_edicao")
+      .select("id,nome,telefone,foto_fundo_url,versao_edicao")
       .order("nome", { ascending: true });
     if (!isCurrentSession()) return false;
     if (error) {
@@ -7509,7 +7553,7 @@ async function loadRealAdminAcademiesForEdit() {
   try {
     const [academyResult, scheduleResult, professorResult] = await Promise.all([
       authClient.from("academias")
-        .select("id,nome,foto_fundo_url,versao_edicao")
+        .select("id,nome,telefone,foto_fundo_url,versao_edicao")
         .order("nome", { ascending: true }),
       authClient.from("academia_grade_aulas")
         .select("id,academia_id,professor_id,dia_semana,horario_inicio,horario_fim")
@@ -7572,7 +7616,7 @@ async function loadRealAcademyDirectory(renderResult = true) {
     if (!authClient || !userId) throw new Error("Entre com sua conta para consultar as academias.");
     const [academyResult, scheduleResult] = await Promise.all([
       authClient.from("academias")
-        .select("id,nome,foto_fundo_url")
+        .select("id,nome,telefone,foto_fundo_url")
         .order("nome", { ascending: true }),
       authClient.rpc("listar_grade_academias", { p_academia_id: null })
     ]);
@@ -7617,7 +7661,7 @@ async function loadRealAdminManagement() {
   }
   try {
     const { data, error } = await authClient.from("academias")
-      .select("id,nome,foto_fundo_url,versao_edicao")
+      .select("id,nome,telefone,foto_fundo_url,versao_edicao")
       .order("nome", { ascending: true });
     if (!isCurrentSession()) return false;
     if (error) {
@@ -7745,6 +7789,7 @@ function realAdminAcademyRpcMessage(code) {
     nao_autenticado: "Sua sessão real não está ativa. Entre com a conta Google e tente novamente.",
     sem_permissao: "Esta ação está disponível somente para uma conta Adm ativa.",
     nome_invalido: "Informe um nome com 2 a 80 caracteres.",
+    telefone_invalido: "Informe um telefone com 7 a 15 números; pode usar +, espaços, parênteses, pontos ou hífens.",
     academia_nao_encontrada: "A academia não foi encontrada. Atualize a tela e tente novamente.",
     conflito_versao: "A academia foi alterada por outra operação. Recarregue a tela e aplique suas mudanças novamente."
   }[code] || "Não foi possível atualizar a academia. Tente novamente.";
@@ -7791,10 +7836,12 @@ function handleRealAdminAcademySubmit(form) {
       const name = form.querySelector("#academy-name").value.trim();
       const nameLength = Array.from(name).length;
       if (nameLength < 2 || nameLength > 80) return { errorMessage: "Informe um nome com 2 a 80 caracteres." };
+      const phoneResult = validateRealAcademyPhone(form);
+      if (phoneResult.errorMessage) return phoneResult;
       realCreatedAcademy = null;
       try {
         const { data, error } = await authClient.from("academias")
-          .insert({ nome: name, foto_fundo_url: null })
+          .insert({ nome: name, telefone: phoneResult.value, foto_fundo_url: null })
           .select("id")
           .single();
         if (error) {
@@ -7823,7 +7870,7 @@ function handleRealAdminAcademySubmit(form) {
 
     try {
       const { data, error } = await authClient.from("academias")
-        .select("id,nome,foto_fundo_url")
+        .select("id,nome,telefone,foto_fundo_url")
         .eq("id", realCreatedAcademyId)
         .single();
       if (error) {
@@ -7848,6 +7895,7 @@ function handleRealAdminAcademySubmit(form) {
 function handleRealAdminAcademyEditSubmit(form) {
   const button = form.querySelector("[data-real-academy-save]");
   const nameInput = form.querySelector('[name="nome"]');
+  const phoneInput = form.querySelector('[name="telefone"]');
   const name = nameInput.value.trim();
   const nameLength = Array.from(name).length;
   const photoUrl = form.dataset.academyPhotoUrl || null;
@@ -7855,7 +7903,7 @@ function handleRealAdminAcademyEditSubmit(form) {
   runButtonAction(button, {
     feedback: form.querySelector('[role="alert"]'),
     announcement: form.querySelector('[role="status"]'),
-    buttons: [button, nameInput],
+    buttons: [button, nameInput, phoneInput],
     loadingText: "Salvando...",
     loadingMessage: "Atualizando os dados da academia no banco.",
     successMessage: "Academia atualizada no banco.",
@@ -7866,12 +7914,15 @@ function handleRealAdminAcademyEditSubmit(form) {
     const guardError = realAdminGuardError();
     if (guardError) return { errorMessage: guardError };
     if (nameLength < 2 || nameLength > 80) return { errorMessage: "Informe um nome com 2 a 80 caracteres." };
+    const phoneResult = validateRealAcademyPhone(form);
+    if (phoneResult.errorMessage) return phoneResult;
     if (!Number.isSafeInteger(version) || version < 0) return { errorMessage: "Não foi possível verificar a versão atual. Recarregue a tela." };
     try {
       const { data, error } = await authClient.rpc("atualizar_academia", {
         p_academia_id: form.dataset.academyId,
         p_nome: name,
         p_foto_fundo_url: photoUrl,
+        p_telefone: phoneResult.value,
         p_versao_esperada: version
       });
       if (error) {

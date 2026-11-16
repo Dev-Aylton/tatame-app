@@ -499,12 +499,12 @@ window.CASOS_ACEITE_F1 = [
   {
     id: "F1-ACAD-01",
     area: "Academia",
-    titulo: "Adm cadastra academia e grade visível aos usuários",
+    titulo: "Adm cadastra academia e controla a visibilidade dos dados",
     perfil: "Adm, Professor, Instrutor e Aluno",
-    regras: "Somente Adm cadastra e edita; perfis autenticados consultam academias e grade; vários Professores por academia",
-    precondicoes: "Contas fictícias dos quatro perfis, duas academias e Professores convidados para uma delas.",
-    passos: ["Como Adm, cadastrar uma academia com nome e foto opcional.", "Convidar mais de um Professor para a mesma academia e confirmar a aceitação com contas fictícias.", "Como Adm, cadastrar horários em dias diferentes e associar cada linha ao Professor correspondente; remover um horário.", "Como Adm, Professor, Instrutor e Aluno autenticados, abrir Academia e conferir que nome, foto e grade são exibidos sem controles de edição para não-Adm.", "Conferir que a grade antiga de Mural e grade continua independente e que perfis não autenticados não acessam a listagem."],
-    esperado: "O Adm administra nome, foto e grade; vários Professores ativos podem ser vinculados à mesma academia e associados a horários. Todos os perfis autenticados consultam as academias e a grade, sem poder alterá-las. Mural e grade permanece inalterado."
+    regras: "Somente Adm cadastra e edita; Alunos consultam somente a academia de seu Professor ativo; vários Professores podem pertencer à academia",
+    precondicoes: "Contas fictícias dos quatro perfis, duas academias, Professores convidados para uma delas, e Alunos fictícios vinculados e sem vínculo.",
+    passos: ["Como Adm, cadastrar uma academia com nome, telefone institucional fictício e foto opcional.", "Convidar mais de um Professor para a mesma academia e confirmar a aceitação com contas fictícias.", "Como Adm, cadastrar horários em dias diferentes e associar cada linha ao Professor correspondente; remover um horário.", "Como Adm, Professor, Instrutor e Aluno vinculado, abrir Academia e conferir nome, telefone (se cadastrado), foto e grade.", "Como Aluno sem vínculo, abrir Academia e tentar consultar academias, grade, metadados da foto e arquivo de foto por acesso direto.", "Conferir que a grade antiga de Mural e grade continua independente e que perfis não autenticados não acessam a listagem."],
+    esperado: "O Adm administra nome, telefone institucional, foto e grade; vários Professores ativos podem ser vinculados à mesma academia e associados a horários. Adm, Professor e Instrutor consultam academias; cada Aluno consulta somente a academia de um Professor ativo ao qual está vinculado. Alunos sem vínculo não acessam nome, telefone, grade ou fotos. Mural e grade permanece inalterado."
   },
   {
     id: "F1-ACAD-02",
@@ -514,8 +514,19 @@ window.CASOS_ACEITE_F1 = [
     perfil: "Adm",
     regras: "Somente Adm edita; atualizações devem refletir nos dados exibidos da academia.",
     precondicoes: "O preview local está aberto no perfil Adm e contém uma academia e um Professor de demonstração.",
-    passos: ["Abrir Academia e alterar o nome da academia de demonstração.", "Salvar as alterações.", "Abrir o Painel do Adm e conferir o novo nome na lista de academias e junto ao Professor.", "Voltar a Academia e confirmar que o nome salvo continua preenchido."],
-    esperado: "A edição é salva sem erro, o novo nome aparece de forma consistente nas telas do Adm e permanece ao reabrir a edição. Nenhum dado real é usado."
+    passos: ["Abrir Academia e alterar o nome da academia de demonstração e o telefone institucional usando apenas dados fictícios.", "Salvar as alterações.", "Abrir o Painel do Adm e conferir o novo nome na lista de academias e junto ao Professor.", "Voltar a Academia e confirmar que o nome e o telefone salvos continuam preenchidos; apagar o telefone e salvar para testar sua remoção."],
+    esperado: "A edição é salva sem erro, nome e telefone aparecem de forma consistente nas telas do Adm e permanecem ao reabrir a edição; o telefone pode ser removido. Nenhum dado real é usado."
+  },
+  {
+    id: "F1-ACAD-03",
+    fase: "F1",
+    area: "Academia",
+    titulo: "Aluno sem vínculo não consulta dados ou fotos da academia",
+    perfil: "Aluno vinculado e Aluno sem vínculo",
+    regras: "Visibilidade de academias, grade, telefone e fotos depende do vínculo ativo com Professor da academia.",
+    precondicoes: "Contas fictícias de aluno vinculado e sem vínculo; academia fictícia com telefone, foto e grade cadastrados.",
+    passos: ["Como Aluno vinculado a Professor ativo da academia, abrir Academia e conferir nome, telefone, foto e grade.", "Como Aluno sem vínculo, abrir a mesma tela.", "Como Aluno sem vínculo, tentar consultar diretamente academias, academia_grade_aulas, academias_fotos, Storage e listar_grade_academias para a academia fictícia."],
+    esperado: "O Aluno vinculado vê os dados e a foto da própria academia; o Aluno sem vínculo não recebe registros da academia, grade, metadados, foto nem resultados da RPC."
   },
   {
     id: "F1-AVATAR-01",
@@ -524,8 +535,8 @@ window.CASOS_ACEITE_F1 = [
     perfil: "Adm, Professor, Instrutor, Aluno e aluno sem registro",
     regras: "Foto própria e de vinculados conforme papel e idade; menor ou idade não declarada usa avatar",
     precondicoes: "Contas e alunos fictícios.",
-    passos: ["No primeiro acesso, declarar adulto, menor de idade ou idade não declarada, sem solicitar data de nascimento; para adulto, aceitar ou recusar o consentimento com texto provisório.", "Conferir que recusa mantém avatar e que menor ou idade não declarada não tem controle para enviar foto.", "Como Aluno adulto, enviar e substituir a foto própria; conferir leitura pelo próprio Aluno e pelo Professor vinculado, e bloqueio para Professor sem vínculo, outro Aluno, Instrutor e Adm.", "Como Instrutor, enviar a foto própria; conferir leitura pelo próprio Instrutor e pelo Professor vinculado, e bloqueio para outros Instrutores e perfis sem vínculo.", "Como Adm, enviar a foto própria e conferir que somente o próprio Adm consegue lê-la.", "Como Professor, enviar a foto própria e conferir leitura pelo próprio, pelo Adm e por Alunos/Instrutores vinculados; bloquear perfis sem vínculo.", "Conferir que menor ou idade não declarada permanece com avatar e que a foto da academia pode ser lida por todos os perfis autenticados."],
-    esperado: "A declaração de idade não solicita data de nascimento. Aluno adulto e Instrutor têm foto visível apenas a si mesmos e ao Professor vinculado; Adm vê somente a própria foto; foto do Professor é visível ao próprio, ao Adm e a perfis vinculados; fotos de academia são visíveis a todos os perfis autenticados. Menores e idade não declarada usam somente avatar."
+    passos: ["No primeiro acesso, declarar adulto, menor de idade ou idade não declarada, sem solicitar data de nascimento; para adulto, aceitar ou recusar o consentimento com texto provisório.", "Conferir que recusa mantém avatar e que menor ou idade não declarada não tem controle para enviar foto.", "Como Aluno adulto, enviar e substituir a foto própria; conferir leitura pelo próprio Aluno e pelo Professor vinculado, e bloqueio para Professor sem vínculo, outro Aluno, Instrutor e Adm.", "Como Instrutor, enviar a foto própria; conferir leitura pelo próprio Instrutor e pelo Professor vinculado, e bloqueio para outros Instrutores e perfis sem vínculo.", "Como Adm, enviar a foto própria e conferir que somente o próprio Adm consegue lê-la.", "Como Professor, enviar a foto própria e conferir leitura pelo próprio, pelo Adm e por Alunos/Instrutores vinculados; bloquear perfis sem vínculo.", "Conferir que menor ou idade não declarada permanece com avatar; a foto da academia só pode ser lida pelo Adm, Professor, Instrutor e Aluno vinculado a Professor ativo daquela academia."],
+    esperado: "A declaração de idade não solicita data de nascimento. Aluno adulto e Instrutor têm foto visível apenas a si mesmos e ao Professor vinculado; Adm vê somente a própria foto; foto do Professor é visível ao próprio, ao Adm e a perfis vinculados; fotos de academia são visíveis ao Adm, Professor, Instrutor e Alunos vinculados a Professor ativo daquela academia. Menores e idade não declarada usam somente avatar."
   },
   {
     id: "F1-ACC-08",
