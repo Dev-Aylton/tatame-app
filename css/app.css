@@ -4596,6 +4596,29 @@ body[data-theme="light"] .button--primary {
     padding-left: max(12px, env(safe-area-inset-left));
   }
 
+  .conversation-heading {
+    flex-wrap: wrap;
+  }
+
+  .conversation-heading > div {
+    min-width: 0;
+  }
+
+  .conversation-heading > .student-action-control {
+    flex: 1 1 100%;
+    align-items: flex-start;
+    margin-block-start: 0;
+  }
+
+  .chat-bubble {
+    max-width: calc(100% - 58px);
+  }
+
+  .chat-message-options {
+    max-width: 50px;
+    overflow-wrap: anywhere;
+  }
+
   .panel-card {
     padding: 16px;
   }

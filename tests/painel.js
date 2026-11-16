@@ -35,7 +35,7 @@ const checks = [
     detail: "Nenhuma especificação aparece como teste funcional executado ou aprovado.",
     run() {
       return document.querySelector("#executed-count")?.textContent.trim() === "0" &&
-        document.querySelector("#case-status")?.textContent.includes("AGUARDAM IMPLEMENTAÇÃO") &&
+        document.querySelector("#case-status")?.textContent.includes("AGUARDAM EXECUÇÃO") &&
         Array.isArray(cases) &&
         caseList.children.length === cases.length &&
         [...caseList.querySelectorAll(".case-status")].every((status) =>

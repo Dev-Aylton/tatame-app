@@ -4,6 +4,7 @@ Aplicação web instalável para academias de Jiu-Jitsu organizarem aulas, vínc
 
 **Repositório:** [URL do repositório]
 **Demonstração:** [URL da demonstração]
+**Versão do app:** 5.26
 
 ![Painel administrativo](docs/img/painel-administrativo.png)
 
@@ -53,7 +54,7 @@ O app registra informações de cobrança e pagamento, mas não processa transa�
 
 ### Exclusão de conta
 
-A exclusão de contas de aluno e instrutor é feita pela Edge Function `excluir-conta`, que valida a sessão, verifica registros compartilhados e usa a chave de serviço somente no servidor. Antes de habilitar o fluxo em produção, aplique manualmente `supabase/migrations/20261115_31_consentimentos_exclusao.sql`, publique a função e configure `SUPABASE_SERVICE_ROLE_KEY` como segredo no Supabase. Nunca coloque essa chave no app ou no repositório. Contas com vínculos ou registros compartilhados são preservadas e a exclusão é bloqueada.
+A exclusão de contas de aluno e instrutor é feita pela Edge Function `excluir-conta`, que valida a sessão, verifica registros compartilhados e usa a chave de serviço somente no servidor. O fluxo depende das migrations `supabase/migrations/20261115_31_consentimentos_exclusao.sql` e `supabase/migrations/20261118_40_consentimento_exclusao_conta.sql`; antes de habilitá-lo, confira que ambas foram aplicadas, publique a função e configure `SUPABASE_SERVICE_ROLE_KEY` como segredo no Supabase. Nunca coloque essa chave no app ou no repositório. Contas com vínculos ou registros compartilhados são preservadas e a exclusão é bloqueada.
 
 ![Leitura local de comprovante](docs/img/leitura-comprovante.gif)
 

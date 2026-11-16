@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "5.25";
+const APP_VERSION = "5.26";
 const DEFAULT_PERSON_AVATAR_SRC = "assets/avatars/avatar-masculino.jpg";
 const FEMALE_PERSON_AVATAR_SRC = "assets/avatars/avatar-feminino.jpg";
 const REAL_PERSON_AVATARS = {
@@ -2587,15 +2587,18 @@ const defaultPlanThemeSuggestions = [
   "Treino livre"
 ];
 
-function renderPlanItemEditor(item = {}, index = 0, periodType = "semanal", periodValue = "") {
+function renderPlanItemEditor(item = {}, index = 0, periodType = "semanal", periodValue = "", idPrefix = "create-plan-item") {
   const bounds = planPeriodBounds(periodType, periodValue);
   const date = item.data || (bounds && bounds.start) || "";
+  const dateId = `${idPrefix}-${index}-date`;
+  const themeId = `${idPrefix}-${index}-theme`;
+  const descriptionId = `${idPrefix}-${index}-description`;
   return `<section class="plan-item-editor" data-plan-item>
     <h4 class="plan-item-editor__title">Treino ${index + 1}</h4>
     <div class="form-grid">
-      <div class="field"><label>Data do treino</label><input type="date" name="data" value="${escapeHtml(date)}"${bounds ? ` min="${bounds.start}" max="${bounds.end}"` : ""} required></div>
-      <div class="field"><label>Tema</label><input name="tema" list="plan-theme-suggestions" aria-label="Tema" maxlength="80" placeholder="Escolha uma sugestão ou digite" value="${escapeHtml(item.tema || "")}" required minlength="1"><small class="field-help" data-feature-counter="tema">${(item.tema || "").length}/80 caracteres</small></div>
-      <div class="field field--wide"><label>Descrição</label><textarea name="descricao" aria-label="Descrição" maxlength="300" placeholder="Ex.: Sequência de posições para a guarda.">${escapeHtml(item.descricao || "")}</textarea><small class="field-help" data-feature-counter="descricao">${(item.descricao || "").length}/300 caracteres</small></div>
+      <div class="field"><label for="${escapeHtml(dateId)}">Data do treino</label><input id="${escapeHtml(dateId)}" type="date" name="data" value="${escapeHtml(date)}"${bounds ? ` min="${bounds.start}" max="${bounds.end}"` : ""} required></div>
+      <div class="field"><label for="${escapeHtml(themeId)}">Tema</label><input id="${escapeHtml(themeId)}" name="tema" list="plan-theme-suggestions" maxlength="80" placeholder="Escolha uma sugestão ou digite" value="${escapeHtml(item.tema || "")}" required minlength="1"><small class="field-help" data-feature-counter="tema">${(item.tema || "").length}/80 caracteres</small></div>
+      <div class="field field--wide"><label for="${escapeHtml(descriptionId)}">Descrição</label><textarea id="${escapeHtml(descriptionId)}" name="descricao" maxlength="300" placeholder="Ex.: Sequência de posições para a guarda.">${escapeHtml(item.descricao || "")}</textarea><small class="field-help" data-feature-counter="descricao">${(item.descricao || "").length}/300 caracteres</small></div>
     </div>
     <label class="plan-item-editor__remove"><input type="checkbox" name="remover"> Remover este treino ao salvar</label>
   </section>`;
@@ -2634,18 +2637,21 @@ function renderRealTrainingPlan() {
   const renderPlanPeriod = (plan) => plan.periodo_tipo === "mensal"
     ? `Mês de ${escapeHtml(new Date(`${plan.periodo_inicio}T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }))}`
     : `Semana de ${renderPlanDate(plan.periodo_inicio)}`;
-  const planRows = [...groupedPlans.values()].map((plan) => `
+  const planRows = [...groupedPlans.values()].map((plan) => {
+    const periodInputId = `feature-plan-period-${plan.id}`;
+    return `
     <article class="panel-card">
       <h3>${renderPlanPeriod(plan)}</h3>
       ${canEdit ? `<form data-feature-form="edit-plan" data-feature-id="${escapeHtml(plan.id)}" data-period-type="${escapeHtml(plan.periodo_tipo)}" data-period-start="${escapeHtml(plan.periodo_inicio)}">
-        <div class="field"><label>${plan.periodo_tipo === "mensal" ? "Mês do plano" : "Segunda-feira da semana"}</label><input type="${plan.periodo_tipo === "mensal" ? "month" : "date"}" name="periodo_inicio" value="${escapeHtml(plan.periodo_tipo === "mensal" ? plan.periodo_inicio.slice(0, 7) : plan.periodo_inicio)}" required></div>
-        ${(plan.itens.length ? plan.itens : [{}]).map((item, index) => renderPlanItemEditor(item, index, plan.periodo_tipo, plan.periodo_inicio)).join("")}
+        <div class="field"><label for="${escapeHtml(periodInputId)}">${plan.periodo_tipo === "mensal" ? "Mês do plano" : "Segunda-feira da semana"}</label><input id="${escapeHtml(periodInputId)}" type="${plan.periodo_tipo === "mensal" ? "month" : "date"}" name="periodo_inicio" value="${escapeHtml(plan.periodo_tipo === "mensal" ? plan.periodo_inicio.slice(0, 7) : plan.periodo_inicio)}" required></div>
+        ${(plan.itens.length ? plan.itens : [{}]).map((item, index) => renderPlanItemEditor(item, index, plan.periodo_tipo, plan.periodo_inicio, `edit-plan-item-${plan.id}`)).join("")}
         ${renderAddPlanItemButton(`edit-plan-item-${plan.id}`)}
         <label class="plan-sharing-control"><input type="checkbox" name="compartilhado_alunos" ${plan.compartilhado_alunos ? "checked" : ""}><span><strong>Compartilhar com alunos vinculados</strong><small>Os alunos poderão consultar este plano; o Instrutor recebe somente aulas delegadas.</small></span></label>
         ${featureSubmitButton("Salvar plano")}
       </form>` : `<ul class="plan-item-list">${plan.itens.map((item) => `<li><strong>${renderPlanDate(item.data)}</strong> · ${escapeHtml(item.tema)}${item.descricao ? ` — ${escapeHtml(item.descricao)}` : ""}</li>`).join("") || "<li>Sem treinos cadastrados.</li>"}</ul>`}
       ${canEdit ? `<p class="field-help">${plan.compartilhado_alunos ? "Compartilhado com alunos vinculados" : "Rascunho privado"}</p>` : ""}
-    </article>`).join("") || emptyState(
+    </article>`;
+  }).join("") || emptyState(
       canEdit ? "Nenhum plano de treino" : "Nenhum plano compartilhado",
       canEdit ? "Crie um plano semanal ou mensal para organizar os treinos." : "Os planos que o Professor compartilhar aparecerão aqui."
     );
@@ -11120,11 +11126,15 @@ document.addEventListener("click", (event) => {
           const periodType = periodTypeControl instanceof HTMLSelectElement
             ? periodTypeControl.value
             : form.dataset.periodType;
+          const idPrefix = form.dataset.featureId
+            ? `edit-plan-item-${form.dataset.featureId}`
+            : "create-plan-item";
           control.insertAdjacentHTML("beforebegin", renderPlanItemEditor(
             {},
             itemIndex,
             periodType,
-            periodInput ? periodInput.value : ""
+            periodInput ? periodInput.value : "",
+            idPrefix
           ));
           updatePlanPeriodBounds(form);
           return {};
