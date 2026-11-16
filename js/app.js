@@ -118,10 +118,10 @@ const navigationGroups = [
   },
   {
     title: "Planejamento",
-    roles: ["professor", "instructor"],
+    roles: ["professor", "student"],
     items: [
       ["delegated-lessons", "Aula delegada", "▣", ["professor"]],
-      ["training-plan", "Plano semanal", "▦"]
+      ["training-plan", "Planos de treino", "▦"]
     ]
   },
   {
@@ -159,37 +159,41 @@ const roleScreens = Object.fromEntries(
 const beltOrder = ["Branca", "Azul", "Roxa", "Marrom", "Preta", "Coral vermelha e preta", "Coral vermelha e branca", "Vermelha"];
 const tutorialStepsByRole = {
   adm: [
-    ["admin-home", "Painel do Adm", "Consulte os indicadores e selecione um cartão para abrir academias, Professores, alunos ou convites."],
+    ["admin-home", "Painel do Adm", "Consulte os indicadores, acompanhe o sino de notificações quando usar os recursos de Aluno e selecione um cartão para abrir academias, Professores, alunos ou convites."],
     ["admin-students", "Alunos", "Pesquise alunos ativos por nome ou faixa e navegue entre as páginas da lista."],
     ["home", "Início do Aluno", "Acompanhe o resumo da sua conta de Aluno e acesse os próximos passos."],
     ["student-payments", "Meus pagamentos", "Consulte suas cobranças e avise um pagamento ao Professor vinculado."],
     ["student-grades", "Minhas graduações", "Acompanhe sua faixa atual e o histórico registrado pelo Professor."],
-    ["student-chat", "Conversa com o Professor", "Envie e consulte mensagens da conversa vinculada à sua conta."],
+    ["student-chat", "Conversa com o Professor", "Envie mensagens, arquive a conversa e consulte avisos internos de mensagens novas."],
     ["training-board", "Mural e grade", "Consulte a grade, os avisos e as perguntas frequentes do Professor."],
     ["student-progress", "Feedbacks e metas", "Consulte os feedbacks e as metas vinculados à sua conta."],
     ["teacher-invites", "Professores convidados", "Pesquise por e-mail, filtre o status e navegue entre as páginas dos convites."],
     ["academy", "Academias", "Cadastre os dados da academia e organize aulas por dia, Professor e horário. Para vincular Professores, use Professores convidados e escolha a academia."]
   ],
   professor: [
-    ["home", "Início", "Acompanhe pagamentos a confirmar, cobranças atrasadas e atalhos para as tarefas mais usadas. Em Preferências e Academia, ajuste o zoom e o enquadramento da foto na prévia antes de enviar."],
+    ["home", "Início", "Acompanhe pagamentos a confirmar, cobranças atrasadas e atalhos para as tarefas mais usadas. O sino reúne mensagens não lidas e cobranças em atraso; abra um aviso para ir à conversa ou cobrança. Em Preferências e Academia, ajuste o zoom e o enquadramento da foto na prévia antes de enviar."],
     ["students", "Alunos", "Pesquise alunos vinculados ou sem conta, filtre pelo status e navegue entre as páginas das listas."],
     ["payment-review", "Pagamentos a confirmar", "Pesquise por aluno ou referência e filtre a origem ou o status para localizar pagamentos. Leia o comprovante, confira no seu banco e confirme ou rejeite manualmente. Registre recebimentos em dinheiro ou Pix. Para diárias avulsas, abra a autorização no painel da conta, marque a caixa e escolha Diária avulsa; você pode excluir lançamentos ou retirar a autorização, apagando todas as diárias."],
-    ["monthly-charges", "Cobranças mensais", "Configure regras de cobrança; os campos de desconto e duração aparecem conforme a opção escolhida. Acompanhe cobranças e filtre as atrasadas."],
+    ["monthly-charges", "Cobranças mensais", "Ao salvar uma regra ativa, a cobrança aplicável ao mês atual fica disponível ao Aluno. Crie cobranças de outros meses quando necessário e acompanhe atrasos."],
+    ["teacher-chat", "Conversas", "Converse com Alunos e Instrutores vinculados. Arquive conversas, apague suas mensagens para ambos ou oculte mensagens recebidas só para você; avisos internos indicam mensagens novas."],
     ["delegated-lessons", "Aula delegada", "Delegue aulas somente a Instrutores vinculados e compartilhe o plano quando estiver pronto."],
-    ["training-plan", "Plano semanal", "Crie e edite planos, marque treinos para remover e salve as alterações. Compartilhe o plano somente com o Instrutor vinculado."],
+    ["training-plan", "Planos de treino", "Crie planos semanais ou mensais, organize as datas e temas, e escolha se compartilha cada plano com os alunos vinculados. O Instrutor recebe apenas aulas delegadas."],
     ["academy", "Academia", "Consulte as academias e os dias e horários de aula publicados pelo Adm."]
   ],
   instrutor: [
-    ["home", "Início", "Confira a aula delegada para hoje, quando houver, e acesse o treino compartilhado e os alunos vinculados. Em Preferências, ajuste o zoom e o enquadramento da foto na prévia antes de enviar."],
+    ["home", "Início", "Confira a aula delegada para hoje, quando houver, e acesse o treino compartilhado e os alunos vinculados. O sino reúne mensagens novas do Professor; abra um aviso para ir à conversa. Em Preferências, ajuste o zoom e o enquadramento da foto na prévia antes de enviar."],
     ["instructor-class", "Treino compartilhado", "Consulte a aula compartilhada pelo Professor e registre se seguiu a orientação."],
+    ["instructor-chat", "Conversa com o Professor", "Converse diretamente com seu Professor. Arquive a conversa, apague suas mensagens para ambos ou oculte mensagens recebidas só para você; avisos internos indicam mensagens novas."],
     ["instructor-students", "Alunos vinculados", "Consulte somente os nomes e a faixa/grau atuais dos alunos vinculados ao seu Professor."],
     ["user-settings", "Excluir conta", "A exclusão remove seus dados próprios. Vínculos e registros compartilhados são preservados; se houver dados relacionados que não possam ser mantidos sem sua conta, a exclusão será bloqueada."],
     ["academy", "Academia", "Consulte as academias e os dias e horários de aula publicados pelo Adm."]
   ],
   aluno: [
-    ["home", "Início", "Consulte a situação das cobranças do mês e os atalhos para pagamentos, graduações e conversa. Se seu perfil puder enviar foto, ajuste o zoom e o enquadramento na prévia antes de aplicar; menores usam somente avatar."],
+    ["home", "Início", "Consulte a situação das cobranças do mês e os atalhos para pagamentos, graduações e conversa. O sino reúne mensagens não lidas e cobranças em atraso; abra um aviso para ir à conversa ou pagamento. Se seu perfil puder enviar foto, ajuste o zoom e o enquadramento na prévia antes de aplicar; menores usam somente avatar."],
     ["student-payments", "Meus pagamentos", "Consulte cobranças e avise um pagamento. Se enviar comprovante, o Professor pode ler o valor automaticamente para ajudar na conferência; a decisão continua manual."],
     ["student-grades", "Minhas graduações", "Acompanhe sua faixa atual e o histórico registrado pelo Professor."],
+    ["training-plan", "Planos de treino", "Consulte os planos semanais ou mensais que o Professor compartilhar com os alunos vinculados."],
+    ["student-chat", "Conversa com o Professor", "Envie mensagens, arquive a conversa e consulte avisos internos de mensagens novas. Você pode apagar suas mensagens para ambos ou ocultar mensagens recebidas só para você."],
     ["user-settings", "Excluir conta", "A exclusão remove seus dados próprios. Vínculos e registros compartilhados são preservados; se houver dados relacionados que não possam ser mantidos sem sua conta, a exclusão será bloqueada."],
     ["academy", "Academia", "Consulte as academias e os dias e horários de aula publicados pelo Adm."]
   ]
@@ -347,6 +351,20 @@ let realHomeProfileRequestSequence = 0;
 let authClient = null;
 let authCheckSequence = 0;
 let realSessionCacheGeneration = 0;
+let realConversationChannel = null;
+let realConversationChannelUserId = "";
+let realConversationChannelGeneration = 0;
+let realConversationUnreadRequestSequence = 0;
+let realUnreadConversationCount = 0;
+let realConversationNotificationErrorShown = false;
+let realNotifications = [];
+let realNotificationsState = "idle";
+let realNotificationsNotice = "";
+let realNotificationsRequestSequence = 0;
+let realNotificationsErrorShown = false;
+let realPendingConversationScrollId = "";
+const realPendingConversationNotifications = new Set();
+const realNotifiedConversationIds = new Set();
 let loginNotice = "";
 let realSignoutInProgress = false;
 let realPasswordRecoveryPending = false;
@@ -489,10 +507,20 @@ const photoCropError = document.querySelector("#photo-crop-error");
 const photoCropStatus = document.querySelector("#photo-crop-status");
 const photoCropConfirm = document.querySelector("#photo-crop-confirm");
 const photoCropMoveButtons = Array.from(document.querySelectorAll("[data-photo-crop-move]"));
+const notificationButton = document.querySelector("#notification-button");
+const notificationBadge = document.querySelector("#notification-badge");
+const notificationsDialog = document.querySelector("#notifications-dialog");
+const notificationsList = document.querySelector("#notifications-list");
 const photoCropPreparedFiles = new WeakMap();
 let activePhotoCrop = null;
 const userPanel = document.querySelector("#user-panel");
 let toastTimeout;
+
+notificationButton.addEventListener("click", openRealNotifications);
+notificationsDialog.addEventListener("click", handleRealNotificationsClick);
+notificationsDialog.addEventListener("close", () => {
+  notificationButton.setAttribute("aria-expanded", "false");
+});
 
 const navigationIconPaths = {
   home: '<path d="M3 11 12 4l9 7M5 10v10h14V10M9 20v-6h6v6"/>',
@@ -532,7 +560,7 @@ const mobileNavigationLabels = {
   "student-payments": "Pagamentos",
   "student-grades": "Graduações", "student-chat": "Conversa", students: "Alunos",
   "student-detail": "Ficha", "teacher-code": "Código", "instructor-class": "Aula",
-  "instructor-students": "Alunos vinculados", "training-board": "Mural", "training-plan": "Plano semanal",
+  "instructor-students": "Alunos vinculados", "training-board": "Mural", "training-plan": "Planos",
   "student-progress": "Metas",
   "admin-home": "Painel", "admin-students": "Alunos", "teacher-invites": "Convites", "role-management": "Papéis",
   "monthly-charges": "Cobranças",
@@ -578,9 +606,10 @@ function renderNavigation() {
     <section class="nav-group" aria-label="${group.title}">
       <h2 class="nav-group-title">${isRealStudentInstructor && group.title === "Treino" ? "Instrutor" : group.title}</h2>
       ${group.items.map(([id, title]) => `
-        <button class="nav-item" type="button" data-screen-target="${id}">
+        <button class="nav-item" type="button" data-screen-target="${id}" data-navigation-label="${escapeHtml(title)}" aria-label="${escapeHtml(navigationAccessibleLabel(id, title))}">
           <span class="nav-icon">${navigationIcon(id)}</span>
           <span>${title}</span>
+          ${navigationUnreadBadge(id)}
         </button>
       `).join("")}
     </section>
@@ -602,12 +631,17 @@ function renderMobileNavigation() {
         ? ["home", "payment-review", "monthly-charges", "students"]
             .filter(canViewScreen)
       : isRealStudentInstructor
-          ? ["home", "link-teacher", "student-payments", "instructor-class"].filter(canViewScreen)
+          ? ["home", "link-teacher", "student-payments", "training-plan", "instructor-class"].filter(canViewScreen)
         : isRealActiveStudent()
-          ? ["home", "student-payments", "student-grades", isUnlinkedStudent ? "link-teacher" : "student-chat"]
+            ? [
+                "home",
+                "student-payments",
+                "student-grades",
+                ...(isUnlinkedStudent ? ["link-teacher"] : ["training-plan", "student-chat"])
+              ]
               .filter(canViewScreen)
         : isRealActiveInstructor()
-          ? ["home", "instructor-class", "instructor-students", "training-plan"].filter(canViewScreen)
+          ? ["home", "instructor-class", "instructor-students"].filter(canViewScreen)
           : ["login", "instructor-invite"].filter(canViewScreen);
   mobileNavigation.style.setProperty("--mobile-nav-items", items.length + 1);
   mobileNavigation.innerHTML = `${items.map((id) => {
@@ -617,10 +651,544 @@ function renderMobileNavigation() {
       : id === "home" && isRealAdmSession()
         ? "Aluno"
       : mobileNavigationLabels[id] || info.title;
-    return `<button type="button" data-screen-target="${id}" aria-label="${info.title}"><span class="mobile-nav-icon">${navigationIcon(id)}</span><span class="mobile-nav-label">${label}</span></button>`;
-  }).join("")}<button type="button" data-open-sidebar aria-controls="app-sidebar" aria-expanded="false" aria-label="Abrir navegação completa"><span class="mobile-nav-icon">${navigationIcon("more")}</span><span class="mobile-nav-label">Mais</span></button>`;
+    return `<button type="button" data-screen-target="${id}" data-navigation-label="${escapeHtml(info.title)}" aria-label="${escapeHtml(navigationAccessibleLabel(id, info.title))}"><span class="mobile-nav-icon">${navigationIcon(id)}${navigationUnreadBadge(id)}</span><span class="mobile-nav-label">${label}</span></button>`;
+  }).join("")}<button type="button" data-open-sidebar data-navigation-label="Abrir navegação completa" aria-controls="app-sidebar" aria-expanded="false" aria-label="${escapeHtml(navigationAccessibleLabel("more", "Abrir navegação completa"))}"><span class="mobile-nav-icon">${navigationIcon("more")}${navigationUnreadBadge("more")}</span><span class="mobile-nav-label">Mais</span></button>`;
   updateToastPosition();
 }
+
+function navigationUnreadCount(id) {
+  if (id === "more") return realUnreadConversationCount;
+  return ["teacher-chat", "student-chat", "instructor-chat"].includes(id)
+    ? realUnreadConversationCount
+    : 0;
+}
+
+function navigationAccessibleLabel(id, label) {
+  const count = navigationUnreadCount(id);
+  return count ? `${label}, ${count} ${count === 1 ? "conversa não lida" : "conversas não lidas"}` : label;
+}
+
+function navigationUnreadBadge(id) {
+  const count = navigationUnreadCount(id);
+  if (!count) return "";
+  const visibleCount = count > 99 ? "99+" : String(count);
+  return `<span class="nav-unread-badge" aria-hidden="true">${visibleCount}</span>`;
+}
+
+function updateConversationUnreadBadges() {
+  document.querySelectorAll("[data-screen-target], [data-open-sidebar]").forEach((button) => {
+    const id = button.dataset.screenTarget || "more";
+    if (!["teacher-chat", "student-chat", "instructor-chat", "more"].includes(id)) return;
+    const baseLabel = button.dataset.navigationLabel || button.getAttribute("aria-label") || "Conversas";
+    button.setAttribute("aria-label", navigationAccessibleLabel(id, baseLabel));
+    const icon = button.querySelector(".nav-icon, .mobile-nav-icon");
+    if (!icon) return;
+    const badgeParent = icon.classList.contains("mobile-nav-icon") ? icon : button;
+    const previous = Array.from(badgeParent.children).find((child) =>
+      child.classList.contains("nav-unread-badge")
+    );
+    const count = navigationUnreadCount(id);
+    if (!count) {
+      if (previous) previous.remove();
+      return;
+    }
+    const badge = previous || document.createElement("span");
+    badge.className = "nav-unread-badge";
+    badge.setAttribute("aria-hidden", "true");
+    badge.textContent = count > 99 ? "99+" : String(count);
+    if (!previous) badgeParent.appendChild(badge);
+  });
+}
+
+function setRealUnreadConversationCount(count) {
+  realUnreadConversationCount = Number.isInteger(count) && count > 0 ? count : 0;
+  updateConversationUnreadBadges();
+}
+
+function canReceiveRealNotifications() {
+  return Boolean(realUser && realProfile && realProfile.id === realUser.id &&
+    (isRealActiveProfessor() || hasRealStudentAccess() || isRealActiveInstructor()));
+}
+
+function updateRealNotificationBell() {
+  const unreadCount = realNotifications.filter((item) =>
+    !item.lida_em && !item.dispensada_em
+  ).length;
+  const label = unreadCount
+    ? `Notificações, ${unreadCount} ${unreadCount === 1 ? "não lida" : "não lidas"}`
+    : "Notificações";
+  notificationButton.setAttribute("aria-label", label);
+  notificationBadge.hidden = unreadCount === 0;
+  notificationBadge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
+}
+
+function syncRealNotificationButton() {
+  const available = canReceiveRealNotifications();
+  notificationButton.hidden = !available;
+  if (!available && notificationsDialog.open) notificationsDialog.close();
+  if (!available) {
+    realNotifications = [];
+    realNotificationsState = "idle";
+    realNotificationsNotice = "";
+  }
+  updateRealNotificationBell();
+}
+
+function renderRealNotifications() {
+  if (!notificationsList) return;
+  if (realNotificationsState === "checking") {
+    notificationsList.innerHTML = '<div class="notifications-state" role="status" aria-live="polite">Carregando notificações...</div>';
+    return;
+  }
+  if (realNotificationsState === "error") {
+    notificationsList.innerHTML = `
+      <div class="notifications-state">
+        <p role="alert">${escapeHtml(realNotificationsNotice)}</p>
+        <div class="student-action-control">
+          <button class="button button--primary button--action" type="button" data-notifications-retry aria-describedby="notifications-retry-error notifications-retry-status"><span data-action-label>Tentar novamente</span></button>
+          <p class="login-action-error student-action-error" id="notifications-retry-error" role="alert"></p>
+          <p class="field-help" id="notifications-retry-status" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+  if (realNotificationsState !== "found") {
+    notificationsList.innerHTML = '<div class="notifications-state" role="status">Abra o sino para consultar seus avisos.</div>';
+    return;
+  }
+  if (!realNotifications.length) {
+    notificationsList.innerHTML = '<div class="notifications-state">Você não tem notificações pendentes.</div>';
+    return;
+  }
+
+  notificationsList.innerHTML = realNotifications.map((item) => {
+    const read = Boolean(item.lida_em);
+    const dismissed = Boolean(item.dispensada_em);
+    const body = item.tipo === "cobranca_atrasada"
+      ? `${item.mensagem} Vencimento ${realBillingDate(item.vencimento)} · Saldo ${formatRealBillingCents(item.saldo_centavos)}.`
+      : item.mensagem;
+    const stateLabel = dismissed ? "Dispensada" : read ? "Lida" : "Não lida";
+    return `
+      <article class="notification-card" data-notification-id="${escapeHtml(item.id)}" data-unread="${!read && !dismissed}">
+        <div class="notification-card-heading">
+          <span class="badge${!read && !dismissed ? " badge--amber" : ""}">${stateLabel}</span>
+        </div>
+        ${dismissed
+          ? `<strong>${escapeHtml(item.titulo)}</strong><p class="notification-card-copy">${escapeHtml(body)}</p>`
+          : `
+          <button class="button button--quiet button--action notification-open" type="button" data-notification-open aria-describedby="notification-error-${escapeHtml(item.id)} notification-status-${escapeHtml(item.id)}">
+            <strong>${escapeHtml(item.titulo)}</strong>
+            <span class="notification-card-copy">${escapeHtml(body)}</span>
+            <span class="field-help">Recebida em ${escapeHtml(realBillingTimestamp(item.criada_em))}</span>
+            <span data-action-label>Abrir aviso</span>
+          </button>
+          <div class="notification-card-actions">
+            ${read ? "" : `<button class="button button--quiet button--action" type="button" data-notification-action="lida" aria-describedby="notification-error-${escapeHtml(item.id)} notification-status-${escapeHtml(item.id)}"><span data-action-label>Marcar como lida</span></button>`}
+            <button class="button button--quiet button--action" type="button" data-notification-action="dispensada" aria-describedby="notification-error-${escapeHtml(item.id)} notification-status-${escapeHtml(item.id)}"><span data-action-label>Dispensar</span></button>
+          </div>
+          <p class="login-action-error student-action-error" id="notification-error-${escapeHtml(item.id)}" role="alert"></p>
+          <p class="field-help" id="notification-status-${escapeHtml(item.id)}" role="status" aria-live="polite"></p>
+        `}
+      </article>
+    `;
+  }).join("");
+}
+
+async function refreshRealNotifications(preservePanel = false) {
+  if (!authClient || !canReceiveRealNotifications()) return false;
+  const request = ++realNotificationsRequestSequence;
+  const sessionGeneration = realSessionCacheGeneration;
+  const userId = realUser.id;
+  const isCurrentRequest = () => request === realNotificationsRequestSequence &&
+    sessionGeneration === realSessionCacheGeneration &&
+    Boolean(realUser && realUser.id === userId);
+
+  if (realNotificationsState !== "found") {
+    realNotificationsState = "checking";
+    realNotificationsNotice = "";
+    if (!preservePanel) renderRealNotifications();
+  }
+
+  try {
+    const { data, error } = await authClient.rpc("listar_notificacoes_usuario");
+    if (error) throw error;
+    if (!Array.isArray(data) || data.some((item) =>
+      !item || typeof item.id !== "string" ||
+      !["mensagem", "cobranca_atrasada"].includes(item.tipo) ||
+      typeof item.titulo !== "string" || typeof item.mensagem !== "string" ||
+      typeof item.destino_id !== "string" ||
+      typeof item.criada_em !== "string" ||
+      (item.lida_em !== null && typeof item.lida_em !== "string") ||
+      (item.tipo === "mensagem" &&
+        !["teacher-chat", "student-chat", "instructor-chat"].includes(item.destino)) ||
+      (item.tipo === "cobranca_atrasada" &&
+        (!["monthly-charges", "student-payments"].includes(item.destino) ||
+         typeof item.vencimento !== "string" ||
+         !/^\d{4}-\d{2}-\d{2}$/.test(item.vencimento) ||
+         !/^\d+$/.test(String(item.saldo_centavos))))
+    )) {
+      throw new TypeError("Lista de notificações indisponível.");
+    }
+    if (!isCurrentRequest()) return false;
+    realNotifications = data;
+    realNotificationsState = "found";
+    realNotificationsNotice = "";
+    realNotificationsErrorShown = false;
+    updateRealNotificationBell();
+    if (!preservePanel) renderRealNotifications();
+    return true;
+  } catch (error) {
+    if (!isCurrentRequest()) return false;
+    logRealProfileSupabaseError("consultar notificações", error);
+    realNotificationsState = "error";
+    realNotificationsNotice = "Não foi possível carregar as notificações. Tente novamente.";
+    updateRealNotificationBell();
+    if (!preservePanel) renderRealNotifications();
+    if (!preservePanel && !realNotificationsErrorShown) {
+      showToast(realNotificationsNotice, "error");
+      realNotificationsErrorShown = true;
+    }
+    return false;
+  }
+}
+
+function openRealNotifications() {
+  if (!canReceiveRealNotifications()) return;
+  if (!notificationsDialog.open) notificationsDialog.showModal();
+  notificationButton.setAttribute("aria-expanded", "true");
+  renderRealNotifications();
+  void refreshRealNotifications();
+  notificationsDialog.querySelector("[data-close-notifications]").focus();
+}
+
+function closeRealNotifications() {
+  if (notificationsDialog.open) notificationsDialog.close();
+  notificationButton.focus();
+}
+
+async function updateRealNotificationState(notificationId, action) {
+  const { data, error } = await authClient.rpc("atualizar_estado_notificacao_usuario", {
+    p_notificacao_id: notificationId,
+    p_acao: action
+  });
+  if (error) throw error;
+  if (data !== true) throw new Error("Não foi possível atualizar este aviso.");
+}
+
+function notificationActionControls(card) {
+  return {
+    feedback: card.querySelector('[role="alert"]'),
+    announcement: card.querySelector('[role="status"]'),
+    buttons: Array.from(card.querySelectorAll("button"))
+  };
+}
+
+function handleRealNotificationsClick(event) {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (target.closest("[data-close-notifications]") || target === notificationsDialog) {
+    closeRealNotifications();
+    return;
+  }
+
+  const retryButton = target.closest("[data-notifications-retry]");
+  if (retryButton instanceof HTMLButtonElement) {
+    const control = retryButton.closest(".student-action-control");
+    if (!control) return;
+    void runButtonAction(retryButton, {
+      feedback: control.querySelector('[role="alert"]'),
+      announcement: control.querySelector('[role="status"]'),
+      buttons: [retryButton],
+      loadingText: "Consultando...",
+      loadingMessage: "Consultando notificações.",
+      successMessage: "Notificações atualizadas.",
+      errorMessage: "Não foi possível carregar as notificações. Tente novamente.",
+      afterSuccess: renderRealNotifications
+    }, async () => {
+      const loaded = await refreshRealNotifications(true);
+      return loaded ? {} : { errorMessage: realNotificationsNotice || "Não foi possível carregar as notificações." };
+    });
+    return;
+  }
+
+  const card = target.closest(".notification-card");
+  const notificationId = card && card.dataset.notificationId;
+  const item = notificationId
+    ? realNotifications.find((notification) => notification.id === notificationId)
+    : null;
+  if (!card || !item) return;
+
+  const openButton = target.closest("[data-notification-open]");
+  if (openButton instanceof HTMLButtonElement) {
+    const routeAllowed = new Set([
+      "teacher-chat", "student-chat", "instructor-chat", "monthly-charges", "student-payments"
+    ]);
+    if (!routeAllowed.has(item.destino)) return;
+    void runButtonAction(openButton, {
+      ...notificationActionControls(card),
+      loadingText: "Abrindo...",
+      loadingMessage: "Abrindo a tela deste aviso.",
+      successMessage: "Aviso aberto.",
+      successLabel: "✓ Abrindo",
+      successDelay: 500,
+      errorMessage: "Não foi possível abrir o aviso. Tente novamente.",
+      afterSuccess: () => {
+        closeRealNotifications();
+        if (["teacher-chat", "student-chat", "instructor-chat"].includes(item.destino)) {
+          realPendingConversationScrollId = item.destino_id;
+        }
+        renderScreen(item.destino);
+      }
+    }, async () => {
+      if (!item.lida_em) {
+        await updateRealNotificationState(item.id, "lida");
+        item.lida_em = new Date().toISOString();
+        updateRealNotificationBell();
+        if (item.tipo === "mensagem") void refreshRealConversationUnread();
+      }
+      return {};
+    });
+    return;
+  }
+
+  const actionButton = target.closest("[data-notification-action]");
+  if (!(actionButton instanceof HTMLButtonElement)) return;
+  const action = actionButton.dataset.notificationAction;
+  if (!["lida", "dispensada"].includes(action)) return;
+  void runButtonAction(actionButton, {
+    ...notificationActionControls(card),
+    loadingText: action === "lida" ? "Marcando..." : "Dispensando...",
+    loadingMessage: action === "lida" ? "Marcando a notificação como lida." : "Dispensando a notificação.",
+    successMessage: action === "lida" ? "Notificação marcada como lida." : "Notificação dispensada.",
+    errorMessage: action === "lida"
+      ? "Não foi possível marcar como lida. Tente novamente."
+      : "Não foi possível dispensar a notificação. Tente novamente."
+  }, async () => {
+    await updateRealNotificationState(item.id, action);
+    item[action === "lida" ? "lida_em" : "dispensada_em"] = new Date().toISOString();
+    updateRealNotificationBell();
+    if (action === "lida" && item.tipo === "mensagem") {
+      void refreshRealConversationUnread();
+    }
+    window.setTimeout(() => {
+      if (realUser) void refreshRealNotifications();
+    }, 3000);
+    return {};
+  });
+}
+
+function scrollToPendingRealConversation() {
+  if (!realPendingConversationScrollId) return;
+  const conversation = Array.from(screenContent.querySelectorAll("[data-real-conversation]"))
+    .find((item) => item.dataset.realConversation === realPendingConversationScrollId);
+  if (!conversation) return;
+  realPendingConversationScrollId = "";
+  conversation.setAttribute("tabindex", "-1");
+  conversation.scrollIntoView({
+    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    block: "start"
+  });
+  conversation.focus({ preventScroll: true });
+}
+
+async function refreshRealConversationUnread() {
+  if (!authClient || !realUser) return false;
+  const request = ++realConversationUnreadRequestSequence;
+  const channelGeneration = realConversationChannelGeneration;
+  const userId = realUser.id;
+  try {
+    const { data, error } = await authClient.rpc("resumo_conversas_nao_lidas");
+    if (error) throw error;
+    if (!Array.isArray(data)) throw new TypeError("Resumo indisponível.");
+    if (request !== realConversationUnreadRequestSequence ||
+        channelGeneration !== realConversationChannelGeneration ||
+        !realUser || realUser.id !== userId) return false;
+    const unreadRows = data.filter((row) =>
+      row && typeof row.conversa_id === "string" && Number(row.quantidade) > 0
+    );
+    const unreadIds = new Set(unreadRows.map((row) => row.conversa_id));
+    setRealUnreadConversationCount(unreadRows.length);
+    for (const id of realNotifiedConversationIds) {
+      if (!unreadIds.has(id)) realNotifiedConversationIds.delete(id);
+    }
+
+    const notifications = [];
+    for (const id of realPendingConversationNotifications) {
+      const row = unreadRows.find((item) => item.conversa_id === id);
+      if (row && !realNotifiedConversationIds.has(id)) {
+        notifications.push(row);
+        realNotifiedConversationIds.add(id);
+      }
+      realPendingConversationNotifications.delete(id);
+    }
+    if (notifications.length === 1) {
+      showToast(`Nova mensagem de ${notifications[0].outra_pessoa_nome || "uma pessoa vinculada"}. Abra Conversas.`);
+    } else if (notifications.length > 1) {
+      showToast(`Há mensagens novas em ${notifications.length} conversas. Abra Conversas.`);
+    }
+    realConversationNotificationErrorShown = false;
+    return true;
+  } catch (error) {
+    if (request !== realConversationUnreadRequestSequence ||
+        channelGeneration !== realConversationChannelGeneration ||
+        !realUser || realUser.id !== userId) return false;
+    logRealProfileSupabaseError("consultar avisos internos de conversas", error);
+    recordDiagnostic("Falha ao consultar avisos de conversas");
+    if (!realConversationNotificationErrorShown) {
+      showToast("Não foi possível atualizar os avisos de mensagens. Abra Conversas e tente novamente.", "error");
+      realConversationNotificationErrorShown = true;
+    }
+    return false;
+  }
+}
+
+function stopRealConversationNotifications() {
+  realConversationChannelGeneration += 1;
+  realConversationUnreadRequestSequence += 1;
+  realNotificationsRequestSequence += 1;
+  realConversationChannelUserId = "";
+  const channel = realConversationChannel;
+  realConversationChannel = null;
+  realPendingConversationNotifications.clear();
+  realNotifiedConversationIds.clear();
+  realPendingConversationScrollId = "";
+  realConversationNotificationErrorShown = false;
+  realNotifications = [];
+  realNotificationsState = "idle";
+  realNotificationsNotice = "";
+  realNotificationsErrorShown = false;
+  if (notificationsDialog.open) notificationsDialog.close();
+  syncRealNotificationButton();
+  setRealUnreadConversationCount(0);
+  if (!channel || !authClient) return;
+  try {
+    void authClient.removeChannel(channel).then((status) => {
+      if (status !== "ok") recordDiagnostic("Aviso de conversas não foi encerrado normalmente");
+    }).catch(() => {
+      recordDiagnostic("Falha ao encerrar aviso de conversas");
+    });
+  } catch {
+    recordDiagnostic("Falha ao encerrar aviso de conversas");
+  }
+}
+
+function startRealConversationNotifications() {
+  if (!authClient || !realUser ||
+      !(isRealActiveProfessor() || hasRealStudentAccess() || isRealActiveInstructor())) {
+    stopRealConversationNotifications();
+    return;
+  }
+  if (realConversationChannel && realConversationChannelUserId === realUser.id) {
+    void refreshRealConversationUnread();
+    void refreshRealNotifications();
+    return;
+  }
+  stopRealConversationNotifications();
+  const userId = realUser.id;
+  const channelGeneration = realConversationChannelGeneration;
+  realConversationChannelUserId = userId;
+  try {
+    const channel = authClient
+      .channel(`conversas-${userId}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "mensagens_professor"
+      }, (payload) => {
+        const message = payload && payload.new;
+        if (channelGeneration !== realConversationChannelGeneration ||
+            !realUser || realUser.id !== userId ||
+            !message || typeof message.conversa_id !== "string" ||
+            message.remetente_id === userId) return;
+        realPendingConversationNotifications.add(message.conversa_id);
+        void refreshRealConversationUnread();
+        void refreshRealNotifications();
+        if (["teacher-chat", "student-chat", "instructor-chat"].includes(currentScreen)) {
+          void reloadRealFeatureScreen();
+        }
+      })
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "mensagens_professor"
+      }, (payload) => {
+        const message = payload && payload.new;
+        if (channelGeneration !== realConversationChannelGeneration ||
+            !realUser || realUser.id !== userId ||
+            !message || typeof message.id !== "string" || !message.apagada_em) return;
+        void refreshRealConversationUnread();
+        void refreshRealNotifications();
+        if (["teacher-chat", "student-chat", "instructor-chat"].includes(currentScreen)) {
+          void reloadRealFeatureScreen();
+        }
+      })
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "cobrancas_mensais"
+      }, () => {
+        if (channelGeneration === realConversationChannelGeneration &&
+            realUser && realUser.id === userId) void refreshRealNotifications();
+      })
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "cobrancas_mensais"
+      }, () => {
+        if (channelGeneration === realConversationChannelGeneration &&
+            realUser && realUser.id === userId) void refreshRealNotifications();
+      })
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "pagamentos"
+      }, () => {
+        if (channelGeneration === realConversationChannelGeneration &&
+            realUser && realUser.id === userId) void refreshRealNotifications();
+      })
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "pagamentos"
+      }, () => {
+        if (channelGeneration === realConversationChannelGeneration &&
+            realUser && realUser.id === userId) void refreshRealNotifications();
+      })
+      .subscribe((status) => {
+        if (channelGeneration !== realConversationChannelGeneration ||
+            !realUser || realUser.id !== userId ||
+            !["CHANNEL_ERROR", "TIMED_OUT"].includes(status)) return;
+        recordDiagnostic("Falha na conexão dos avisos de conversas");
+        if (!realConversationNotificationErrorShown) {
+          showToast("Os avisos de mensagens estão temporariamente indisponíveis. Abra Conversas para atualizar.", "error");
+          realConversationNotificationErrorShown = true;
+        }
+      });
+    realConversationChannel = channel;
+    void refreshRealConversationUnread();
+    void refreshRealNotifications();
+  } catch (error) {
+    logRealProfileSupabaseError("ativar avisos internos de conversas", error);
+    recordDiagnostic("Falha ao ativar avisos de conversas");
+    showToast("Não foi possível ativar os avisos de mensagens. Abra Conversas para atualizar.", "error");
+    realConversationNotificationErrorShown = true;
+  }
+}
+
+window.addEventListener("focus", () => {
+  if (realUser) {
+    void refreshRealNotifications();
+    void refreshRealConversationUnread();
+  }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && realUser) {
+    void refreshRealNotifications();
+    void refreshRealConversationUnread();
+  }
+});
 
 function canViewScreen(id) {
   if (realPasswordRecoveryPending) return id === "password-recovery";
@@ -1196,7 +1764,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
         <li>pagamentos: o Aluno registra aviso como Dinheiro ou Comprovante; o Professor pode lançar recebimento como Pix, Dinheiro, Transferência ou Outro. O app guarda valor, estado, referência e datas correspondentes;</li>
         <li>diárias avulsas, se autorizadas pelo Professor: valor, tipo de recebimento, data e identificação do Professor, sem identificação do visitante;</li>
         <li>fotos de perfil e da academia enviadas, além de metadados como formato, tamanho e data de atualização; escolha do avatar de perfil;</li>
-        <li>notas privadas, feedbacks, metas e mensagens trocadas conforme os papéis e vínculos;</li>
+        <li>notas privadas, feedbacks, metas e mensagens trocadas conforme os papéis e vínculos; cada participante também tem estados individuais de leitura e arquivamento, além de marcadores de leitura e dispensa de notificações;</li>
         <li>dados de graduação, avisos e conteúdos de treino compartilhados nas telas do app.</li>
       </ul>
       <p>No cadastro por e-mail e senha, o app coleta nome e e-mail. A senha é tratada pelo Supabase Auth e não é guardada pelo app.</p>
@@ -1211,12 +1779,12 @@ function renderPrivacyDraftContent(headingTag = "h2") {
       <ul>
         <li>todos os perfis autenticados podem consultar o nome das academias e as grades de aulas publicadas pelo Adm, com os dias, horários e nomes dos Professores;</li>
         <li>o Professor vê os Alunos vinculados a ele, suas cobranças e seus pagamentos;</li>
-        <li>o Aluno vê apenas as cobranças que o Professor enviou a ele;</li>
+        <li>o Aluno vê as cobranças disponibilizadas pelo Professor, incluindo histórico não cancelado; regras ativas geram novas cobranças automaticamente;</li>
         <li>o Instrutor vê apenas os dados de alunos e conteúdos compartilhados com ele; não vê pagamentos, notas privadas, feedbacks ou metas;</li>
         <li>o Adm só acessa os recursos de Aluno quando possui acesso confirmado por vínculo ativo com um Professor; nesse caso, vê apenas os próprios dados.</li>
       </ul>
       <p>O Aluno pode solicitar vínculo usando um código; o vínculo depende da decisão do Professor. Alunos sem conta não entram nas cobranças mensais gravadas no banco real. A mensagem copiada na tela de cobranças não cria nem salva a cobrança e o texto não é armazenado.</p>
-      <p>O app só controla pagamentos: não processa dinheiro, não envia mensagens fora do app e não usa notificações push.</p>
+      <p>O sino mostra mensagens não lidas às pessoas da conversa e cobranças em atraso ao Aluno e ao Professor relacionados. Cada aviso pode ser marcado como lido ou dispensado e leva à conversa ou à tela de pagamentos correspondente. O Instrutor recebe avisos somente das conversas com o Professor vinculado. Os avisos são internos: o app não envia notificações push nem mensagens fora do app.</p>
     </section>
 
     <section class="privacy-draft-section">
@@ -1245,7 +1813,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
 
     <section class="privacy-draft-section">
       <${headingTag}>6. Retenção</${headingTag}>
-      <p>Pagamentos e cobranças não são apagados, apenas mudam de estado (por exemplo, cancelada ou estornado). Um Professor substituído na academia é desativado, não apagado. A remoção física do comprovante é solicitada pelo app à API do Storage; se não for concluída, o app tenta novamente ao abrir pagamentos. O aviso e os registros permanecem.</p>
+      <p>Pagamentos e cobranças não são apagados, apenas mudam de estado (por exemplo, cancelada ou estornado). Mensagens podem ser arquivadas por cada participante; uma nova mensagem reabre a conversa. Quem enviou pode apagar o conteúdo para ambos, que passa a ser substituído por um aviso; mensagens recebidas podem ser ocultadas somente para a própria conta. Os estados de leitura e arquivamento são individuais. Os marcadores de leitura e dispensa de notificações permanecem enquanto a mensagem ou cobrança de origem existir e são removidos junto com ela. Um Professor substituído na academia é desativado, não apagado. A remoção física do comprovante é solicitada pelo app à API do Storage; se não for concluída, o app tenta novamente ao abrir pagamentos. O aviso e os registros permanecem.</p>
       <p>As diárias avulsas ficam até o Professor excluir cada lançamento, retirar a autorização ou ter a conta desativada. Ao retirar a autorização, todas as diárias são excluídas. O Professor pode autorizar novamente, mas os lançamentos excluídos não são recuperados.</p>
       <p>O app registra a autorização das diárias com o identificador do Professor e a data do aceite.</p>
     </section>
@@ -1821,6 +2389,62 @@ function featureDateMonday(value = "") {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function featureDateString(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function planPeriodBounds(periodType, periodValue) {
+  if (!periodValue) return null;
+  const start = periodType === "mensal" && /^\d{4}-\d{2}$/.test(periodValue)
+    ? `${periodValue}-01`
+    : periodValue;
+  const startDate = new Date(`${start}T12:00:00`);
+  if (Number.isNaN(startDate.getTime())) return null;
+  const endDate = new Date(startDate);
+  if (periodType === "mensal") endDate.setMonth(endDate.getMonth() + 1, 0);
+  else endDate.setDate(endDate.getDate() + 6);
+  return { start, end: featureDateString(endDate) };
+}
+
+function updatePlanPeriodBounds(form, resetItems = false) {
+  const periodTypeControl = form.querySelector('[name="periodo_tipo"]');
+  const periodType = periodTypeControl instanceof HTMLSelectElement
+    ? periodTypeControl.value
+    : form.dataset.periodType;
+  const periodInput = form.querySelector('[name="periodo_inicio"]');
+  if (!(periodInput instanceof HTMLInputElement)) return;
+  const bounds = planPeriodBounds(periodType, periodInput.value);
+  if (!bounds) return;
+
+  const previousType = form.dataset.periodType || periodType;
+  const previousStart = form.dataset.periodStart || bounds.start;
+  const shouldReset = resetItems || previousType !== periodType;
+  for (const row of form.querySelectorAll("[data-plan-item]")) {
+    const dateInput = row.querySelector('[name="data"]');
+    if (!(dateInput instanceof HTMLInputElement)) continue;
+    if (shouldReset) {
+      dateInput.value = bounds.start;
+    } else if (previousStart !== bounds.start && dateInput.value) {
+      if (periodType === "mensal") {
+        const day = Number(dateInput.value.slice(-2));
+        const lastDay = Number(bounds.end.slice(-2));
+        dateInput.value = `${bounds.start.slice(0, 7)}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
+      } else {
+        const oldStart = new Date(`${previousStart}T12:00:00`);
+        const itemDate = new Date(`${dateInput.value}T12:00:00`);
+        const offset = Math.round((itemDate - oldStart) / 86400000);
+        const shiftedDate = new Date(`${bounds.start}T12:00:00`);
+        shiftedDate.setDate(shiftedDate.getDate() + (offset >= 0 && offset <= 6 ? offset : 0));
+        dateInput.value = featureDateString(shiftedDate);
+      }
+    }
+    dateInput.min = bounds.start;
+    dateInput.max = bounds.end;
+  }
+  form.dataset.periodType = periodType;
+  form.dataset.periodStart = bounds.start;
+}
+
 function renderRealTrainingBoard() {
   if (!isRealActiveProfessor() && !hasRealStudentAccess() && !isRealActiveInstructor()) return featureAccessNotice();
   if (realFeatureData.state !== "found") return renderFeatureLoadState();
@@ -1882,13 +2506,27 @@ function renderRealTrainingBoard() {
     </div>`;
 }
 
-function renderPlanItemEditor(item = {}, index = 0) {
-  const days = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+const defaultPlanThemeSuggestions = [
+  "Quedas e entradas",
+  "Guarda",
+  "Passagem de guarda",
+  "Raspagens",
+  "Finalizações",
+  "Defesa e escapes",
+  "Controle e estabilização",
+  "Transições",
+  "Movimentação e drills",
+  "Treino livre"
+];
+
+function renderPlanItemEditor(item = {}, index = 0, periodType = "semanal", periodValue = "") {
+  const bounds = planPeriodBounds(periodType, periodValue);
+  const date = item.data || (bounds && bounds.start) || "";
   return `<section class="plan-item-editor" data-plan-item>
     <h4 class="plan-item-editor__title">Treino ${index + 1}</h4>
     <div class="form-grid">
-      <div class="field"><label>Dia do treino</label><select name="dia" aria-label="Dia do treino">${days.map((day, dayIndex) => `<option value="${dayIndex}" ${Number(item.dia) === dayIndex ? "selected" : ""}>${day}</option>`).join("")}</select></div>
-      <div class="field"><label>Tema</label><input name="tema" aria-label="Tema" maxlength="80" placeholder="Ex.: Treino técnico" value="${escapeHtml(item.tema || "")}" required minlength="1"><small class="field-help" data-feature-counter="tema">${(item.tema || "").length}/80 caracteres</small></div>
+      <div class="field"><label>Data do treino</label><input type="date" name="data" value="${escapeHtml(date)}"${bounds ? ` min="${bounds.start}" max="${bounds.end}"` : ""} required></div>
+      <div class="field"><label>Tema</label><input name="tema" list="plan-theme-suggestions" aria-label="Tema" maxlength="80" placeholder="Escolha uma sugestão ou digite" value="${escapeHtml(item.tema || "")}" required minlength="1"><small class="field-help" data-feature-counter="tema">${(item.tema || "").length}/80 caracteres</small></div>
       <div class="field field--wide"><label>Descrição</label><textarea name="descricao" aria-label="Descrição" maxlength="300" placeholder="Ex.: Sequência de posições para a guarda.">${escapeHtml(item.descricao || "")}</textarea><small class="field-help" data-feature-counter="descricao">${(item.descricao || "").length}/300 caracteres</small></div>
     </div>
     <label class="plan-item-editor__remove"><input type="checkbox" name="remover"> Remover este treino ao salvar</label>
@@ -1906,27 +2544,44 @@ function renderAddPlanItemButton(controlId) {
 }
 
 function renderRealTrainingPlan() {
-  if (!isRealActiveProfessor() && !isRealActiveInstructor()) return featureAccessNotice();
+  if (!isRealActiveProfessor() && !hasRealStudentAccess()) return featureAccessNotice();
   if (realFeatureData.state !== "found") return renderFeatureLoadState();
   const canEdit = isRealActiveProfessor();
   const plans = realFeatureData.plans || [];
+  const themes = realFeatureData.themes || [];
+  const activeThemeNames = [...new Set([
+    ...defaultPlanThemeSuggestions,
+    ...themes.filter((theme) => !theme.arquivado).map((theme) => theme.nome)
+  ])];
   const groupedPlans = new Map();
   plans.forEach((row) => {
     if (!groupedPlans.has(row.id)) groupedPlans.set(row.id, { ...row, itens: [] });
-    if (row.tema !== null) groupedPlans.get(row.id).itens.push({ dia: row.dia, tema: row.tema, descricao: row.descricao || "" });
+    if (row.data !== null) groupedPlans.get(row.id).itens.push({ data: row.data, tema: row.tema, descricao: row.descricao || "" });
   });
+  const renderPlanDate = (value) => escapeHtml(new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long"
+  }));
+  const renderPlanPeriod = (plan) => plan.periodo_tipo === "mensal"
+    ? `Mês de ${escapeHtml(new Date(`${plan.periodo_inicio}T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }))}`
+    : `Semana de ${renderPlanDate(plan.periodo_inicio)}`;
   const planRows = [...groupedPlans.values()].map((plan) => `
     <article class="panel-card">
-      <h3>Semana de ${escapeHtml(plan.semana_inicio)}</h3>
-      ${canEdit ? `<form data-feature-form="edit-plan" data-feature-id="${escapeHtml(plan.id)}">
-        <div class="field"><label>Segunda-feira da semana</label><input type="date" name="semana_inicio" value="${escapeHtml(plan.semana_inicio)}" required></div>
-        ${(plan.itens.length ? plan.itens : [{}]).map(renderPlanItemEditor).join("")}
+      <h3>${renderPlanPeriod(plan)}</h3>
+      ${canEdit ? `<form data-feature-form="edit-plan" data-feature-id="${escapeHtml(plan.id)}" data-period-type="${escapeHtml(plan.periodo_tipo)}" data-period-start="${escapeHtml(plan.periodo_inicio)}">
+        <div class="field"><label>${plan.periodo_tipo === "mensal" ? "Mês do plano" : "Segunda-feira da semana"}</label><input type="${plan.periodo_tipo === "mensal" ? "month" : "date"}" name="periodo_inicio" value="${escapeHtml(plan.periodo_tipo === "mensal" ? plan.periodo_inicio.slice(0, 7) : plan.periodo_inicio)}" required></div>
+        ${(plan.itens.length ? plan.itens : [{}]).map((item, index) => renderPlanItemEditor(item, index, plan.periodo_tipo, plan.periodo_inicio)).join("")}
         ${renderAddPlanItemButton(`edit-plan-item-${plan.id}`)}
+        <label class="plan-sharing-control"><input type="checkbox" name="compartilhado_alunos" ${plan.compartilhado_alunos ? "checked" : ""}><span><strong>Compartilhar com alunos vinculados</strong><small>Os alunos poderão consultar este plano; o Instrutor recebe somente aulas delegadas.</small></span></label>
         ${featureSubmitButton("Salvar plano")}
-      </form>` : `<p>${plan.itens.map((item) => `${["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"][item.dia]} · ${escapeHtml(item.tema)}${item.descricao ? ` — ${escapeHtml(item.descricao)}` : ""}`).join("<br>") || "Sem itens cadastrados."}</p>`}
-      ${canEdit ? featureActionButton("share-plan", plan.id, plan.compartilhado ? "Retirar compartilhamento" : "Compartilhar com Instrutor") : ""}
-    </article>`).join("") || emptyState("Nenhum plano semanal", "Os planos compartilhados pelo Professor aparecerão aqui.");
-  const themes = canEdit ? (realFeatureData.themes || []).map((theme) => `
+      </form>` : `<ul class="plan-item-list">${plan.itens.map((item) => `<li><strong>${renderPlanDate(item.data)}</strong> · ${escapeHtml(item.tema)}${item.descricao ? ` — ${escapeHtml(item.descricao)}` : ""}</li>`).join("") || "<li>Sem treinos cadastrados.</li>"}</ul>`}
+      ${canEdit ? `<p class="field-help">${plan.compartilhado_alunos ? "Compartilhado com alunos vinculados" : "Rascunho privado"}</p>` : ""}
+    </article>`).join("") || emptyState(
+      canEdit ? "Nenhum plano de treino" : "Nenhum plano compartilhado",
+      canEdit ? "Crie um plano semanal ou mensal para organizar os treinos." : "Os planos que o Professor compartilhar aparecerão aqui."
+    );
+  const themeRows = themes.map((theme) => `
     <article class="panel-card">
       <form data-feature-form="edit-theme" data-feature-id="${escapeHtml(theme.id)}">
         ${renderFeatureTextField("nome", "Nome do tema", theme.nome, 80, false, true, "Ex.: Treino técnico")}
@@ -1934,24 +2589,34 @@ function renderRealTrainingPlan() {
         <label><input type="checkbox" name="arquivado" ${theme.arquivado ? "checked" : ""}> Arquivado</label>
         ${featureSubmitButton("Salvar tema")}
       </form>
-    </article>`).join("") : "";
+    </article>`).join("");
   const description = canEdit
-    ? "Crie e edite planos, marque treinos para remover e salve as alterações. Só o Instrutor vinculado vê os planos compartilhados."
-    : "Consulte os planos semanais compartilhados pelo Professor.";
-  return `${heading("PLANEJAMENTO", "Plano semanal", description)}
-    <div class="content-grid">
-      ${panel("Planos semanais", `${canEdit ? `<form data-feature-form="create-plan">
-        <div class="field"><label for="feature-week-start">Segunda-feira da semana</label><input id="feature-week-start" type="date" name="semana_inicio" value="${featureDateMonday()}" required></div>
-        ${renderPlanItemEditor()}
-        ${renderAddPlanItemButton("create-plan-item")}
-        ${featureSubmitButton("Criar plano")}
-      </form>` : ""}${planRows}`)}
-      ${canEdit ? panel("Biblioteca de temas", `<form data-feature-form="create-theme">
+    ? "Organize treinos por semana ou mês. Salve como rascunho ou compartilhe com os alunos vinculados."
+    : "Consulte os planos de treino compartilhados pelo Professor.";
+  const currentWeek = featureDateMonday();
+  const library = canEdit ? panel("Biblioteca de temas", `<details class="plan-theme-library">
+      <summary>Temas salvos (${themes.length})</summary>
+      <p class="field-help">Escolha temas salvos ou sugestões ao montar o plano. Temas novos podem ser adicionados aqui.</p>
+      <form data-feature-form="create-theme">
         ${renderFeatureTextField("nome", "Nome do tema", "", 80, false, true, "Ex.: Treino técnico")}
         ${renderFeatureTextField("descricao", "Descrição", "", 300, true, false, "Ex.: Sequência de posições para a guarda.")}
-        ${featureSubmitButton("Adicionar tema")}
-      </form>${themes || emptyState("Biblioteca vazia", "Adicione temas para sua equipe.")}`) : ""}
-    </div>`;
+        ${featureSubmitButton("Adicionar tema à biblioteca")}
+      </form>
+      ${themeRows || emptyState("Biblioteca sem temas salvos", "Use uma sugestão no plano ou adicione seu primeiro tema acima.")}
+    </details>`) : "";
+  return `${heading("PLANEJAMENTO", "Planos de treino", description)}
+    <div class="content-grid">
+      ${panel(canEdit ? "Criar plano" : "Planos compartilhados", `${canEdit ? `<form data-feature-form="create-plan" data-period-type="semanal" data-period-start="${currentWeek}">
+        <div class="field"><label for="feature-plan-period-type">Período</label><select id="feature-plan-period-type" name="periodo_tipo" data-plan-period-type><option value="semanal">Semanal</option><option value="mensal">Mensal</option></select></div>
+        <div class="field"><label for="feature-plan-period-start">Início do período</label><input id="feature-plan-period-start" type="date" name="periodo_inicio" value="${currentWeek}" required></div>
+        ${renderPlanItemEditor({}, 0, "semanal", currentWeek)}
+        ${renderAddPlanItemButton("create-plan-item")}
+        <label class="plan-sharing-control"><input type="checkbox" name="compartilhado_alunos"><span><strong>Compartilhar com alunos vinculados</strong><small>Desmarcado, o plano fica como rascunho privado. O Instrutor recebe somente aulas delegadas.</small></span></label>
+        ${featureSubmitButton("Criar plano")}
+      </form>` : ""}${planRows}`)}
+      ${library}
+    </div>
+    ${canEdit ? `<datalist id="plan-theme-suggestions">${activeThemeNames.map((name) => `<option value="${escapeHtml(name)}"></option>`).join("")}</datalist>` : ""}`;
 }
 
 function renderRealStudentProgress() {
@@ -1970,25 +2635,66 @@ function renderRealConversations() {
   if (!isRealActiveProfessor() && !hasRealStudentAccess() && !isRealActiveInstructor()) return featureAccessNotice();
   if (realFeatureData.state !== "found") return renderFeatureLoadState();
   const conversations = new Map();
-  (realFeatureData.conversations || []).forEach((message) => {
-    if (!conversations.has(message.conversa_id)) conversations.set(message.conversa_id, []);
-    conversations.get(message.conversa_id).push(message);
+  (realFeatureData.conversations || []).forEach((row) => {
+    if (!conversations.has(row.conversa_id)) {
+      conversations.set(row.conversa_id, { details: row, messages: [] });
+    }
+    if (row.mensagem_id) conversations.get(row.conversa_id).messages.push(row);
   });
-  const threads = [...conversations.entries()].map(([id, messages]) => {
-    const first = messages[0];
-    const otherParty = isRealActiveProfessor() ? first.participante_nome || "Aluno vinculado" : "Professor";
+  const renderThread = ([id, thread]) => {
+    const { details, messages } = thread;
+    const otherParty = isRealActiveProfessor() ? details.participante_nome || "Pessoa vinculada" : "Professor";
     const replyInputId = `feature-chat-reply-${id}`;
-    return `<article class="panel-card">
-      <h3>${escapeHtml(otherParty)}</h3>
-      <div class="chat-thread" role="log" aria-live="polite">
-        ${messages.map((message) => `<p><strong>${message.remetente_id === realUser.id ? "Você" : escapeHtml(otherParty)}:</strong> ${escapeHtml(message.texto)}</p>`).join("")}
+    return `<article class="panel-card" data-real-conversation="${escapeHtml(id)}">
+      <div class="conversation-heading">
+        <div>
+          <h3>${escapeHtml(otherParty)}</h3>
+          ${Number(details.nao_lidas) > 0 ? `<span class="badge badge--pending">${Number(details.nao_lidas)} não lida(s)</span>` : ""}
+        </div>
+        ${featureActionButton(
+          "toggle-conversation-archive",
+          id,
+          details.arquivada_em ? "Desarquivar" : "Arquivar conversa"
+        )}
+      </div>
+      <div class="chat-thread" role="log" aria-live="polite" aria-relevant="additions text">
+        ${messages.map((message) => {
+          const ownMessage = message.remetente_id === realUser.id;
+          const deleted = Boolean(message.apagada_em);
+          const text = deleted
+            ? ownMessage ? "Você apagou esta mensagem." : "Mensagem apagada."
+            : typeof message.texto === "string" ? message.texto : "Mensagem indisponível.";
+          const messageAction = !deleted
+            ? featureActionButton(
+              ownMessage ? "delete-message-everyone" : "hide-message-self",
+              message.mensagem_id,
+              ownMessage ? "Apagar para todos" : "Apagar só para mim"
+            )
+            : !ownMessage
+              ? featureActionButton("hide-message-self", message.mensagem_id, "Ocultar só para mim")
+              : "";
+          return `<div class="chat-message${ownMessage ? " chat-message--out" : ""}">
+            <div class="chat-bubble${ownMessage ? " chat-bubble--out" : ""}${deleted ? " chat-bubble--deleted" : ""}">
+              <strong>${ownMessage ? "Você" : escapeHtml(otherParty)}</strong>
+              <p>${escapeHtml(text)}</p>
+            </div>
+            ${messageAction ? `<details class="chat-message-options"><summary>Opções</summary>${messageAction}</details>` : ""}
+          </div>`;
+        }).join("") || '<p class="field-help">Nenhuma mensagem visível nesta conversa.</p>'}
       </div>
       <form data-feature-form="reply-conversation" data-feature-id="${escapeHtml(id)}">
         <div class="field"><label for="${escapeHtml(replyInputId)}">Mensagem</label><textarea id="${escapeHtml(replyInputId)}" name="texto" placeholder="Escreva sua mensagem" required minlength="1"></textarea></div>
         ${featureSubmitButton("Responder")}
       </form>
     </article>`;
-  }).join("") || emptyState("Nenhuma conversa", "As conversas com seu Professor aparecerão aqui.");
+  };
+  const entries = [...conversations.entries()];
+  const activeConversations = entries.filter(([, thread]) => !thread.details.arquivada_em);
+  const archivedConversations = entries.filter(([, thread]) => Boolean(thread.details.arquivada_em));
+  const activeThreads = activeConversations.map(renderThread).join("") ||
+    emptyState("Nenhuma conversa ativa", "As conversas com seu Professor aparecerão aqui.");
+  const archivedThreads = archivedConversations.map(renderThread).join("") ||
+    emptyState("Nenhuma conversa arquivada", "As conversas arquivadas por você aparecerão aqui.");
   const fixedRecipientId = isRealActiveInstructor()
     ? realInstructorLink && realInstructorLink.professor_id
     : hasRealStudentAccess()
@@ -1998,15 +2704,18 @@ function renderRealConversations() {
     ? realFeatureData.conversationRecipients.length > 0
     : typeof fixedRecipientId === "string" && fixedRecipientId.length > 0;
   const recipientField = isRealActiveProfessor()
-    ? `<div class="field"><label for="feature-chat-recipient">Aluno vinculado</label><select id="feature-chat-recipient" name="destinatario" required>${realFeatureData.conversationRecipients.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.nome)}</option>`).join("")}</select></div>`
+    ? `<div class="field"><label for="feature-chat-recipient">Pessoa vinculada</label><select id="feature-chat-recipient" name="destinatario" required>${realFeatureData.conversationRecipients.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.nome)} · ${escapeHtml(item.tipo)}</option>`).join("")}</select></div>`
     : `<input type="hidden" name="destinatario" value="${escapeHtml(fixedRecipientId)}">`;
   const form = canCreate ? `<form data-feature-form="create-conversation">
     ${recipientField}
     <div class="field"><label for="feature-chat-text">Mensagem</label><textarea id="feature-chat-text" name="texto" placeholder="Escreva sua mensagem" required minlength="1"></textarea></div>
-    ${featureSubmitButton("Iniciar conversa")}
+    ${featureSubmitButton("Enviar mensagem")}
   </form>` : "";
-  return `${heading("COMUNICAÇÃO", "Conversas", "Mensagens individuais entre o Professor e pessoas vinculadas.")}
-    <div class="content-grid">${panel("Mensagens", `${form}${threads}`)}</div>`;
+  return `${heading("COMUNICAÇÃO", "Conversas", "Mensagens individuais entre o Professor e pessoas vinculadas. O Instrutor conversa somente com o Professor.")}
+    <div class="content-grid">
+      ${panel("Conversas ativas", `${form}${activeThreads}`)}
+      ${panel("Conversas arquivadas", archivedThreads)}
+    </div>`;
 }
 
 function renderRealDelegatedLessonScreen() {
@@ -2104,7 +2813,7 @@ async function loadRealFeatureScreen(screenId, updateView = true) {
         realFeatureData.notices = notices.data;
         realFeatureData.faq = faq.data;
       } else if (screenId === "training-plan") {
-        const plans = await authClient.rpc("listar_planos_semanais");
+        const plans = await authClient.rpc("listar_planos_treino");
         if (plans.error) throw plans.error;
         if (!Array.isArray(plans.data)) throw new TypeError("Lista indisponível.");
         if (!isCurrentRequest()) return;
@@ -2138,12 +2847,24 @@ async function loadRealFeatureScreen(screenId, updateView = true) {
         realFeatureData.conversationRecipients = [];
         realFeatureData.conversationProfessorId = null;
         if (isRealActiveProfessor()) {
-          const { data: links, error: linksError } = await authClient.from("vinculos")
-            .select("aluno_id").eq("professor_id", realUser.id);
-          if (linksError) throw linksError;
-          if (!Array.isArray(links)) throw new TypeError("Lista indisponível.");
+          const [links, instructorLinks] = await Promise.all([
+            authClient.from("vinculos").select("aluno_id").eq("professor_id", realUser.id),
+            authClient.from("instrutores_professor").select("instrutor_id").eq("professor_id", realUser.id)
+          ]);
+          if (links.error) throw links.error;
+          if (instructorLinks.error) throw instructorLinks.error;
+          if (!Array.isArray(links.data) || !Array.isArray(instructorLinks.data)) {
+            throw new TypeError("Lista indisponível.");
+          }
           if (!isCurrentRequest()) return;
-          const ids = links.map((row) => row.aluno_id).filter((id) => typeof id === "string");
+          const recipientTypes = new Map();
+          links.data.forEach((row) => {
+            if (row && typeof row.aluno_id === "string") recipientTypes.set(row.aluno_id, "Aluno");
+          });
+          instructorLinks.data.forEach((row) => {
+            if (row && typeof row.instrutor_id === "string") recipientTypes.set(row.instrutor_id, "Instrutor");
+          });
+          const ids = [...recipientTypes.keys()];
           const profiles = ids.length
             ? await authClient.from("perfis").select("id,nome").in("id", ids)
             : { data: [], error: null };
@@ -2152,7 +2873,11 @@ async function loadRealFeatureScreen(screenId, updateView = true) {
           if (!isCurrentRequest()) return;
           realFeatureData.conversationRecipients = profiles.data
             .filter((row) => typeof row.id === "string" && typeof row.nome === "string")
-            .map((row) => ({ id: row.id, nome: row.nome }));
+            .map((row) => ({
+              id: row.id,
+              nome: row.nome,
+              tipo: recipientTypes.get(row.id) || "Pessoa vinculada"
+            }));
         } else if (hasRealStudentAccess()) {
           const { data: link, error: linkError } = await authClient.from("vinculos")
             .select("professor_id").eq("aluno_id", realUser.id).maybeSingle();
@@ -2161,6 +2886,24 @@ async function loadRealFeatureScreen(screenId, updateView = true) {
           if (!isCurrentRequest()) return;
           realFeatureData.conversationProfessorId = link ? link.professor_id : null;
         }
+        const latestVisibleMessageByConversation = new Map();
+        conversations.data.forEach((message) => {
+          if (message && typeof message.conversa_id === "string" && typeof message.mensagem_id === "string") {
+            latestVisibleMessageByConversation.set(message.conversa_id, message.mensagem_id);
+          }
+        });
+        const readMarkers = [...latestVisibleMessageByConversation.entries()].map(([conversa_id, mensagem_id]) => ({
+          conversa_id,
+          mensagem_id
+        }));
+        if (readMarkers.length) {
+          const marked = await authClient.rpc("marcar_conversas_lidas", { p_lidos: readMarkers });
+          if (marked.error) throw marked.error;
+          if (!Number.isInteger(marked.data) || marked.data < 0) throw new TypeError("Leitura indisponível.");
+        }
+        if (!isCurrentRequest()) return;
+        await refreshRealConversationUnread();
+        await refreshRealNotifications();
       } else if (["delegated-lessons", "instructor-class"].includes(screenId)) {
         const delegated = await authClient.rpc("listar_aulas_delegadas");
         if (delegated.error) throw delegated.error;
@@ -2244,6 +2987,10 @@ async function loadRealFeatureScreen(screenId, updateView = true) {
     screenContent.innerHTML = renderRealFeatureScreenById(screenId);
     if (screenId === "students" && realFeatureData.state === "found") {
       void loadRealLinkedProfilePhotoAvatars(realFeatureData.linkedStudents, screenId);
+    }
+    if (realFeatureData.state === "found" &&
+        ["teacher-chat", "student-chat", "instructor-chat"].includes(screenId)) {
+      scrollToPendingRealConversation();
     }
   }
 }
@@ -2552,7 +3299,8 @@ async function runRealFeatureRpc(functionName, parameters, expectsUuid) {
     "definir_status_aluno_vinculado", "definir_status_aluno_sem_conta",
     "criar_aula_avulsa", "excluir_aula_avulsa", "criar_aula_delegada",
     "editar_aula_delegada", "compartilhar_aula_delegada", "criar_plano_semanal",
-    "editar_plano_semanal", "compartilhar_plano_semanal", "criar_tema_biblioteca",
+    "editar_plano_semanal", "compartilhar_plano_semanal", "criar_plano_treino",
+    "editar_plano_treino", "criar_tema_biblioteca",
     "editar_tema_biblioteca"
   ];
   const professorOrStudent = ["listar_feedbacks", "listar_metas"];
@@ -2929,16 +3677,16 @@ function renderRealHomeScreen() {
             ${metric("PENDENTES", String(counts.pending), "Cobranças dentro do prazo", "amber")}
             ${metric("ATRASADAS", String(counts.late), "Cobranças que precisam de atenção", "red")}
           </div>`
-        : emptyState("Nenhuma cobrança neste mês", "As cobranças enviadas pelo Professor aparecerão aqui.")}
+        : emptyState("Nenhuma cobrança neste mês", "As cobranças abertas geradas pela regra ativa aparecerão aqui.")}
       ${panel(hasPending ? "Próxima ação" : "Tudo em dia", hasPending
         ? button("Ver pagamentos", "student-payments", "button button--primary")
         : `<p>Não há pagamentos pendentes neste mês.</p>${button("Ver graduações", "student-grades", "button button--quiet")}`)}
     </div>`;
   }
   return `${title}${profileHeader}
-    ${panel("Próxima ação", `<p>Confira a aula delegada e o plano compartilhado pelo Professor.</p>${renderRealHomeShortcuts([
+    ${panel("Próxima ação", `<p>Confira a aula delegada pelo Professor.</p>${renderRealHomeShortcuts([
       ["instructor-class", "Abrir Aula"],
-      ["training-plan", "Ver Plano semanal"]
+    ["instructor-students", "Ver alunos vinculados"]
     ])}`)}`;
 }
 
@@ -3368,13 +4116,8 @@ function renderRealMonthlyChargeRow(charge) {
         ${listRow("Aguardando confirmação", "", formatRealBillingCents(realPaymentTotalForCharge(charge.id, "pendente", realBillingPayments)))}
         ${listRow("Saldo", "", formatRealBillingCents(realBillingBalance(charge, realBillingPayments)))}
       </div>
-      ${charge.enviada_em ? `<p class="field-help">Enviada em ${realBillingTimestamp(charge.enviada_em)}${charge.reenviada_em ? ` · Reenviada em ${realBillingTimestamp(charge.reenviada_em)}` : ""}</p>` : ""}
+      ${charge.enviada_em ? `<p class="field-help">Disponível ao aluno desde ${realBillingTimestamp(charge.enviada_em)}${charge.reenviada_em ? ` · Reenviada em ${realBillingTimestamp(charge.reenviada_em)}` : ""}</p>` : ""}
       ${charge.status === "aberta" ? `
-        <div class="student-action-control monthly-charge-actions">
-          <button class="button button--primary button--action" type="button" data-real-billing-send="${escapeHtml(charge.id)}" aria-describedby="real-send-error-${escapeHtml(charge.id)} real-send-status-${escapeHtml(charge.id)}"><span data-action-label>${charge.enviada_em ? "Reenviar ao aluno" : "Enviar ao aluno"}</span></button>
-          <p class="login-action-error student-action-error" id="real-send-error-${escapeHtml(charge.id)}" role="alert"></p>
-          <p class="field-help" id="real-send-status-${escapeHtml(charge.id)}" role="status" aria-live="polite"></p>
-        </div>
         <div class="student-action-control monthly-charge-actions">
           <button class="button button--danger button--action" type="button" data-real-billing-cancel="${escapeHtml(charge.id)}" aria-describedby="real-cancel-error-${escapeHtml(charge.id)} real-cancel-status-${escapeHtml(charge.id)}"><span data-action-label>Cancelar cobrança</span></button>
           <p class="login-action-error student-action-error" id="real-cancel-error-${escapeHtml(charge.id)}" role="alert"></p>
@@ -3479,13 +4222,13 @@ function renderRealBillingScreen() {
     ? visibleCharges.map(renderRealMonthlyChargeRow).join("")
     : ready ? emptyState(
       realBillingLateOnly ? "Nenhuma cobrança atrasada" : "Nenhuma cobrança neste mês",
-      realBillingLateOnly ? "Não há cobranças em atraso neste mês." : "Salve as regras e gere as cobranças do mês."
+    realBillingLateOnly ? "Não há cobranças em atraso neste mês." : "Salve uma regra aplicável ou crie as cobranças do mês."
     )
       : loading
         ? '<p class="field-help" role="status" aria-live="polite">Consultando cobranças e alunos vinculados...</p>'
         : "";
   return `
-    ${heading("VISÃO DO PROFESSOR", "Cobranças mensais", "Configure regras, gere cobranças e acompanhe as cobranças do mês.")}
+    ${heading("VISÃO DO PROFESSOR", "Cobranças mensais", "Ao salvar uma regra ativa, as cobranças aplicáveis ficam disponíveis automaticamente ao Aluno. Acompanhe os saldos e atrasos.")}
     ${realBillingNotice ? `<p class="login-action-error" role="alert">${escapeHtml(realBillingNotice)}</p>` : ""}
     ${realBillingStudentsNotice ? `<p class="login-action-error" role="alert">${escapeHtml(realBillingStudentsNotice)}</p>` : ""}
     ${summary ? `
@@ -3552,7 +4295,7 @@ function renderRealBillingScreen() {
           <div class="field"><label for="real-billing-month">Mês das cobranças</label><input id="real-billing-month" type="month" value="${escapeHtml(realBillingSelectedMonth)}" data-real-billing-month required${disabled}></div>
           <button class="button ${realBillingLateOnly ? "button--primary" : "button--quiet"}" type="button" data-real-billing-late-filter aria-pressed="${realBillingLateOnly}" aria-label="Filtrar cobranças atrasadas"${disabled}>Atrasadas</button>
           <div class="student-action-control">
-            <button class="button button--quiet button--action" type="button" data-real-billing-generate aria-describedby="real-billing-generate-error real-billing-generate-status"${disabled}><span data-action-label>Gerar cobranças do mês</span></button>
+            <button class="button button--quiet button--action" type="button" data-real-billing-generate aria-describedby="real-billing-generate-error real-billing-generate-status"${disabled}><span data-action-label>Criar cobranças do mês</span></button>
             <p class="login-action-error student-action-error" id="real-billing-generate-error" role="alert"></p>
             <p class="field-help" id="real-billing-generate-status" role="status" aria-live="polite"></p>
           </div>
@@ -4193,16 +4936,16 @@ function renderRealStudentPaymentsScreen() {
     return `${heading("VISÃO DO ALUNO", "Meus pagamentos", "Carregando suas cobranças e pagamentos.")}<div class="notice notice--info" role="status">Carregando...</div>`;
   }
   if (realStudentPaymentsState === "error") {
-    return `${heading("VISÃO DO ALUNO", "Meus pagamentos", "Consulte somente suas cobranças enviadas pelo Professor.")}<div class="notice notice--pending" role="alert">${escapeHtml(realStudentPaymentsNotice)}</div><div class="student-action-control"><button class="button button--primary button--action" type="button" data-real-student-payments-retry aria-describedby="real-student-retry-error real-student-retry-status"><span data-action-label>Tentar novamente</span></button><p class="login-action-error student-action-error" id="real-student-retry-error" role="alert"></p><p class="field-help" id="real-student-retry-status" role="status" aria-live="polite"></p></div>`;
+    return `${heading("VISÃO DO ALUNO", "Meus pagamentos", "Consulte as cobranças abertas geradas pelas regras do Professor vinculado.")}<div class="notice notice--pending" role="alert">${escapeHtml(realStudentPaymentsNotice)}</div><div class="student-action-control"><button class="button button--primary button--action" type="button" data-real-student-payments-retry aria-describedby="real-student-retry-error real-student-retry-status"><span data-action-label>Tentar novamente</span></button><p class="login-action-error student-action-error" id="real-student-retry-error" role="alert"></p><p class="field-help" id="real-student-retry-status" role="status" aria-live="polite"></p></div>`;
   }
   return `
-    ${heading("VISÃO DO ALUNO", "Meus pagamentos", "Consulte suas cobranças enviadas pelo Professor e avise quando realizar um pagamento.")}
+    ${heading("VISÃO DO ALUNO", "Meus pagamentos", "Consulte as cobranças abertas pela regra do Professor e avise quando realizar um pagamento.")}
     ${realPaymentProofsNotice ? `<div class="notice notice--pending" role="alert">${escapeHtml(realPaymentProofsNotice)}</div>` : ""}
     <div class="content-grid">
       <div class="stack">
         ${panel("Minhas cobranças", charges.length
           ? charges.map(renderRealStudentPaymentRow).join("")
-          : emptyState("Nenhuma cobrança enviada", "Quando o Professor enviar uma cobrança, ela aparecerá aqui."))}
+          : emptyState("Nenhuma cobrança aberta", "As cobranças aplicáveis aparecem aqui automaticamente quando a regra do Professor estiver vigente."))}
       </div>
       ${panel("Avisar pagamento", defaultCharge ? `
         <form data-real-student-payment-form novalidate>
@@ -8783,6 +9526,7 @@ function activateProfessorOnce(userId) {
 
 function clearRealAccountCaches() {
   realSessionCacheGeneration += 1;
+  stopRealConversationNotifications();
   realHomeProfileRequestSequence += 1;
   realHomeProfileContext = { academyName: "", academyPhotoUrl: "", professor: null, ownPhotoUrl: "" };
   if (realProofViewerWindow && !realProofViewerWindow.closed) realProofViewerWindow.close();
@@ -9173,6 +9917,11 @@ async function updateRealSession(session, updateScreen = true) {
     else if (!canViewScreen(currentScreen)) renderScreen(realInitialScreen());
   }
   maybeOpenRealProfileOnboarding();
+  if (isRealActiveProfessor() || hasRealStudentAccess() || isRealActiveInstructor()) {
+    startRealConversationNotifications();
+  } else {
+    stopRealConversationNotifications();
+  }
 }
 
 function removeInstructorInviteTokenFromUrl() {
@@ -9699,6 +10448,11 @@ syncRealSessionPanel();
 initializeRealAuth();
 window.addEventListener("resize", updateToastPosition);
 window.addEventListener("resize", () => screenContent.querySelectorAll('input[type="email"]').forEach(updateEmailPreview));
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && realUser) {
+    void refreshRealConversationUnread();
+  }
+});
 if (window.ResizeObserver) {
   new ResizeObserver(updateToastPosition).observe(document.querySelector("#mobile-navigation"));
 }
@@ -9907,10 +10661,16 @@ document.addEventListener("click", (event) => {
         functionName = "editar_faq";
         parameters = { p_faq_id: id, p_pergunta: text("pergunta"), p_resposta: text("resposta"), p_ordem: Number(text("ordem") || 0) };
       } else if (formType === "create-plan" || formType === "edit-plan") {
-        const weekStart = text("semana_inicio");
-        const monday = weekStart && new Date(`${weekStart}T12:00:00`).getDay() === 1;
-        if (!monday) {
-          form.querySelector('[role="alert"]').textContent = "Escolha uma segunda-feira para iniciar a semana.";
+        const periodType = text("periodo_tipo") || form.dataset.periodType;
+        const periodValue = text("periodo_inicio");
+        const bounds = planPeriodBounds(periodType, periodValue);
+        const validPeriod = periodType === "semanal"
+          ? Boolean(bounds && new Date(`${bounds.start}T12:00:00`).getDay() === 1)
+          : periodType === "mensal" && /^\d{4}-\d{2}$/.test(periodValue);
+        if (!validPeriod || !bounds) {
+          form.querySelector('[role="alert"]').textContent = periodType === "mensal"
+            ? "Escolha um mês válido para o plano."
+            : "Escolha uma segunda-feira para iniciar a semana.";
           return;
         }
         const items = [...form.querySelectorAll("[data-plan-item]")]
@@ -9919,7 +10679,7 @@ document.addEventListener("click", (event) => {
             return !(removeCheckbox instanceof HTMLInputElement && removeCheckbox.checked);
           })
           .map((row) => ({
-            dia: Number(row.querySelector('[name="dia"]').value),
+            data: row.querySelector('[name="data"]').value,
             tema: row.querySelector('[name="tema"]').value.trim(),
             descricao: row.querySelector('[name="descricao"]').value.trim()
           }));
@@ -9927,17 +10687,31 @@ document.addEventListener("click", (event) => {
           form.querySelector('[role="alert"]').textContent = "Mantenha ao menos um treino para criar o plano.";
           return;
         }
-        if (items.some((item) => !item.tema || item.tema.length > 80 || item.descricao.length > 300)) {
-          form.querySelector('[role="alert"]').textContent = "Confira os temas (1 a 80 caracteres) e descrições (até 300 caracteres).";
+        if (items.some((item) =>
+          !item.data || item.data < bounds.start || item.data > bounds.end ||
+          !item.tema || item.tema.length > 80 || item.descricao.length > 300
+        )) {
+          form.querySelector('[role="alert"]').textContent = "Confira se cada treino tem uma data dentro do período, um tema e uma descrição de até 300 caracteres.";
           return;
         }
         if (formType === "create-plan") {
-          functionName = "criar_plano_semanal";
-          parameters = { p_semana_inicio: weekStart, p_itens: items };
+          functionName = "criar_plano_treino";
+          parameters = {
+            p_periodo_tipo: periodType,
+            p_periodo_inicio: bounds.start,
+            p_itens: items,
+            p_compartilhado_alunos: values.has("compartilhado_alunos")
+          };
           expectsUuid = true;
         } else {
-          functionName = "editar_plano_semanal";
-          parameters = { p_plano_id: id, p_semana_inicio: weekStart, p_itens: items };
+          functionName = "editar_plano_treino";
+          parameters = {
+            p_plano_id: id,
+            p_periodo_tipo: periodType,
+            p_periodo_inicio: bounds.start,
+            p_itens: items,
+            p_compartilhado_alunos: values.has("compartilhado_alunos")
+          };
         }
       } else if (formType === "create-theme") {
         functionName = "criar_tema_biblioteca";
@@ -10040,6 +10814,16 @@ document.addEventListener("click", (event) => {
       } else if (action === "delete-note") {
         functionName = "excluir_nota_privada";
         parameters = { p_nota_id: id };
+      } else if (action === "toggle-conversation-archive") {
+        const conversation = realFeatureData.conversations.find((item) => item.conversa_id === id);
+        functionName = "definir_arquivo_conversa_professor";
+        parameters = { p_conversa_id: id, p_arquivada: !(conversation && conversation.arquivada_em) };
+      } else if (action === "delete-message-everyone" || action === "hide-message-self") {
+        functionName = "gerenciar_mensagem_professor";
+        parameters = {
+          p_mensagem_id: id,
+          p_escopo: action === "delete-message-everyone" ? "todos" : "mim"
+        };
       } else if (action === "toggle-goal") {
         const goal = realFeatureData.goals.find((item) => item.id === id);
         functionName = "atualizar_status_meta";
@@ -10064,14 +10848,18 @@ document.addEventListener("click", (event) => {
         return;
       }
       const row = button.closest(".student-action-control");
+      const isMessageDeletion = action === "delete-message-everyone" || action === "hide-message-self";
+      const errorMessage = action === "delete-message-everyone" || action === "hide-message-self"
+        ? "Não foi possível apagar a mensagem. Atualize a conversa e tente novamente."
+        : "Não foi possível salvar. Tente novamente.";
       await runButtonAction(button, {
         feedback: row.querySelector('[role="alert"]'),
         announcement: row.querySelector('[role="status"]'),
         buttons: Array.from(row.querySelectorAll("button")),
-        loadingText: "Salvando...",
-        loadingMessage: "Salvando alterações.",
-        successMessage: "Alterações salvas.",
-        errorMessage: "Não foi possível salvar. Tente novamente.",
+        loadingText: isMessageDeletion ? "Apagando..." : "Salvando...",
+        loadingMessage: isMessageDeletion ? "Apagando a mensagem conforme sua escolha." : "Salvando alterações.",
+        successMessage: isMessageDeletion ? "Mensagem apagada." : "Alterações salvas.",
+        errorMessage,
         afterSuccess: () => reloadRealFeatureScreen()
       }, async () => {
         const result = await runRealFeatureRpc(functionName, parameters, expectsUuid);
@@ -10103,8 +10891,20 @@ document.addEventListener("click", (event) => {
           errorMessage: "Não foi possível adicionar o campo de treino. Tente novamente."
         }, async () => {
           if (!form.isConnected) return { errorMessage: "O formulário não está mais disponível. Atualize a tela." };
+          updatePlanPeriodBounds(form);
           const itemIndex = form.querySelectorAll("[data-plan-item]").length;
-          control.insertAdjacentHTML("beforebegin", renderPlanItemEditor({}, itemIndex));
+          const periodInput = form.querySelector('[name="periodo_inicio"]');
+          const periodTypeControl = form.querySelector('[name="periodo_tipo"]');
+          const periodType = periodTypeControl instanceof HTMLSelectElement
+            ? periodTypeControl.value
+            : form.dataset.periodType;
+          control.insertAdjacentHTML("beforebegin", renderPlanItemEditor(
+            {},
+            itemIndex,
+            periodType,
+            periodInput ? periodInput.value : ""
+          ));
+          updatePlanPeriodBounds(form);
           return {};
         });
         return;
@@ -10687,6 +11487,31 @@ document.addEventListener("input", (event) => {
 
 document.addEventListener("change", (event) => {
   const target = event.target;
+  if (target instanceof HTMLSelectElement && target.matches("[data-plan-period-type]")) {
+    const form = target.closest("[data-feature-form]");
+    const periodInput = form && form.querySelector('[name="periodo_inicio"]');
+    if (form instanceof HTMLFormElement && periodInput instanceof HTMLInputElement) {
+      const currentValue = periodInput.value;
+      if (target.value === "mensal") {
+        periodInput.type = "month";
+        periodInput.value = currentValue.slice(0, 7);
+      } else {
+        periodInput.type = "date";
+        periodInput.value = currentValue.length === 7
+          ? featureDateMonday(`${currentValue}-01`)
+          : currentValue;
+      }
+      updatePlanPeriodBounds(form, true);
+    }
+    return;
+  }
+  if (target instanceof HTMLInputElement && target.name === "periodo_inicio") {
+    const form = target.closest('[data-feature-form="create-plan"], [data-feature-form="edit-plan"]');
+    if (form instanceof HTMLFormElement) {
+      updatePlanPeriodBounds(form);
+      return;
+    }
+  }
   if (target instanceof HTMLInputElement && target.name === "remover") {
     const planItem = target.closest("[data-plan-item]");
     if (planItem) {
@@ -11334,7 +12159,7 @@ document.addEventListener("submit", (event) => {
     buttons: [button],
     loadingText: "Salvando...",
     loadingMessage: "Salvando a regra de cobrança no banco.",
-    successMessage: "Regra salva.",
+    successMessage: "Regra salva. As cobranças aplicáveis ficam disponíveis ao aluno sem envio manual.",
     errorMessage: "Não foi possível salvar a regra. Confira os dados e tente novamente.",
     afterSuccess: () => loadRealBillingData()
   }, async () => {
@@ -12035,8 +12860,8 @@ document.addEventListener("click", (event) => {
       announcement: document.querySelector("#real-billing-generate-status"),
       buttons: [generateButton],
       loadingText: "Gerando...",
-      loadingMessage: "Gerando as cobranças do mês.",
-      successMessage: "Cobranças geradas.",
+      loadingMessage: "Verificando as cobranças do mês.",
+      successMessage: "Cobranças abertas disponíveis ao aluno.",
       errorMessage: "Não foi possível gerar as cobranças. Confira as regras e tente novamente.",
       afterSuccess: () => loadRealBillingData()
     }, async () => {
@@ -12044,37 +12869,8 @@ document.addEventListener("click", (event) => {
         p_mes: `${realBillingSelectedMonth}-01`
       }, "Não foi possível gerar as cobranças. Confira as regras e tente novamente.");
       if (result.errorMessage) return result;
-      if (!Number.isInteger(result.data) || result.data < 1) {
-        return { errorMessage: "Nenhuma cobrança nova foi gerada. Confira as regras ativas e se o mês já foi gerado." };
-      }
-    });
-    return;
-  }
-
-  const sendButton = target.closest("[data-real-billing-send]");
-  if (sendButton) {
-    const row = sendButton.closest("[data-real-monthly-charge]");
-    const chargeId = sendButton.dataset.realBillingSend;
-    runButtonAction(sendButton, {
-      feedback: row.querySelector('[id^="real-send-error-"]'),
-      announcement: row.querySelector('[id^="real-send-status-"]'),
-      buttons: Array.from(row.querySelectorAll("button")),
-      loadingText: "Enviando...",
-      loadingMessage: "Registrando o envio da cobrança.",
-      successMessage: "Cobrança disponibilizada ao aluno.",
-      errorMessage: "Não foi possível enviar a cobrança. Atualize a tela e tente novamente.",
-      afterSuccess: () => loadRealBillingData()
-    }, async () => {
-      const result = await callRealBillingRpc("enviar_cobranca", { p_cobranca_id: chargeId },
-        "Não foi possível enviar a cobrança. Atualize a tela e tente novamente.");
-      if (result.errorMessage) return result;
-      const messages = {
-        sem_permissao: "Sua conta não tem permissão para enviar esta cobrança.",
-        cobranca_indisponivel: "A cobrança não está disponível nesta conta. Atualize a tela.",
-        cobranca_fechada: "Somente cobranças abertas podem ser enviadas."
-      };
-      if (result.data !== "ok") {
-        return { errorMessage: messages[result.data] || "Não foi possível enviar a cobrança. Atualize a tela e tente novamente." };
+      if (!Number.isInteger(result.data) || result.data < 0) {
+        return { errorMessage: "Não foi possível verificar as cobranças deste mês. Atualize a tela e tente novamente." };
       }
     });
     return;

@@ -75,11 +75,17 @@
             <h1 id="current-screen-title">Acesso</h1>
           </div>
         </div>
-        <button class="profile-button" id="profile-button" type="button" data-open-user-panel aria-label="Abrir painel do usuário" aria-haspopup="dialog" aria-controls="user-panel" hidden>
-          <span class="profile-orb" id="profile-button-avatar" aria-hidden="true"><img src="assets/avatars/avatar-masculino.jpg" alt=""></span>
-          <span class="profile-button-copy"><strong>Visualizar perfil</strong><small>Sem sessão ativa</small></span>
-          <span class="chevron" aria-hidden="true">⌄</span>
-        </button>
+        <div class="header-actions">
+          <button class="icon-button notification-button" id="notification-button" type="button" aria-label="Notificações" aria-expanded="false" aria-haspopup="dialog" aria-controls="notifications-dialog" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+            <span class="notification-badge" id="notification-badge" aria-hidden="true" hidden></span>
+          </button>
+          <button class="profile-button" id="profile-button" type="button" data-open-user-panel aria-label="Abrir painel do usuário" aria-haspopup="dialog" aria-controls="user-panel" hidden>
+            <span class="profile-orb" id="profile-button-avatar" aria-hidden="true"><img src="assets/avatars/avatar-masculino.jpg" alt=""></span>
+            <span class="profile-button-copy"><strong>Visualizar perfil</strong><small>Sem sessão ativa</small></span>
+            <span class="chevron" aria-hidden="true">⌄</span>
+          </button>
+        </div>
       </header>
 
       <section class="screen-content" id="screen-content" aria-live="polite" aria-relevant="additions text">
@@ -98,6 +104,18 @@
   </div>
 
   <nav class="mobile-navigation" id="mobile-navigation" aria-label="Atalhos da conta"></nav>
+
+  <dialog class="notifications-dialog" id="notifications-dialog" aria-labelledby="notifications-title">
+    <div class="notifications-heading">
+      <div>
+        <span class="eyebrow">AVISOS DO APP</span>
+        <h2 id="notifications-title">Notificações</h2>
+        <p>Mensagens e cobranças que precisam da sua atenção.</p>
+      </div>
+      <button class="icon-button" type="button" data-close-notifications aria-label="Fechar notificações">×</button>
+    </div>
+    <div class="notifications-list" id="notifications-list" aria-live="polite" aria-relevant="additions text"></div>
+  </dialog>
 
   <dialog class="user-panel" id="user-panel" aria-labelledby="user-panel-title">
     <div class="user-panel-heading">

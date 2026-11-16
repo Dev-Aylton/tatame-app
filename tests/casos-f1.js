@@ -347,6 +347,16 @@ window.CASOS_ACEITE_F1 = [
     esperado: "A ação aparece somente ao Professor e apenas para cobranças abertas, após confirmação. Avisos pendentes e pagamentos confirmados bloqueiam a ação até rejeição ou estorno; a cobrança cancelada permanece no histórico e não entra no painel nem em atrasos."
   },
   {
+    id: "F1-PAG-15",
+    area: "Pagamentos",
+    titulo: "Regra disponibiliza cobrança automaticamente e permite reemissão após cancelamento",
+    perfil: "Professor e Aluno",
+    regras: "RN08, RN10",
+    precondicoes: "Há uma regra ativa e uma cobrança do mesmo aluno e mês cancelada.",
+    passos: ["Salvar uma regra ativa aplicável ao mês atual e conferir que a cobrança aberta aparece automaticamente em Meus pagamentos, sem ação de envio.", "Gerar novamente e conferir que não surge outra cobrança ativa duplicada.", "Conferir valor, saldo e vencimento no Aluno; cancelar a cobrança e confirmar que ela deixa de aparecer.", "Gerar novamente e conferir que uma nova cobrança aparece automaticamente, enquanto a cancelada permanece no histórico."],
+    esperado: "Salvar a regra cria e disponibiliza a cobrança aplicável ao Aluno sem envio manual. O cancelamento não bloqueia uma nova cobrança para o mesmo aluno e mês; a cobrança anterior permanece no histórico e no máximo uma cobrança não cancelada existe por aluno e mês."
+  },
+  {
     id: "F1-FIN-02",
     area: "Painel financeiro",
     titulo: "Pagamento pendente ou recusado não aumenta o recebido",
@@ -489,12 +499,22 @@ window.CASOS_ACEITE_F1 = [
   {
     id: "F1-COM-01",
     area: "Conversas",
-    titulo: "",
+    titulo: "Mensagens, arquivamento, exclusão e avisos internos",
     perfil: "Aluno, Instrutor e Professor",
-    regras: "",
-    precondicoes: "",
-    passos: [],
-    esperado: ""
+    regras: "Conversas restritas aos vínculos; leitura e arquivamento individuais; exclusão no estilo WhatsApp; avisos internos sem push.",
+    precondicoes: "Migration 36 aplicada em ambiente de teste, contas fictícias de Professor, Aluno e Instrutor vinculadas e mensagens sintéticas.",
+    passos: ["Como Professor, abrir conversa com Aluno e Instrutor vinculados; como Instrutor, tentar iniciar conversa apenas com o Professor e confirmar que não há acesso direto a Alunos ou a conversas de terceiros.", "Enviar uma mensagem de teste e, com o app aberto e conectado na outra conta, conferir o aviso interno e o selo na navegação; abrir Conversas e verificar que o contador de não lidas é atualizado.", "Arquivar a conversa em uma conta e confirmar que a outra conta continua vendo a própria conversa ativa; enviar nova mensagem e verificar que a conversa arquivada reaparece.", "Apagar uma mensagem enviada para ambos e conferir que o conteúdo some nas duas contas, substituído por aviso; ocultar uma mensagem recebida somente para si e confirmar que ela continua visível para a outra pessoa.", "Recarregar as duas contas e confirmar a persistência dos estados individuais; testar os botões com teclado, foco visível, carregamento, sucesso e erro."],
+    esperado: "O Instrutor conversa somente com o Professor. O aviso interno e o selo indicam mensagens novas sem usar push; ao abrir a conversa, a leitura é atualizada. Arquivamento e ocultação são individuais, novas mensagens reabrem a conversa arquivada, e somente o remetente apaga o conteúdo para ambos."
+  },
+  {
+    id: "F1-COM-02",
+    area: "Conversas",
+    titulo: "Sininho reúne mensagens e cobranças em atraso",
+    perfil: "Aluno, Instrutor e Professor",
+    regras: "Notificações individuais; leitura e dispensa persistentes enquanto a mensagem ou cobrança de origem existir; destino restrito ao papel e vínculo.",
+    precondicoes: "Migrations 35, 36 e 37 aplicadas; contas fictícias de Professor, Aluno e Instrutor vinculadas, mensagem sintética e cobrança enviada com saldo vencido após a carência.",
+    passos: ["Com o app aberto e conectado, enviar uma mensagem e conferir o sino e o contador na conta destinatária; confirmar que o Instrutor só recebe avisos da conversa com o Professor.", "Abrir a notificação de mensagem e verificar que o app encaminha à conversa correspondente; marcar outra como lida e conferir que a conversa também deixa de constar como não lida.", "Como Professor e Aluno, conferir a cobrança atrasada e o saldo; como Instrutor, confirmar que nenhum dado financeiro é exibido.", "Dispensar notificações, recarregar e entrar em outra sessão fictícia da mesma conta; confirmar que não reaparecem. Efetuar um pagamento confirmado que quite o saldo e verificar que o aviso de atraso deixa de aparecer.", "Testar leitura, dispensa, abertura, carregamento, erro, foco por teclado, tema claro/escuro e larguras de 360, 390, 430 e 768 px."],
+    esperado: "O sino reúne somente avisos pertinentes ao perfil, mostra a contagem de não lidas e encaminha cada item à conversa ou pagamento correspondente. Marcar uma mensagem como lida atualiza também a conversa; leitura e dispensa permanecem sincronizadas entre sessões, o saldo quitado deixa de gerar aviso e os dados financeiros não são expostos ao Instrutor."
   },
   {
     id: "F1-ACAD-01",
