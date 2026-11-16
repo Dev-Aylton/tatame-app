@@ -368,7 +368,7 @@ body[data-app-mode="real"] .app-frame {
 }
 
 .notification-button[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .notification-button svg {
@@ -3114,6 +3114,24 @@ body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .bu
   background: var(--surface-raised);
   font-size: 13px;
   line-height: 1.5;
+}
+
+.app-update-available:not([hidden]) {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.app-update-available > span:first-child {
+  color: var(--accent-text);
+  font-size: 16px;
+  font-weight: 750;
 }
 
 .user-panel-action[hidden] {

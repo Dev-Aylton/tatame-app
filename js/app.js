@@ -8988,6 +8988,39 @@ function requestRealServiceWorkerCacheRefresh(worker) {
   });
 }
 
+function setRealAppUpdateAvailable(available) {
+  const notice = document.querySelector("#app-update-available");
+  if (notice) notice.hidden = !available;
+}
+
+function watchRealAppUpdates(registration) {
+  const syncAvailability = () => {
+    setRealAppUpdateAvailable(Boolean(navigator.serviceWorker.controller && registration.waiting));
+  };
+  const watchInstallingWorker = () => {
+    const worker = registration.installing;
+    if (!worker) return;
+    worker.addEventListener("statechange", syncAvailability);
+  };
+
+  registration.addEventListener("updatefound", watchInstallingWorker);
+  navigator.serviceWorker.addEventListener("controllerchange", () => setRealAppUpdateAvailable(false));
+  if (registration.installing) watchInstallingWorker();
+  syncAvailability();
+  void registration.update().then(syncAvailability).catch((error) => {
+    console.warn("Não foi possível verificar se há atualização do app.", error);
+    const status = document.querySelector("#app-update-status");
+    if (status && !status.textContent) {
+      status.textContent = "Não foi possível verificar automaticamente se há atualização. Use “Atualizar app” para tentar novamente.";
+    }
+  });
+}
+
+function initializeRealAppUpdateDetection() {
+  if (!("serviceWorker" in navigator)) return;
+  void navigator.serviceWorker.ready.then(watchRealAppUpdates);
+}
+
 function handleAppUpdate(button) {
   const control = button.closest(".user-panel-action");
   if (!control) return;
@@ -9426,6 +9459,7 @@ function authConfigurationError() {
 
 function syncRealSessionPanel() {
   document.body.dataset.appMode = "real";
+  syncRealNotificationButton();
   if (!realUser) clearRealUserPanelMedia();
   const realSession = document.querySelector("#real-session");
   realSession.hidden = !realUser;
@@ -10444,6 +10478,8 @@ const initialQuery = new URLSearchParams(window.location.search);
 removeInstructorInviteTokenFromUrl();
 renderScreen(initialQuery.has("convite_instrutor") ? "instructor-invite" : "login");
 document.querySelector("#diagnostics-version").textContent = `Versão do app: ${APP_VERSION}`;
+document.querySelector("#user-panel-app-version").textContent = APP_VERSION;
+initializeRealAppUpdateDetection();
 syncRealSessionPanel();
 initializeRealAuth();
 window.addEventListener("resize", updateToastPosition);

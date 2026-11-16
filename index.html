@@ -191,6 +191,14 @@
       <h3 class="user-panel-group-title">Aplicativo</h3>
       <div class="user-panel-action">
         <p>Verifique se há uma nova versão do Tatame.</p>
+        <div class="user-panel-version" role="group" aria-label="Versão instalada">
+          <span>Versão instalada</span>
+          <span class="version-badge" id="user-panel-app-version"></span>
+        </div>
+        <p class="app-update-available" id="app-update-available" role="status" aria-live="polite" hidden>
+          <span aria-hidden="true">↻</span>
+          <span><strong>Atualização disponível.</strong> Toque em “Atualizar app” para instalar.</span>
+        </p>
         <button class="button button--quiet button--action" type="button" data-app-update aria-describedby="app-update-error app-update-status"><span data-action-label>Atualizar app</span></button>
         <p class="login-action-error" id="app-update-error" role="alert"></p>
         <p class="field-help" id="app-update-status" role="status" aria-live="polite"></p>
