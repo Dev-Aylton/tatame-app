@@ -1223,12 +1223,27 @@ function renderRealProfileOnboarding(stage) {
   document.querySelector("#profile-onboarding-title").textContent =
     stage === "age"
       ? (isStudentProfileFlow ? "Nome e idade declarada" : "Idade declarada")
+      : stage === "consent-error"
+        ? "Não foi possível verificar o aceite"
       : "Consentimento e privacidade";
   realOnboardingStage = stage;
-  if (stage === "age") {
+  if (stage === "consent-error") {
+    content.innerHTML = `
+      <p id="profile-onboarding-copy" class="profile-onboarding-copy">Não foi possível confirmar se o aceite da versão vigente já está registrado. Tente verificar novamente antes de continuar.</p>
+      <div class="profile-onboarding-actions">
+        <button class="button button--primary button--action" type="button" data-real-onboarding-action="retry-consent-check"><span data-action-label>Verificar novamente</span></button>
+        <p class="login-action-error" id="profile-onboarding-error" role="alert"></p>
+        <p class="field-help" id="profile-onboarding-status" role="status" aria-live="polite"></p>
+      </div>
+    `;
+  } else if (stage === "age") {
+    const isExistingProfileAge = realProfileState === "found" &&
+      realProfile && ["aluno", "instrutor"].includes(realProfile.papel);
     const ageCopy = isStudentProfileFlow
       ? "Informe seu nome e declare se tem 18 anos ou mais. Nome e idade ficam nesta sessão até você aceitar o termo."
-      : "Para continuar, declare se tem 18 anos ou mais. A resposta vale somente nesta sessão e não é enviada ao banco.";
+      : isExistingProfileAge
+        ? "Para continuar, declare se tem 18 anos ou mais. A resposta será registrada no perfil, sem guardar data de nascimento."
+        : "Para continuar, declare se tem 18 anos ou mais. A resposta vale somente nesta sessão e não é enviada ao banco.";
     content.innerHTML = `
       <p id="profile-onboarding-copy" class="profile-onboarding-copy">${ageCopy}</p>
       ${isStudentProfileFlow ? `
@@ -1254,8 +1269,8 @@ function renderRealProfileOnboarding(stage) {
       ? "Ao continuar, seu consentimento será registrado no banco, associado à versão deste termo e à data e hora do aceite. Leia a política de privacidade antes de continuar."
       : isStudentProfileFlow
         ? "Ao aceitar, será criado seu perfil de Aluno e registrado o consentimento com o identificador do perfil, a versão deste termo e a data e hora do aceite. Leia a política de privacidade antes de continuar."
-        : role === "aluno"
-          ? "Para este perfil já existente, esta tela não registra uma nova resposta. Leia a política de privacidade antes de continuar."
+        : ["aluno", "instrutor"].includes(role)
+          ? "Ao aceitar, seu consentimento será registrado no banco, associado à versão deste termo e à data e hora do aceite. Não será solicitado novamente enquanto esta versão estiver aceita. Leia a política de privacidade antes de continuar."
         : "Se você aceitar um convite de Instrutor, o registro ocorrerá após o convite ser consumido. Leia a política de privacidade antes de continuar.";
     content.innerHTML = `
       <p id="profile-onboarding-copy" class="profile-onboarding-copy">${consentCopy}</p>
@@ -1280,19 +1295,64 @@ function renderRealProfileOnboarding(stage) {
 }
 
 async function checkRealConsentAccepted() {
-  if (!authClient || !realUser) return false;
+  if (!authClient || !realUser) {
+    recordDiagnostic("Erro ao consultar consentimento");
+    return "error";
+  }
+  const userId = realUser.id;
   try {
     const { data, error } = await authClient.rpc("consentimento_atual_aceito", {
       p_versao: CONSENT_TERM_VERSION
     });
-    if (error) {
+    if (error || !realUser || realUser.id !== userId || typeof data !== "boolean") {
       recordDiagnostic("Erro ao consultar consentimento");
-      return false;
+      return "error";
     }
-    return data === true;
+    return data ? "accepted" : "missing";
   } catch {
     recordDiagnostic("Erro ao consultar consentimento");
-    return false;
+    return "error";
+  }
+}
+
+async function declareRealProfileAge(age) {
+  if (!authClient || !realUser || !realProfile ||
+      !["aluno", "instrutor"].includes(realProfile.papel) ||
+      !["adulto", "menor"].includes(age)) {
+    recordDiagnostic("Erro ao registrar idade declarada");
+    return "erro";
+  }
+  const userId = realUser.id;
+  try {
+    const { data, error } = await authClient.rpc("declarar_idade_conta", {
+      p_idade_declarada: age
+    });
+    if (error) {
+      recordDiagnostic("Erro ao registrar idade declarada");
+      return "erro";
+    }
+    if (data === true) {
+      if (!realUser || realUser.id !== userId) return "erro";
+      realProfile.idade_declarada = age;
+      return "ok";
+    }
+    if (data !== false) {
+      recordDiagnostic("Resposta inesperada ao registrar idade declarada");
+      return "erro";
+    }
+    const { data: profile, error: profileError } = await authClient.from("perfis")
+      .select("idade_declarada")
+      .eq("id", userId)
+      .maybeSingle();
+    if (profileError || !profile || !realUser || realUser.id !== userId) {
+      recordDiagnostic("Erro ao confirmar idade declarada");
+      return "erro";
+    }
+    realProfile.idade_declarada = profile.idade_declarada;
+    return profile.idade_declarada === age ? "ok" : "ja_declarada";
+  } catch {
+    recordDiagnostic("Erro ao registrar idade declarada");
+    return "erro";
   }
 }
 
@@ -1318,14 +1378,22 @@ async function maybeOpenRealProfileOnboarding() {
   const hasDeclaredAge = realProfile && ["adulto", "menor"].includes(realProfile.idade_declarada);
   if (role === "professor" || (["aluno", "instrutor"].includes(role) && hasDeclaredAge)) {
     realOnboardingHandledSessionUserId = userId;
-    if (await checkRealConsentAccepted()) return;
+    const consentStatus = await checkRealConsentAccepted();
     if (!realUser || realUser.id !== userId) return;
+    if (consentStatus === "accepted") {
+      if (profileOnboardingDialog.open) finishRealProfileOnboarding();
+      return;
+    }
+    if (consentStatus === "error") {
+      renderRealProfileOnboarding("consent-error");
+      return;
+    }
   } else {
     realOnboardingHandledSessionUserId = userId;
   }
   realOnboardingAge = null;
   realOnboardingName = getPendingRealSignupName();
-  renderRealProfileOnboarding(role === "professor" ? "consent" : "age");
+  renderRealProfileOnboarding(role === "professor" || hasDeclaredAge ? "consent" : "age");
 }
 
 async function registerRealConsent() {
@@ -1744,11 +1812,11 @@ function closeTutorial() {
   }
 }
 
-const privacyPlaceholder = "O aceite do termo é gravado com o identificador do perfil, a versão do termo e a data e hora. O Professor aceita na primeira vez, o Instrutor depois de usar o convite e o Aluno novo ao criar o perfil.";
+const privacyPlaceholder = "O aceite do termo é gravado com o identificador do perfil, a versão do termo e a data e hora. O Professor aceita na primeira vez. O Instrutor aceita depois de usar o convite. Alunos e Instrutores com perfil existente que ainda não aceitaram a versão vigente recebem o pedido no primeiro acesso. O Aluno novo aceita ao criar o perfil. O aceite não é solicitado novamente enquanto a mesma versão estiver vigente.";
 
 function renderPrivacyDraftContent(headingTag = "h2") {
   return `
-    <p class="panel-copy">O aceite do termo é gravado com o identificador do perfil, a versão do termo e a data e hora. O Professor aceita na primeira vez. O Instrutor aceita depois de usar o convite. O Aluno novo aceita ao criar o perfil.</p>
+    <p class="panel-copy">O aceite do termo é gravado com o identificador do perfil, a versão do termo e a data e hora. O Professor aceita na primeira vez. O Instrutor aceita depois de usar o convite. Alunos e Instrutores com perfil existente que ainda não aceitaram a versão vigente recebem o pedido no primeiro acesso. O Aluno novo aceita ao criar o perfil. O aceite não é solicitado novamente enquanto a mesma versão estiver vigente.</p>
     <p class="panel-copy">O redesign reorganiza a navegação: barra lateral no computador e barra inferior com menu “Mais” no celular. A mudança visual não altera as permissões nem os dados acessíveis por perfil.</p>
 
     <section class="privacy-draft-section">
@@ -1789,7 +1857,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
 
     <section class="privacy-draft-section">
       <${headingTag}>3. Menores de 18 anos</${headingTag}>
-      <p>A idade é só declarada, sem verificação. Alunos menores ou sem idade declarada usam somente avatar; não enviam foto de pessoa. Convites de Instrutor exigem declaração de adulto.</p>
+      <p>O app não solicita data de nascimento. Para perfis existentes de Aluno e Instrutor, a declaração é registrada no perfil como adulto ou menor de 18 anos. No cadastro de Aluno, a declaração é registrada ao criar o perfil. Alunos menores ou sem idade declarada usam somente avatar; não enviam foto de pessoa. Convites de Instrutor exigem declaração de adulto.</p>
     </section>
 
     <section class="privacy-draft-section">
@@ -10594,11 +10662,39 @@ document.addEventListener("click", (event) => {
   if (realOnboardingAction instanceof HTMLButtonElement) {
     const action = realOnboardingAction.dataset.realOnboardingAction;
     const buttonGroup = Array.from(profileOnboardingDialog.querySelectorAll("button, input"));
-    if (action === "age") {
+    if (action === "retry-consent-check") {
+      const retryMessage = "Não foi possível verificar o aceite. Confira sua conexão e tente novamente.";
+      let consentStatus = "error";
+      runButtonAction(realOnboardingAction, {
+        feedback: document.querySelector("#profile-onboarding-error"),
+        announcement: document.querySelector("#profile-onboarding-status"),
+        buttons: buttonGroup,
+        loadingText: "Verificando...",
+        loadingMessage: "Verificando o aceite da versão vigente.",
+        successMessage: "Verificação concluída.",
+        successLabel: "Verificado",
+        errorMessage: retryMessage,
+        successDelay: 0,
+        afterSuccess: () => {
+          if (consentStatus === "accepted") {
+            finishRealProfileOnboarding();
+            renderScreen(currentScreen || "real-account");
+          } else {
+            renderRealProfileOnboarding("consent");
+          }
+        }
+      }, async () => {
+        consentStatus = await checkRealConsentAccepted();
+        if (consentStatus === "error") return { errorMessage: retryMessage };
+      });
+    } else if (action === "age") {
       const role = realProfileState === "found" && realProfile ? realProfile.papel : null;
       const selectedAge = profileOnboardingDialog.querySelector('[name="profile-age"]:checked');
       const age = selectedAge ? selectedAge.value : "";
       const isStudentProfileFlow = isRealStudentProfileCreationFlow();
+      const persistsExistingAge = !isStudentProfileFlow && realProfileState === "found" &&
+        ["aluno", "instrutor"].includes(role);
+      let nextStage = "consent";
       const nameInput = isStudentProfileFlow
         ? profileOnboardingDialog.querySelector("#real-profile-onboarding-name")
         : null;
@@ -10607,13 +10703,24 @@ document.addEventListener("click", (event) => {
         feedback: document.querySelector("#profile-onboarding-error"),
         announcement: document.querySelector("#profile-onboarding-status"),
         buttons: buttonGroup,
-        loadingText: isStudentProfileFlow ? "Validando..." : "Continuando...",
-        loadingMessage: isStudentProfileFlow ? "Validando nome e idade." : "Mantendo a declaração somente nesta sessão.",
-        successMessage: isStudentProfileFlow ? "Revise o termo para criar seu perfil." : "Declaração temporária concluída; nada foi gravado.",
-        successLabel: isStudentProfileFlow ? "Dados informados" : undefined,
+        loadingText: isStudentProfileFlow ? "Validando..." : persistsExistingAge ? "Registrando..." : "Continuando...",
+        loadingMessage: isStudentProfileFlow
+          ? "Validando nome e idade."
+          : persistsExistingAge ? "Registrando sua declaração de idade." : "Mantendo a declaração somente nesta sessão.",
+        successMessage: isStudentProfileFlow
+          ? "Revise o termo para criar seu perfil."
+          : persistsExistingAge ? "Declaração de idade registrada." : "Declaração temporária concluída; nada foi gravado.",
+        successLabel: isStudentProfileFlow ? "Dados informados" : persistsExistingAge ? "Idade registrada" : undefined,
         errorMessage: "Não foi possível continuar. Tente novamente.",
         successDelay: 0,
-        afterSuccess: () => renderRealProfileOnboarding("consent")
+        afterSuccess: () => {
+          if (nextStage === "complete") {
+            finishRealProfileOnboarding();
+            renderScreen(currentScreen || "real-account");
+          } else {
+            renderRealProfileOnboarding("consent");
+          }
+        }
       }, async () => {
         if (!realUser || role === "professor" || realOnboardingStage !== "age") {
           return { errorMessage: "A sessão mudou. Entre novamente para continuar." };
@@ -10624,6 +10731,20 @@ document.addEventListener("click", (event) => {
         if (!["adult", "minor"].includes(age)) return { errorMessage: "Escolha uma opção de idade para continuar." };
         realOnboardingName = isStudentProfileFlow ? name : "";
         realOnboardingAge = age;
+        if (persistsExistingAge) {
+          const ageResult = await declareRealProfileAge(age === "adult" ? "adulto" : "menor");
+          if (ageResult === "ja_declarada") {
+            return { errorMessage: "Esta conta já tem outra declaração de idade registrada. Entre novamente para atualizar os dados." };
+          }
+          if (ageResult !== "ok") {
+            return { errorMessage: "Não foi possível registrar sua declaração de idade. Tente novamente." };
+          }
+          const consentStatus = await checkRealConsentAccepted();
+          if (consentStatus === "error") {
+            return { errorMessage: "A idade foi registrada, mas não foi possível verificar o consentimento. Tente novamente." };
+          }
+          if (consentStatus === "accepted") nextStage = "complete";
+        }
       });
     } else if (action === "continue") {
       const role = realProfileState === "found" && realProfile ? realProfile.papel : null;
@@ -10635,13 +10756,19 @@ document.addEventListener("click", (event) => {
         loadingText: role === "professor" ? "Registrando..." : isStudentProfileFlow ? "Criando perfil..." : "Continuando...",
         loadingMessage: role === "professor"
           ? "Registrando seu consentimento."
-          : isStudentProfileFlow ? "Criando o perfil e registrando seu consentimento." : "Concluindo o aviso somente nesta sessão.",
+          : isStudentProfileFlow
+            ? "Criando o perfil e registrando seu consentimento."
+            : ["aluno", "instrutor"].includes(role) ? "Registrando seu consentimento." : "Concluindo o aviso somente nesta sessão.",
         successMessage: role === "professor"
           ? "Consentimento registrado."
-          : isStudentProfileFlow ? "Perfil confirmado; continuando." : "Aviso concluído; nenhuma resposta foi salva.",
+          : isStudentProfileFlow
+            ? "Perfil confirmado; continuando."
+            : ["aluno", "instrutor"].includes(role) ? "Consentimento registrado." : "Aviso concluído; nenhuma resposta foi salva.",
         successLabel: role === "professor"
           ? "Consentimento registrado"
-          : isStudentProfileFlow ? "Perfil confirmado" : "Aviso concluído",
+          : isStudentProfileFlow
+            ? "Perfil confirmado"
+            : ["aluno", "instrutor"].includes(role) ? "Consentimento registrado" : "Aviso concluído",
         errorMessage: "Não foi possível continuar. Tente novamente.",
         successDelay: 0,
         afterSuccess: isStudentProfileFlow
@@ -10699,6 +10826,14 @@ document.addEventListener("click", (event) => {
             if (dailyResult.errorMessage || dailyResult.data !== true) {
               return { errorMessage: dailyResult.errorMessage || "Não foi possível registrar a autorização para diárias. Tente novamente." };
             }
+          }
+        } else if (["aluno", "instrutor"].includes(role)) {
+          const result = await registerRealConsent();
+          if (result === "nao_autenticado") {
+            return { errorMessage: "Sua sessão expirou. Entre novamente." };
+          }
+          if (result !== "ok") {
+            return { errorMessage: "Não foi possível registrar seu consentimento. Tente novamente." };
           }
         }
       });
