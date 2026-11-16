@@ -18,20 +18,20 @@ Aplicação web instalável para academias de Jiu-Jitsu organizarem aulas, vínc
 - Gerenciar alunos, vínculos e convites.
 - Criar cobranças e acompanhar pagamentos; revisar comprovantes e registrar decisões manualmente.
 - Ler localmente o valor de comprovantes para apoiar a conferência.
-- Registrar graduações, conversar com alunos, publicar conteúdos de treino e organizar plano semanal.
+- Registrar graduações, conversar com alunos, publicar conteúdos de treino e organizar planos semanais ou mensais, com compartilhamento opcional com alunos vinculados.
 - Delegar uma aula e compartilhar seu conteúdo com um Instrutor.
 
 ![Gestão de aulas e grade semanal](docs/img/grade-semanal.png)
 
 ### Instrutor
-- Consultar aulas delegadas e o conteúdo compartilhado pelo Professor.
+- Consultar somente as aulas delegadas pelo Professor.
 - Consultar alunos vinculados com acesso limitado a nome e graduação atual.
 - Registrar se seguiu a orientação da aula e usar a conversa com o Professor.
 
 ### Aluno
 - Solicitar vínculo com um Professor e consultar cobranças enviadas.
 - Avisar pagamentos e anexar comprovantes.
-- Consultar graduações, conversar com o Professor, acessar conteúdos de treino e acompanhar feedbacks e metas.
+- Consultar graduações, conversar com o Professor, acessar planos de treino compartilhados, conteúdos de treino e feedbacks e metas.
 
 O app registra informações de cobrança e pagamento, mas não processa transações financeiras.
 

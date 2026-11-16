@@ -27,13 +27,24 @@ window.CASOS_ACEITE_F2 = [
   {
     id: "F2-PLAN-01",
     fase: "F2",
-    area: "Plano semanal",
+    area: "Planos de treino",
     titulo: "Professor remove treino antes de salvar o plano",
     perfil: "Professor",
     regras: "A remoção de itens só é aplicada ao salvar o plano",
     precondicoes: "Usar um plano de demonstração com mais de um treino.",
     passos: ["Abrir o plano semanal.", "Marcar um treino para remoção e salvar.", "Reabrir o plano e conferir os itens restantes."],
     esperado: "O treino marcado deixa de constar no plano após salvar; os demais itens permanecem e o estado de compartilhamento não muda."
+  },
+  {
+    id: "F2-PLAN-02",
+    fase: "F2",
+    area: "Planos de treino",
+    titulo: "Planos semanais e mensais são organizados e compartilhados com alunos",
+    perfil: "Professor, Aluno vinculado e Instrutor",
+    regras: "Compartilhamento de planos é opcional e destinado somente a alunos vinculados; aulas delegadas são o conteúdo enviado ao Instrutor",
+    precondicoes: "Usar contas e registros fictícios: Professor ativo, Aluno vinculado e Instrutor autorizado.",
+    passos: ["Como Professor, criar planos semanal e mensal com treinos em datas diferentes e usar uma sugestão ou tema salvo.", "Manter um plano privado e compartilhar o outro com alunos vinculados.", "Como Aluno, conferir que só o plano compartilhado aparece.", "Como Instrutor, conferir que planos não aparecem e abrir uma aula delegada."],
+    esperado: "Os treinos ficam nas datas e períodos escolhidos; o Aluno só consulta planos compartilhados pelo Professor vinculado, e o Instrutor recebe somente aulas delegadas."
   },
   {
     id: "F2-HELP-01",
