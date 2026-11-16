@@ -558,6 +558,16 @@ window.CASOS_ACEITE_F1 = [
     esperado: "A tela do Professor informa “Professor sem academia”; ao aluno, o código responde com a mesma mensagem genérica usada para código inexistente."
   },
   {
+    id: "F1-ACC-11",
+    area: "Acesso e convites",
+    titulo: "Código de vínculo aceita seis letras ou números e normaliza a entrada",
+    perfil: "Aluno sem vínculo",
+    regras: "Validação local aceita seis caracteres A-Z ou 0-9; o banco decide se o código existe.",
+    precondicoes: "Preview local com Aluno sem vínculo; usar códigos fictícios, sem consultar o banco real.",
+    passos: ["Enviar 2ABVXW e confirmar que passa pela validação local e segue para a RPC.", "Enviar abvxw2 e confirmar normalização para ABVXW2 antes da RPC.", "Enviar 2AB VXW e 2ABVXW ; confirmar remoção dos espaços antes da RPC.", "Enviar 2ABVX (5 caracteres), 2ABVXWY (7 caracteres) e 2ABV!W (símbolo); confirmar rejeição local por formato."],
+    esperado: "Os formatos 2ABVXW, abvxw2 e os dois exemplos com espaços são aceitos pelo validador após normalização; 5, 7 caracteres e símbolo são recusados antes da RPC. A aceitação de formato não afirma que o código exista."
+  },
+  {
     id: "F1-INST-06",
     area: "Instrutor",
     titulo: "Professor delega a aula e escolhe plano compartilhado ou treino livre",

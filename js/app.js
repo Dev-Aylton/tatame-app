@@ -6309,8 +6309,8 @@ function handleRealStudentLinkSubmit(form) {
 
     const code = input.value.replace(/\s/g, "").toUpperCase();
     input.value = code;
-    if (!/^[0-9A-F]{6}$/.test(code)) {
-      return { errorMessage: "Informe um código válido com 6 caracteres hexadecimais." };
+    if (!/^[A-Z0-9]{6}$/.test(code)) {
+      return { errorMessage: "Informe um código válido com 6 letras ou números." };
     }
 
     try {
