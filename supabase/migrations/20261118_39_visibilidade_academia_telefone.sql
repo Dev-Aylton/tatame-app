@@ -1,3 +1,4 @@
+-- Aplicada no banco verificado; preservar como histórico.
 -- Restringe dados e fotos da academia a Alunos vinculados e adiciona telefone institucional.
 begin;
 

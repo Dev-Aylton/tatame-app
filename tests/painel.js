@@ -84,9 +84,9 @@ const checks = [
         areas.has("Professor") &&
         areas.has("Fotos e avatar") &&
         areas.has("Segurança e publicação") &&
-        casesF1.length === 71 &&
-        casesF2.length === 3 &&
-        casesF3.length === 1 &&
+        casesF1.length === 72 &&
+        casesF2.length === 6 &&
+        casesF3.length === 4 &&
         cases.some((testCase) => testCase.id === "F1-AUTH-04") &&
         cases.some((testCase) => testCase.id === "F1-DEMO-01") &&
         cases.some((testCase) => testCase.id === "F1-ACC-06") &&
@@ -96,6 +96,7 @@ const checks = [
         cases.some((testCase) => testCase.id === "F1-PRIV-04") &&
         cases.some((testCase) => testCase.id === "F1-ACAD-01") &&
         cases.some((testCase) => testCase.id === "F1-ACAD-02" && testCase.fase === "F1") &&
+        cases.some((testCase) => testCase.id === "F1-ACAD-03" && testCase.fase === "F1") &&
         cases.some((testCase) => testCase.id === "F1-PLAN-01") &&
         cases.some((testCase) => testCase.id === "F1-ADM-01") &&
         cases.some((testCase) => testCase.id === "F1-ADM-02") &&
