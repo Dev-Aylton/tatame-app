@@ -124,7 +124,7 @@ tatame/
 - **Funções SQL com `security definer` e `set search_path = ''`:** impede ataques de substituição de schema.
 - **Consentimentos imutáveis:** um trigger de banco bloqueia `UPDATE` e `DELETE` na tabela `consentimentos` — conformidade LGPD.
 - **Exclusão de conta via Edge Function:** a chave `service_role` fica somente no servidor Supabase, nunca no cliente ou no repositório.
-- **`config.js` fora do controle de versão:** o arquivo com a URL e a chave pública do Supabase está no `.gitignore`. Um `config.example.js` documenta o formato esperado.
+- **Configuração do Supabase no site publicado:** `js/config.js` é carregado pelo aplicativo e deve ser versionado junto com a publicação do GitHub Pages. Como o conteúdo é público no navegador, use somente a URL do projeto e uma chave publicável (`sb_publishable_` ou `anon`); nunca inclua chave `sb_secret_`, `service_role`, senha ou token. `config.example.js` documenta o formato esperado.
 
 ---
 
@@ -167,6 +167,7 @@ cd tatame
 # 2. Configure o cliente Supabase
 cp js/config.example.js js/config.js
 # Edite js/config.js com a URL e a chave publicável do seu projeto Supabase
+# Inclua js/config.js na publicação do GitHub Pages para habilitar o login no site
 
 # 3. Inicie um servidor HTTP local (Python, Node ou qualquer outro)
 python -m http.server 8766 --bind 127.0.0.1

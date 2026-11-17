@@ -21,6 +21,3 @@ ehthumbs.db
 supabase/.temp/
 supabase/.branches/
 dev-preview/
-
-# Configuração local com chaves privadas — não versionar
-js/config.js
