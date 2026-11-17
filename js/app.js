@@ -11,12 +11,13 @@ const REAL_PAYMENT_PROOF_MAX_BYTES = 10 * 1024 * 1024;
 const REAL_PAYMENT_PROOF_PDF_MAX_PAGES = 10;
 const REAL_PAYMENT_PROOF_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 document.body.dataset.appMode = "real";
-const CONSENT_TERM_VERSION = "rascunho-1";
+const CONSENT_TERM_VERSION = "final-1"; // Versão definitiva do termo de privacidade — alinhada com migration 28_versao_termo.sql
 const realSignupNameSessionKey = "tatame-real-signup-name";
 const diagnosticEvents = [];
 
 function recordDiagnostic(category) {
   diagnosticEvents.push({ category, time: new Date().toLocaleTimeString("pt-BR") });
+  if (diagnosticEvents.length > 100) diagnosticEvents.shift();
   const list = document.querySelector("#diagnostics-list");
   if (list) {
     list.replaceChildren(...diagnosticEvents.map((entry) => {
@@ -298,7 +299,8 @@ let realProfessorGraduationsState = "idle";
 let realProfessorGraduationsNotice = "";
 let realProfessorGraduationsRequestSequence = 0;
 let realSelectedGraduationStudentId = "";
-const REAL_PROFILE_PHOTO_MAX_CONCURRENT = 20;
+// Limite de requisições simultâneas de fotos de perfil — 6 é adequado para mobile
+const REAL_PROFILE_PHOTO_MAX_CONCURRENT = 6;
 const realLinkedProfilePhotoQueue = [];
 let realLinkedProfilePhotoRequestsInFlight = 0;
 let realStudentGraduations = [];
@@ -365,6 +367,20 @@ let realNotificationsErrorShown = false;
 let realPendingConversationScrollId = "";
 const realPendingConversationNotifications = new Set();
 const realNotifiedConversationIds = new Set();
+
+// Timers de debounce para chamadas realtime — evita rajadas de requisições
+let _realtimeNotifDebounce = null;
+let _realtimeUnreadDebounce = null;
+
+function debouncedRefreshNotifications(delay = 350) {
+  clearTimeout(_realtimeNotifDebounce);
+  _realtimeNotifDebounce = setTimeout(() => { void refreshRealNotifications(); }, delay);
+}
+
+function debouncedRefreshConversationUnread(delay = 350) {
+  clearTimeout(_realtimeUnreadDebounce);
+  _realtimeUnreadDebounce = setTimeout(() => { void refreshRealConversationUnread(); }, delay);
+}
 let loginNotice = "";
 let realSignoutInProgress = false;
 let realPasswordRecoveryPending = false;
@@ -651,7 +667,7 @@ function renderMobileNavigation() {
       : id === "home" && isRealAdmSession()
         ? "Aluno"
       : mobileNavigationLabels[id] || info.title;
-    return `<button type="button" data-screen-target="${id}" data-navigation-label="${escapeHtml(info.title)}" aria-label="${escapeHtml(navigationAccessibleLabel(id, info.title))}"><span class="mobile-nav-icon">${navigationIcon(id)}${navigationUnreadBadge(id)}</span><span class="mobile-nav-label">${label}</span></button>`;
+    return `<button type="button" data-screen-target="${id}" data-navigation-label="${escapeHtml(info.title)}" aria-label="${escapeHtml(navigationAccessibleLabel(id, info.title))}"${id === currentScreen ? " aria-current=\"page\"" : ""}><span class="mobile-nav-icon">${navigationIcon(id)}${navigationUnreadBadge(id)}</span><span class="mobile-nav-label">${label}</span></button>`;
   }).join("")}<button type="button" data-open-sidebar data-navigation-label="Abrir navegação completa" aria-controls="app-sidebar" aria-expanded="false" aria-label="${escapeHtml(navigationAccessibleLabel("more", "Abrir navegação completa"))}"><span class="mobile-nav-icon">${navigationIcon("more")}${navigationUnreadBadge("more")}</span><span class="mobile-nav-label">Mais</span></button>`;
   updateToastPosition();
 }
@@ -1044,6 +1060,10 @@ async function refreshRealConversationUnread() {
 }
 
 function stopRealConversationNotifications() {
+  clearTimeout(_realtimeNotifDebounce);
+  clearTimeout(_realtimeUnreadDebounce);
+  _realtimeNotifDebounce = null;
+  _realtimeUnreadDebounce = null;
   realConversationChannelGeneration += 1;
   realConversationUnreadRequestSequence += 1;
   realNotificationsRequestSequence += 1;
@@ -1102,8 +1122,8 @@ function startRealConversationNotifications() {
             !message || typeof message.conversa_id !== "string" ||
             message.remetente_id === userId) return;
         realPendingConversationNotifications.add(message.conversa_id);
-        void refreshRealConversationUnread();
-        void refreshRealNotifications();
+         debouncedRefreshConversationUnread(); // debounce: evita flood em mensagens rapidas
+         debouncedRefreshNotifications();
         if (["teacher-chat", "student-chat", "instructor-chat"].includes(currentScreen)) {
           void reloadRealFeatureScreen();
         }
@@ -1117,8 +1137,8 @@ function startRealConversationNotifications() {
         if (channelGeneration !== realConversationChannelGeneration ||
             !realUser || realUser.id !== userId ||
             !message || typeof message.id !== "string" || !message.apagada_em) return;
-        void refreshRealConversationUnread();
-        void refreshRealNotifications();
+         debouncedRefreshConversationUnread(); // debounce: mensagem apagada
+         debouncedRefreshNotifications();
         if (["teacher-chat", "student-chat", "instructor-chat"].includes(currentScreen)) {
           void reloadRealFeatureScreen();
         }
@@ -1129,7 +1149,7 @@ function startRealConversationNotifications() {
         table: "cobrancas_mensais"
       }, () => {
         if (channelGeneration === realConversationChannelGeneration &&
-            realUser && realUser.id === userId) void refreshRealNotifications();
+            realUser && realUser.id === userId) debouncedRefreshNotifications();
       })
       .on("postgres_changes", {
         event: "UPDATE",
@@ -1137,7 +1157,7 @@ function startRealConversationNotifications() {
         table: "cobrancas_mensais"
       }, () => {
         if (channelGeneration === realConversationChannelGeneration &&
-            realUser && realUser.id === userId) void refreshRealNotifications();
+            realUser && realUser.id === userId) debouncedRefreshNotifications();
       })
       .on("postgres_changes", {
         event: "INSERT",
@@ -1145,7 +1165,7 @@ function startRealConversationNotifications() {
         table: "pagamentos"
       }, () => {
         if (channelGeneration === realConversationChannelGeneration &&
-            realUser && realUser.id === userId) void refreshRealNotifications();
+            realUser && realUser.id === userId) debouncedRefreshNotifications();
       })
       .on("postgres_changes", {
         event: "UPDATE",
@@ -1153,7 +1173,7 @@ function startRealConversationNotifications() {
         table: "pagamentos"
       }, () => {
         if (channelGeneration === realConversationChannelGeneration &&
-            realUser && realUser.id === userId) void refreshRealNotifications();
+            realUser && realUser.id === userId) debouncedRefreshNotifications();
       })
       .subscribe((status) => {
         if (channelGeneration !== realConversationChannelGeneration ||
@@ -1552,7 +1572,13 @@ function gradeVisual(grade) {
 }
 
 function emptyState(title, copy) {
-  return `<div class="empty-state"><div><strong>${title}</strong><p>${copy}</p></div></div>`;
+  // Ícone SVG inline leve (~340b) — sem dependência externa, funciona offline
+  const icon = `<svg class="empty-state-icon" width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+    <rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M3 11h18" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`;
+  return `<div class="empty-state"><div>${icon}<strong>${title}</strong><p>${copy}</p></div></div>`;
 }
 
 function getRealListUiState(key) {
@@ -1926,14 +1952,14 @@ const screens = {
               <label for="login-email">E-mail</label>
               <input id="login-email" name="email" type="email" autocomplete="username" placeholder="seu e-mail" aria-describedby="email-login-error" required>
             </div>
-            <div class="field" style="margin-top:12px">
+            <div class="field mt-12">
               <label for="login-password">Senha</label>
               <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Sua senha" aria-describedby="email-login-error" required>
             </div>
-            <button class="button button--primary button--action" type="submit" data-login-action aria-describedby="email-login-error" style="width:100%;margin-top:14px"><span data-action-label>Entrar</span></button>
+            <button class="button button--primary button--action w-full mt-12" type="submit" data-login-action aria-describedby="email-login-error"><span data-action-label>Entrar</span></button>
             <div class="login-action-error" id="email-login-error" role="alert" aria-atomic="true"></div>
           </form>
-          <p class="field-help" style="margin:15px 0 0">E-mail e senha são para Alunos e Instrutores. Professor e Adm entram pelo Google.</p>
+          <p class="field-help mt-15">E-mail e senha são para Alunos e Instrutores. Professor e Adm entram pelo Google.</p>
           <button class="button button--quiet" type="button" data-screen-target="create-account">Criar conta</button>
           <button class="button button--quiet" type="button" data-screen-target="forgot-password">Esqueci a senha</button>
           <div class="login-version"><span>Versão do app</span><span class="version-badge">${APP_VERSION}</span></div>
@@ -1945,12 +1971,12 @@ const screens = {
     return `
       ${heading("ACESSO", "Criar conta", "Use seu e-mail para criar uma conta de Aluno ou aceitar um convite de Instrutor.")}
       <div class="content-grid auth-form-layout">
-        <section class="panel-card" style="max-width:620px;margin:0 auto">
+        <section class="panel-card auth-panel-centered">
           <form data-real-signup-form novalidate>
             <div class="field"><label for="real-signup-name">Nome</label><input id="real-signup-name" name="name" type="text" autocomplete="name" placeholder="Seu nome completo" maxlength="80" aria-describedby="real-signup-error" required></div>
-            <div class="field" style="margin-top:12px"><label for="real-signup-email">E-mail</label><input id="real-signup-email" name="email" type="email" autocomplete="email" placeholder="seu e-mail" aria-describedby="real-signup-error" required></div>
-            <div class="field" style="margin-top:12px"><label for="real-signup-password">Senha</label><input id="real-signup-password" name="password" type="password" autocomplete="new-password" minlength="8" aria-describedby="real-signup-help real-signup-error" required></div>
-            <div class="field" style="margin-top:12px"><label for="real-signup-confirm-password">Confirmar senha</label><input id="real-signup-confirm-password" name="password-confirmation" type="password" autocomplete="new-password" minlength="8" aria-describedby="real-signup-help real-signup-error" required></div>
+            <div class="field mt-12"><label for="real-signup-email">E-mail</label><input id="real-signup-email" name="email" type="email" autocomplete="email" placeholder="seu e-mail" aria-describedby="real-signup-error" required></div>
+            <div class="field mt-12"><label for="real-signup-password">Senha</label><input id="real-signup-password" name="password" type="password" autocomplete="new-password" minlength="8" aria-describedby="real-signup-help real-signup-error" required></div>
+            <div class="field mt-12"><label for="real-signup-confirm-password">Confirmar senha</label><input id="real-signup-confirm-password" name="password-confirmation" type="password" autocomplete="new-password" minlength="8" aria-describedby="real-signup-help real-signup-error" required></div>
             <small class="field-help" id="real-signup-help">A senha deve ter pelo menos 8 caracteres.</small>
             <div class="form-actions">
               <button class="button button--primary button--action" type="submit" data-login-action aria-describedby="real-signup-error real-signup-status"><span data-action-label>Criar conta</span></button>
@@ -1966,7 +1992,7 @@ const screens = {
   "forgot-password"() {
     return `
       ${heading("ACESSO", "Esqueci a senha", "Enviaremos um link para redefinir a senha, se houver uma conta com este e-mail.")}
-      <div class="content-grid auth-form-layout"><section class="panel-card" style="max-width:620px;margin:0 auto">
+      <div class="content-grid auth-form-layout"><section class="panel-card auth-panel-centered">
         <form data-real-password-reset-form novalidate>
           <div class="field"><label for="real-reset-email">E-mail</label><input id="real-reset-email" name="email" type="email" autocomplete="email" placeholder="seu e-mail" aria-describedby="real-reset-error" required></div>
           <div class="form-actions"><button class="button button--primary button--action" type="submit" data-login-action aria-describedby="real-reset-error real-reset-status"><span data-action-label>Enviar link</span></button><button class="button button--quiet" type="button" data-screen-target="login">Voltar para entrar</button></div>
@@ -1979,10 +2005,10 @@ const screens = {
   "password-recovery"() {
     return `
       ${heading("ACESSO", "Definir nova senha", "Escolha uma nova senha para sua conta.")}
-      <div class="content-grid auth-form-layout"><section class="panel-card" style="max-width:620px;margin:0 auto">
+      <div class="content-grid auth-form-layout"><section class="panel-card auth-panel-centered">
         <form data-real-password-update-form novalidate>
           <div class="field"><label for="real-new-password">Nova senha</label><input id="real-new-password" name="password" type="password" autocomplete="new-password" minlength="8" aria-describedby="real-password-update-help real-password-update-error" required></div>
-          <div class="field" style="margin-top:12px"><label for="real-confirm-new-password">Confirmar nova senha</label><input id="real-confirm-new-password" name="password-confirmation" type="password" autocomplete="new-password" minlength="8" aria-describedby="real-password-update-help real-password-update-error" required></div>
+          <div class="field mt-12"><label for="real-confirm-new-password">Confirmar nova senha</label><input id="real-confirm-new-password" name="password-confirmation" type="password" autocomplete="new-password" minlength="8" aria-describedby="real-password-update-help real-password-update-error" required></div>
           <small class="field-help" id="real-password-update-help">A senha deve ter pelo menos 8 caracteres.</small>
           <div class="form-actions"><button class="button button--primary button--action" type="submit" data-login-action aria-describedby="real-password-update-error real-password-update-status"><span data-action-label>Salvar nova senha</span></button></div>
           <div class="login-action-error" id="real-password-update-error" role="alert" aria-atomic="true"></div>
@@ -7767,7 +7793,7 @@ function renderRealAdminDashboardScreen() {
       ${metric("ALUNOS ATIVOS", String(realAdminDashboardStudents), "Papel Aluno", "blue", "admin-students")}
       ${metric("CONVITES PENDENTES", String(realAdminDashboardPendingInvites), "Professores convidados", "amber", "teacher-invites")}
     </div>
-    <div class="content-grid" style="margin-top:16px">
+    <div class="content-grid mt-16">
       ${panel("Academias", academiesContent)}
       ${panel("Professores ativos", professorsContent)}
       ${panel("Convites de Professor", invitationsContent)}
@@ -8058,7 +8084,7 @@ function renderRealAdminInvitesScreen() {
             <label for="real-invite-email">E-mail</label>
             <input id="real-invite-email" name="email" type="text" inputmode="email" autocomplete="email" placeholder="nome@exemplo.com" aria-required="true">
           </div>
-          <div class="field" style="margin-top:12px">
+          <div class="field mt-12">
             <label for="real-invite-academy">Academia</label>
             <select id="real-invite-academy" name="academia_id" aria-required="true" disabled>
               <option value="">Carregando academias...</option>

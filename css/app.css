@@ -1,5 +1,7 @@
 :root {
   color-scheme: dark;
+  /* Inter carregada como fonte variável suporta font-weight intermediário (600-700).
+     Sem ela, o browser arredonda para 600 ou 700 — aceitável como fallback. */
   font-family: Inter, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -22,6 +24,7 @@
   --blue: #a4c7f0;
   --green-text: var(--green);
   --amber-text: var(--amber);
+  --danger: #ff6975;
   --shadow: 0 16px 42px rgb(0 0 0 / 24%);
 }
 
@@ -421,7 +424,7 @@ body[data-app-mode="real"] .app-frame {
 
 .eyebrow-divider {
   padding: 0 4px;
-  color: #555960;
+  color: var(--muted); /* era #555960 hardcoded — sem contraste suficiente no tema claro */
 }
 
 .profile-button {
@@ -444,7 +447,7 @@ body[data-app-mode="real"] .app-frame {
   flex: 0 0 56px;
   overflow: hidden;
   place-items: center;
-  border: 1px solid var(--accent-text);
+  border: 1px solid var(--line); /* era --accent-text (dourado no dark): neutro é mais elegante */
   border-radius: 12px;
   background: var(--accent-soft);
   color: var(--accent-text);
@@ -476,7 +479,7 @@ body[data-app-mode="real"] .app-frame {
 .profile-button-copy small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
+    font-size: 11px; /* elevado de 10px */
 }
 
 .chevron {
@@ -548,7 +551,7 @@ button.text-link {
 }
 
 .screen-heading h2 {
-  margin: 7px 0 0;
+  margin: 0; /* era 7px 0 0 — espaçamento controlado pelo padding do .screen-content */
   font-size: clamp(28px, 3.3vw, 36px);
   font-weight: 700;
   letter-spacing: -.045em;
@@ -592,7 +595,7 @@ button.text-link {
 .content-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(250px, .85fr);
-  gap: 24px;
+  gap: clamp(16px, 2vw, 28px); /* era 24px fixo — gap responsivo dá mais respiro no desktop largo */
   align-items: start;
 }
 
@@ -757,7 +760,7 @@ body[data-app-mode="real"] #screen-content .auth-form-layout {
 
 .metric-note {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px; /* elevado de 10px: mínimo aceitável WCAG para texto informativo */
 }
 
 .metric-card--gold {
@@ -886,9 +889,9 @@ body[data-theme="light"] .button--google:focus-visible {
 }
 
 .button--small {
-  min-height: 32px;
+  min-height: 36px; /* elevado de 32px: alvo de toque mínimo recomendado */
   padding: 6px 10px;
-  font-size: 10px;
+  font-size: 11px; /* elevado de 10px */
 }
 
 .button[disabled] {
@@ -1266,7 +1269,7 @@ form[data-register-teacher-cash] .form-grid {
   font-size: 12px;
 }
 
-.person-copy small {
+    font-size: 11px; /* elevado de 10px */
   margin-top: 4px;
   color: var(--muted);
   font-size: 10px;
@@ -1275,6 +1278,7 @@ form[data-register-teacher-cash] .form-grid {
 .list-row {
   display: flex;
   min-width: 0;
+  min-height: 48px; /* alvo de toque mínimo para mobile */
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -1296,14 +1300,15 @@ form[data-register-teacher-cash] .form-grid {
 }
 
 .row-copy strong {
-  font-size: 12px;
+  font-size: 13px; /* elevado de 12px: nome do usuário é o dado principal da linha */
+  font-weight: 650;
   overflow-wrap: anywhere;
 }
 
 .row-copy small {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px; /* elevado de 10px */
   line-height: 1.45;
 }
 
@@ -1337,6 +1342,12 @@ form[data-register-teacher-cash] .form-grid {
   text-align: center;
 }
 
+.empty-state-icon {
+  display: block;
+  margin: 0 auto 10px;
+  opacity: .45;
+}
+
 .empty-state strong {
   display: block;
   margin-bottom: 6px;
@@ -1347,14 +1358,14 @@ form[data-register-teacher-cash] .form-grid {
 .empty-state p {
   max-width: 420px;
   margin: 0;
-  font-size: 11px;
+  font-size: 13px; /* elevado de 11px: texto de suporte deve ser legível */
   line-height: 1.55;
 }
 
 .panel-copy {
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px; /* elevado de 11px: textos descritivos longos requerem legibilidade */
   line-height: 1.6;
 }
 
@@ -1407,7 +1418,7 @@ form[data-register-teacher-cash] .form-grid {
 
 .student-entry-note {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px; /* elevado de 10px: legenda de aluno precisa ser legível */
 }
 
 .step-number {
@@ -1470,7 +1481,7 @@ form[data-register-teacher-cash] .form-grid {
 .invite-preview p {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+    font-size: 11px; /* elevado de 10px */
   line-height: 1.55;
 }
 
@@ -1699,7 +1710,17 @@ form[data-register-teacher-cash] .form-grid {
   border-radius: 10px;
   background: var(--surface);
   color: var(--text);
-  font-size: 11px;
+  font-size: 13px; /* elevado de 11px: melhor legibilidade desktop e menor gap até 16px mobile */
+  transition: border-color .16s ease;
+}
+
+.field input:focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible,
+.search-input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  outline: none; /* substituído pelo box-shadow + border */
 }
 
 .field input[type="file"] {
@@ -3923,7 +3944,7 @@ body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .bu
 .payment-proof {
   margin: 0 0 10px;
   color: var(--muted);
-  font-size: 10px;
+    font-size: 11px; /* elevado de 10px */
 }
 
 .payment-history-entry {
@@ -3955,7 +3976,7 @@ body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .bu
 .role-change-row small {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 10px;
+    font-size: 11px; /* elevado de 10px */
   line-height: 1.4;
 }
 
@@ -4013,7 +4034,7 @@ body[data-app-mode="real"] #screen-content .auth-form-layout .form-actions > .bu
 
 .loading-note {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px; /* alinhado ao sistema: era 12px, inconsistente */
 }
 
 body[data-theme="light"] {
@@ -4036,6 +4057,7 @@ body[data-theme="light"] {
   --amber-text: var(--amber);
   --brand-red: #b63a32;
   --alert: #b51c2d;
+  --danger: #b51c2d; /* override necessário: dark mode usa #ff6975 sem contraste suficiente no fundo claro */
   --blue: #005e9a;
   --shadow: 0 12px 32px rgb(20 30 40 / 8%);
   background: var(--bg);
@@ -4261,7 +4283,7 @@ body[data-theme="light"] .button--primary {
   }
 
   .toast-region {
-    bottom: calc(var(--mobile-navigation-height, calc(84px + env(safe-area-inset-bottom, 0px))) + 12px);
+    bottom: calc(var(--mobile-navigation-height, calc(84px + env(safe-area-inset-bottom, 0px))) + 20px); /* +8px extra: evita sobreposição com a borda da nav */
   }
 
   .mobile-navigation button {
@@ -4315,6 +4337,11 @@ body[data-theme="light"] .button--primary {
     color: var(--accent-text);
     font-weight: 700;
     box-shadow: inset 0 3px var(--accent-text);
+  }
+
+  .mobile-navigation button:not([aria-current="page"]):hover {
+    background: var(--surface-raised);
+    color: var(--text);
   }
 
   input,
@@ -4671,4 +4698,27 @@ body[data-theme="light"] .button--primary {
   .real-payment-receipt .no-print {
     display: none !important;
   }
+}
+
+/* ── Utilitários ─────────────────────────────────────────────── */
+
+.mt-12 {
+  margin-top: 12px;
+}
+
+.mt-15 {
+  margin-top: 15px;
+}
+
+.mt-16 {
+  margin-top: 16px;
+}
+
+.auth-panel-centered {
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+.w-full {
+  width: 100%;
 }

@@ -1,108 +1,227 @@
-# Tatame
+<div align="center">
+  <img src="assets/logos/tatame-icone-escudo.svg" width="72" alt="Tatame">
+  <h1>Tatame</h1>
+  <p><strong>PWA de gestão de academias de jiu-jitsu</strong></p>
+  <p>
+    <a href="https://dev-aylton.github.io/tatame-app/">🔗 Ver app ao vivo</a>
+    &nbsp;·&nbsp;
+    <a href="#-funcionalidades">Funcionalidades</a>
+    &nbsp;·&nbsp;
+    <a href="#-stack-técnica">Stack</a>
+    &nbsp;·&nbsp;
+    <a href="#-como-rodar-localmente">Rodar localmente</a>
+  </p>
+  <br>
+  <img src="https://img.shields.io/badge/versão-5.26-blue?style=flat-square" alt="Versão 5.26">
+  <img src="https://img.shields.io/badge/PWA-instalável-5A0FC8?style=flat-square&logo=pwa" alt="PWA">
+  <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase" alt="Supabase">
+  <img src="https://img.shields.io/badge/sem_framework-Vanilla_JS-F7DF1E?style=flat-square&logo=javascript" alt="Vanilla JS">
+  <img src="https://img.shields.io/badge/LGPD-conformidade-green?style=flat-square" alt="LGPD">
+</div>
 
-Aplicação web instalável para academias de Jiu-Jitsu organizarem aulas, vínculos, graduações e pagamentos de alunos.
+---
 
-**Repositório:** [URL do repositório]
-**Demonstração:** [URL da demonstração]
-**Versão do app:** 5.26
+## 📌 Sobre o projeto
 
-![Painel administrativo](docs/img/painel-administrativo.png)
+O **Tatame** é uma aplicação web progressiva (PWA) completa para gestão de academias de artes marciais, com foco em jiu-jitsu. Foi desenvolvido do zero — sem framework de frontend nem etapa de build — usando HTML, CSS e JavaScript puros com backend no Supabase.
 
-## Funcionalidades implementadas
+O app cobre todo o ciclo de gestão de uma academia: **vínculo professor–aluno, cobranças mensais, comprovantes de pagamento, graduações, mensagens, planos de treino e muito mais**, com controle de acesso por perfil aplicado diretamente no banco (RLS).
 
-### Adm
-- Consultar indicadores de academias, Professores, alunos e convites.
-- Cadastrar e editar academias, enviar foto e montar a grade semanal com Professores ativos.
-- Convidar Professores e administrar perfis e papéis disponíveis.
+> Projeto de portfólio desenvolvido durante o curso de **Análise e Desenvolvimento de Sistemas — UNINTER**.
 
-### Professor
-- Gerenciar alunos, vínculos e convites.
-- Criar cobranças e acompanhar pagamentos; revisar comprovantes e registrar decisões manualmente.
-- Ler localmente o valor de comprovantes para apoiar a conferência.
-- Registrar graduações, conversar com alunos, publicar conteúdos de treino e organizar planos semanais ou mensais, com compartilhamento opcional com alunos vinculados.
-- Delegar uma aula e compartilhar seu conteúdo com um Instrutor.
+---
 
-![Gestão de aulas e grade semanal](docs/img/grade-semanal.png)
+## ✨ Funcionalidades
 
-### Instrutor
-- Consultar somente as aulas delegadas pelo Professor.
-- Consultar alunos vinculados com acesso limitado a nome e graduação atual.
-- Registrar se seguiu a orientação da aula e usar a conversa com o Professor.
+O app tem quatro papéis com telas e permissões independentes:
 
-### Aluno
-- Solicitar vínculo com um Professor e consultar cobranças enviadas.
-- Avisar pagamentos e anexar comprovantes.
-- Consultar graduações, conversar com o Professor, acessar planos de treino compartilhados, conteúdos de treino e feedbacks e metas.
+### 🏫 Administrador (Adm)
+- Painel com indicadores de academias, professores, alunos e convites pendentes
+- Cadastro e edição de academias com foto de fundo e grade semanal de professores
+- Convite e gerenciamento de professores e papéis
 
-O app registra informações de cobrança e pagamento, mas não processa transações financeiras.
+### 🥋 Professor
+- Gestão completa de alunos: vínculos, pedidos e convites de instrutor
+- **Cobranças mensais** com regras por aluno (valor, vencimento, desconto, isenção)
+- Revisão de comprovantes de pagamento com **OCR local no navegador** (sem envio a serviços externos)
+- Registro de **graduações** com histórico por aluno
+- **Chat em tempo real** com alunos e instrutores (Supabase Realtime)
+- Publicação de **planos de treino** semanais e mensais com compartilhamento opcional
+- Delegação de aulas para instrutores com conteúdo vinculado
 
-## Stack
+### 🎽 Instrutor
+- Acesso às aulas delegadas pelo professor
+- Visualização de alunos vinculados (nome e graduação atual)
+- Registro de execução de aulas e chat com o professor
 
-- **HTML:** estrutura semântica e páginas estáticas.
-- **CSS:** layout responsivo e temas claro e escuro.
-- **JavaScript puro:** interações e fluxos do app, sem framework ou etapa de build.
-- **PWA:** manifest para instalação e service worker para cache de arquivos estáticos.
-- **Supabase:** autenticação, banco PostgreSQL, políticas RLS e armazenamento de arquivos.
+### 👤 Aluno
+- Solicitação de vínculo com professor via código
+- Visualização de cobranças enviadas e histórico de pagamentos
+- **Aviso de pagamento** com upload de comprovante
+- Consulta de graduações, feedbacks e metas
+- Acesso a planos de treino compartilhados pelo professor
+- Chat com o professor
 
-## Arquitetura e segurança
+> O app registra informações de cobrança e pagamento, mas **não processa transações financeiras**.
 
-- O papel e o vínculo do perfil são lidos do banco; a interface adapta a navegação ao perfil.
-- O Supabase aplica permissões por RLS e funções SQL. A interface não substitui essas verificações.
-- A configuração do cliente usa `url` e `publicKey` em `js/config.js`. Não use chaves secretas ou `service_role` no cliente.
-- O parser de comprovantes usa arquivos locais de PDF.js e Tesseract.js no navegador. A leitura de imagens e PDFs não é enviada a um serviço externo de OCR; o Professor confere o comprovante e decide manualmente.
-- As alterações do banco são organizadas em migrations SQL em `supabase/migrations/`; não há migração automática durante a execução do app.
+---
 
-### Exclusão de conta
+## 🛠 Stack técnica
 
-A exclusão de contas de aluno e instrutor é feita pela Edge Function `excluir-conta`, que valida a sessão, verifica registros compartilhados e usa a chave de serviço somente no servidor. O fluxo depende das migrations `supabase/migrations/20261115_31_consentimentos_exclusao.sql` e `supabase/migrations/20261118_40_consentimento_exclusao_conta.sql`; antes de habilitá-lo, confira que ambas foram aplicadas, publique a função e configure `SUPABASE_SERVICE_ROLE_KEY` como segredo no Supabase. Nunca coloque essa chave no app ou no repositório. Contas com vínculos ou registros compartilhados são preservadas e a exclusão é bloqueada.
+| Camada | Tecnologia | Decisão |
+|--------|-----------|---------|
+| **Frontend** | HTML5 · CSS3 · JavaScript ES2022+ | Sem framework — sem etapa de build, deploy direto no GitHub Pages |
+| **PWA** | Service Worker · Web App Manifest | Cache-first para assets, network-first para navegação; instalável no celular |
+| **Backend** | [Supabase](https://supabase.com) (PostgreSQL) | Autenticação, banco, RLS, Storage e Realtime |
+| **Edge Function** | Deno (TypeScript) | Exclusão segura de conta com `service_role` apenas no servidor |
+| **OCR local** | [Tesseract.js](https://tesseract.projectnaptha.com/) + WASM | Leitura de comprovantes no navegador, sem upload a serviços externos |
+| **PDF** | [PDF.js](https://mozilla.github.io/pdf.js/) | Renderização local de comprovantes em PDF |
+| **Realtime** | Supabase Realtime (WebSocket) | Notificações e chat em tempo real com debounce para evitar flood de chamadas |
 
-![Leitura local de comprovante](docs/img/leitura-comprovante.gif)
+**Versões de bibliotecas:** `supabase-js 2.49.8` · `PDF.js` · `Tesseract.js` (com modelos WASM e treinamento em inglês)
 
-## Decisões técnicas
+---
 
-- A implementação estática permite hospedar a aplicação sem servidor próprio ou etapa de compilação.
-- A autenticação e a autorização dos dados ficam no Supabase, com regras por perfil no banco.
-- O service worker armazena arquivos estáticos; operações que dependem do Supabase ainda precisam de conexão.
-- O OCR roda no navegador com dependências locais para não enviar comprovantes a um serviço externo.
+## 🏗 Arquitetura
 
-## Como rodar localmente
+```
+tatame/
+├── index.html                    # Shell da SPA — entrada única do app
+├── privacidade.html              # Política de privacidade (página estática)
+├── sw.js                         # Service Worker (cache versionado)
+├── manifest.webmanifest          # Manifesto PWA
+├── css/
+│   └── app.css                   # ~4.700 linhas — temas claro/escuro, layout responsivo
+├── js/
+│   ├── app.js                    # ~13.100 linhas — toda a lógica do app
+│   ├── exportar.js               # Exportação de dados do professor
+│   ├── offline.js                # Suporte offline
+│   ├── config.js                 # URL e chave pública do Supabase (não versionado)
+│   └── vendor/                   # Dependências copiadas localmente (sem npm)
+│       ├── supabase-2.49.8.js
+│       ├── pdfjs/
+│       └── tesseract/
+├── supabase/
+│   ├── migrations/               # 41 migrations SQL (estrutura completa do banco)
+│   └── functions/excluir-conta/  # Edge Function em TypeScript/Deno
+├── assets/                       # Logos, ícones e avatares padrão
+└── tests/                        # Plano de testes e casos de aceite (F1–F3)
+```
 
-1. Configure `js/config.js` conforme o formato de `js/config.example.js`, usando a URL e a chave publicável do seu ambiente Supabase. Os valores não são incluídos neste README.
-2. Na raiz do projeto, inicie um servidor HTTP local:
+### Decisões de arquitetura
 
-   ```powershell
-   python -m http.server 8766 --bind 127.0.0.1
-   ```
+- **SPA sem roteamento de URL:** uma única `index.html` troca de tela via JavaScript, sem `history.pushState`. Simplifica o deploy em qualquer servidor estático.
+- **Zero build:** nenhum bundler, transpilador ou gerenciador de pacotes. As bibliotecas de terceiros ficam em `js/vendor/` para funcionar offline via Service Worker.
+- **Papel do usuário no banco, nunca no código:** o frontend lê o perfil do Supabase e adapta a navegação. Toda autorização de leitura/escrita é reforçada por **RLS (Row Level Security)** no PostgreSQL.
+- **OCR 100% local:** os arquivos WASM do Tesseract são servidos como assets estáticos e ficam no cache do Service Worker. Comprovantes nunca saem do dispositivo do usuário.
+- **Realtime com debounce:** os listeners do Supabase Realtime usam debounce (350ms) para evitar rajadas de chamadas RPC quando mensagens chegam em sequência rápida.
 
-3. Abra `http://127.0.0.1:8766/`.
+---
 
-O app não lê variáveis de ambiente no navegador. A autenticação e os dados dependem de um projeto Supabase configurado e das migrations correspondentes aplicadas.
+## 🔐 Segurança e privacidade
 
-## Estrutura do repositório
+- **RLS em todas as tabelas:** as políticas definem o que cada perfil pode ler e gravar. O frontend não substitui essas verificações.
+- **Funções SQL com `security definer` e `set search_path = ''`:** impede ataques de substituição de schema.
+- **Consentimentos imutáveis:** um trigger de banco bloqueia `UPDATE` e `DELETE` na tabela `consentimentos` — conformidade LGPD.
+- **Exclusão de conta via Edge Function:** a chave `service_role` fica somente no servidor Supabase, nunca no cliente ou no repositório.
+- **`config.js` fora do controle de versão:** o arquivo com a URL e a chave pública do Supabase está no `.gitignore`. Um `config.example.js` documenta o formato esperado.
 
-- `index.html`: entrada e estrutura da aplicação.
-- `css/`: estilos e temas.
-- `js/`: lógica do app, exportação, suporte offline e configuração.
-- `js/vendor/`: dependências locais de terceiros.
-- `assets/`: ícones, avatares e imagens.
-- `supabase/migrations/`: estrutura do banco, funções e políticas.
-- `tests/`: casos de aceite e painéis de acompanhamento.
-- `sw.js` e `manifest.webmanifest`: recursos da PWA.
+---
 
-## Testes
+## 🗄 Banco de dados
 
-- `tests/teste.html` apresenta o catálogo de casos de aceite das fases F1, F2 e F3.
-- O painel verifica a estrutura e a cobertura do catálogo; não executa os fluxos do app nem comprova o comportamento do Supabase ou das políticas RLS.
-- Os cenários funcionais ainda precisam ser executados em ambiente de teste.
+**41 migrations SQL** organizam a evolução do schema em ordem cronológica:
 
-## Roadmap
+| Faixa | Domínio |
+|-------|---------|
+| 01–08 | Academias, perfis, vínculos, instrutores e auditoria |
+| 09–12 | Troca de professor, consentimento LGPD e perfil de aluno |
+| 13–22 | Cobranças, pagamentos, graduações, notas, mural, grade e planos de treino |
+| 23–28 | Storage de comprovantes, fotos de perfil e avatar |
+| 29–34 | Grade semanal por academia, edição adm e acesso de aluno ao adm |
+| 35–41 | Reemissão de cobrança, conversas, notificações, exclusão de conta e índices de performance |
 
-- [ ] Executar os fluxos de autenticação, cadastro, recuperação de sessão e convites em ambiente Supabase de teste.
-- [ ] Validar permissões RLS em cenários autorizados e negados.
-- [ ] Completar a conferência responsiva em 360, 390, 430 e 768 px, nos temas claro e escuro.
-- [ ] Executar regressão ponta a ponta e validar instalação e comportamento offline da PWA.
+Destaques do schema: `CHECK` constraints em status e valores monetários, índices parciais em cobranças abertas, trigger de imutabilidade em consentimentos.
 
-## Autor e contato
+---
 
-- **Autor:** [Nome do autor]
-- **Contato:** [Contato profissional]
+## ♿ Acessibilidade
+
+- Uso de `<dialog>` nativo para modais (acessível por padrão)
+- `aria-live`, `role="alert"`, `aria-expanded`, `aria-label` e `aria-current="page"` aplicados consistentemente (446+ atributos ARIA no código)
+- Suporte a `prefers-reduced-motion` no CSS
+- Foco e estados de teclado em todos os botões de ação
+- Tema claro e escuro com troca manual e persistência
+
+---
+
+## 🚀 Como rodar localmente
+
+**Pré-requisitos:** um projeto no [Supabase](https://supabase.com) com as migrations aplicadas.
+
+```bash
+# 1. Clone o repositório
+git clone https://github.com/Dev-Aylton/tatame-app.git
+cd tatame
+
+# 2. Configure o cliente Supabase
+cp js/config.example.js js/config.js
+# Edite js/config.js com a URL e a chave publicável do seu projeto Supabase
+
+# 3. Inicie um servidor HTTP local (Python, Node ou qualquer outro)
+python -m http.server 8766 --bind 127.0.0.1
+
+# 4. Acesse no navegador
+# http://127.0.0.1:8766/
+```
+
+> O app não lê variáveis de ambiente no navegador. Autenticação e dados dependem de um projeto Supabase configurado com as migrations correspondentes.
+
+### Aplicar as migrations
+
+No painel SQL do Supabase (ou via CLI), execute os arquivos de `supabase/migrations/` em ordem numérica. Cada arquivo é idempotente e documentado com o contexto da mudança.
+
+### Edge Function (exclusão de conta)
+
+```bash
+supabase functions deploy excluir-conta
+# Configure o segredo no painel Supabase:
+# SUPABASE_SERVICE_ROLE_KEY = <sua service role key>
+```
+
+---
+
+## 🧪 Testes
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `tests/teste.html` | Catálogo de casos de aceite — fases F1, F2 e F3 |
+| `tests/plano.html` | Painel visual do plano de trabalho |
+| `tests/roteiro-marco2.md` | Roteiro de testes funcionais do marco 2 |
+
+O painel verifica a estrutura e a cobertura do catálogo. Os fluxos funcionais (autenticação, RLS, Realtime e PWA) precisam ser executados contra um ambiente Supabase de teste.
+
+---
+
+## 📋 Roadmap
+
+- [ ] Executar fluxos de autenticação, cadastro e convites em ambiente Supabase de teste
+- [ ] Validar permissões RLS em cenários autorizados e negados
+- [ ] Conferência responsiva completa em 360, 390, 430 e 768 px nos dois temas
+- [ ] Regressão ponta a ponta e validação de instalação e comportamento offline da PWA
+
+---
+
+## 👨‍💻 Autor
+
+**Aylton Alberto** — Desenvolvedor e estudante de Análise e Desenvolvimento de Sistemas (UNINTER)
+
+- 💼 [LinkedIn](https://www.linkedin.com/in/aylton-alberto-806726220/)
+- 🐙 [GitHub](https://github.com/Dev-Aylton/tatame-app)
+- 📧 desenvolvedor.aylton@gmail.com
+
+---
+
+<div align="center">
+  <sub>Feito com JavaScript puro, Supabase e muita dedicação · 2026</sub>
+</div>

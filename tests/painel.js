@@ -8,8 +8,9 @@ const caseList = document.querySelector("#case-list");
 const casesF1 = window.CASOS_ACEITE_F1;
 const casesF2 = window.CASOS_ACEITE_F2;
 const casesF3 = window.CASOS_ACEITE_F3;
-const cases = Array.isArray(casesF1) && Array.isArray(casesF2) && Array.isArray(casesF3)
-  ? [...casesF1, ...casesF2, ...casesF3]
+const casesF4 = window.CASOS_ACEITE_F4;
+const cases = Array.isArray(casesF1) && Array.isArray(casesF2) && Array.isArray(casesF3) && Array.isArray(casesF4)
+  ? [...casesF1, ...casesF2, ...casesF3, ...casesF4]
   : null;
 
 const checks = [
@@ -26,7 +27,8 @@ const checks = [
         Array.isArray(cases) &&
         casesF1.length > 0 &&
         casesF2.length > 0 &&
-        casesF3.length > 0
+        casesF3.length > 0 &&
+        casesF4.length > 0
       );
     }
   },
@@ -84,9 +86,14 @@ const checks = [
         areas.has("Professor") &&
         areas.has("Fotos e avatar") &&
         areas.has("Segurança e publicação") &&
+        areas.has("Segurança") &&
+        areas.has("Performance") &&
+        areas.has("PWA") &&
+        areas.has("Documentação") &&
         casesF1.length === 74 &&
         casesF2.length === 7 &&
         casesF3.length === 4 &&
+        casesF4.length === 18 &&
         cases.some((testCase) => testCase.id === "F1-AUTH-04") &&
         cases.some((testCase) => testCase.id === "F1-DEMO-01") &&
         cases.some((testCase) => testCase.id === "F1-ACC-06") &&
@@ -107,7 +114,9 @@ const checks = [
         cases.some((testCase) => testCase.id === "F1-PAG-08") &&
         cases.filter((testCase) => testCase.area === "Instrutor" && testCase.revisao).length === 5 &&
         cases.some((testCase) => testCase.id === "F2-INST-01" && testCase.fase === "F2") &&
-        cases.some((testCase) => testCase.id === "F3-REL-01");
+        cases.some((testCase) => testCase.id === "F3-REL-01") &&
+        cases.some((testCase) => testCase.id === "F4-SEC-01") &&
+        cases.some((testCase) => testCase.id === "F4-DOC-01");
     }
   }
 ];
