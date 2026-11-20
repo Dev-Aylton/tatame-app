@@ -35,6 +35,8 @@
 -- Verificação complementar do desenvolvimento em 20/11/2026:
 --   migration 20261120_45_desvincular_aluno_professor.sql aplicada;
 --   migration 20261120_46_presenca_aluno.sql aplicada;
+--   migration 20261120_47_presenca_restricao_aluno.sql aplicada para restringir
+--   novamente o registro e a consulta de presença ao papel aluno;
 --   public.historico_vinculos registra os vínculos encerrados sem apagar os
 --   históricos financeiros, de graduação e outros registros relacionados;
 --   public.presencas guarda uma confirmação por aluno, Professor e data.
