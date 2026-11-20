@@ -90,13 +90,14 @@ const checks = [
         areas.has("Performance") &&
         areas.has("PWA") &&
         areas.has("Documentação") &&
-        casesF1.length === 75 &&
+        casesF1.length === 76 &&
         casesF2.length === 7 &&
         casesF3.length === 4 &&
         casesF4.length === 18 &&
         cases.some((testCase) => testCase.id === "F1-AUTH-04") &&
         cases.some((testCase) => testCase.id === "F1-DEMO-01") &&
         cases.some((testCase) => testCase.id === "F1-ACC-06") &&
+        cases.some((testCase) => testCase.id === "F1-ACC-12") &&
         cases.some((testCase) => testCase.id === "F1-PRIV-01") &&
         cases.some((testCase) => testCase.id === "F1-PRIV-02") &&
         cases.some((testCase) => testCase.id === "F1-PRIV-03") &&

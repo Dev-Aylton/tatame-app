@@ -168,11 +168,12 @@ const tutorialStepsByRole = {
     ["student-chat", "Conversa com o Professor", "Envie mensagens, arquive a conversa e consulte avisos internos de mensagens novas."],
     ["training-board", "Mural e grade", "Consulte a grade, os avisos e as perguntas frequentes do Professor."],
     ["student-progress", "Feedbacks e metas", "Consulte os feedbacks e as metas vinculados à sua conta."],
-    ["teacher-invites", "Professores convidados", "Pesquise por e-mail, filtre o status e navegue entre as páginas dos convites."],
+    ["teacher-invites", "Professores convidados", "Cadastre o e-mail Google do Professor e escolha a academia. Uma conta existente de Aluno vira Professor imediatamente; registros e vínculos permanecem, e a idade segue a regra adulta do papel. Para novas contas, a atribuição ocorre no primeiro login Google; o aceite de privacidade continua separado."],
     ["academy", "Academias", "Cadastre nome e telefone institucional da academia e organize aulas por dia, Professor e horário. O contato é exibido ao Adm, Professor, Instrutor e aos Alunos vinculados a Professor ativo daquela academia. Para vincular Professores, use Professores convidados e escolha a academia."]
   ],
   professor: [
     ["home", "Início", "Acompanhe pagamentos a confirmar, cobranças atrasadas e atalhos para as tarefas mais usadas. O sino reúne mensagens não lidas e cobranças em atraso; abra um aviso para ir à conversa ou cobrança. Em Preferências e Academia, ajuste o zoom e o enquadramento da foto na prévia antes de enviar."],
+    ["user-settings", "Acesso de Professor", "O Adm atribui esse perfil ao cadastrar o e-mail da sua conta Google. Não é necessário aceitar convite; o termo de privacidade continua sendo solicitado quando necessário."],
     ["students", "Alunos", "Pesquise alunos vinculados ou sem conta, filtre pelo status e navegue entre as páginas das listas."],
     ["payment-review", "Pagamentos a confirmar", "Pesquise por aluno ou referência e filtre a origem ou o status para localizar pagamentos. Leia o comprovante, confira no seu banco e confirme ou rejeite manualmente. Registre recebimentos em dinheiro ou Pix. Para diárias avulsas, abra a autorização no painel da conta, marque a caixa e escolha Diária avulsa; você pode excluir lançamentos ou retirar a autorização, apagando todas as diárias."],
     ["monthly-charges", "Cobranças mensais", "Ao salvar uma regra ativa, a cobrança aplicável ao mês atual fica disponível ao Aluno. Crie cobranças de outros meses quando necessário e acompanhe atrasos."],
@@ -552,6 +553,16 @@ const navigationIconPaths = {
   personAdd: '<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M18 10v6M15 13h6"/>',
   payment: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
   grade: '<path d="M3 9h18v6H3zM15 9v6M17 11v2M19 11v2"/>',
+  dashboard: '<rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="5" rx="1"/><rect x="13" y="10" width="8" height="11" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/>',
+  wallet: '<path d="M4 7h15a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 1-1.7l11-3"/><path d="M3 10h18"/><circle cx="16" cy="15" r="1"/>',
+  receipt: '<path d="m5 3 2 1.5L9 3l3 1.5L15 3l2 1.5L19 3v18l-2-1.5L15 21l-3-1.5L9 21l-2-1.5L5 21z"/><path d="M8 9h8M8 13h4M14 16l1.5 1.5L19 14"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/><circle cx="16.5" cy="16.5" r="4.5"/><path d="M16.5 14v5M18 15h-2a1 1 0 0 0 0 2h1a1 1 0 0 1 0 2h-2"/>',
+  award: '<circle cx="12" cy="9" r="5"/><path d="m9 13-2 8 5-2 5 2-2-8M10 9l1.3 1.3L14 8.5"/>',
+  board: '<rect x="3" y="3" width="18" height="14" rx="1.5"/><path d="M8 3v14M15 3v14M3 9h18M8 17v4M16 17v4M6 21h12"/>',
+  checklist: '<path d="M6 3h12v18l-2.5-1.5L13 21l-3-1.5L6 21z"/><path d="m9 8 1.2 1.2L12 7.5M14 9h2m-7 5 1.2 1.2L12 12.5M14 14h2"/>',
+  progress: '<path d="M4 19V5M4 19h17M7 15l4-4 3 2 5-6M17 7h2v2"/>',
+  studentCard: '<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="10" cy="10" r="2"/><path d="M7 16a3 3 0 0 1 6 0M15 9h2M15 13h2"/>',
+  delegatedLesson: '<circle cx="8" cy="7" r="3"/><path d="M3 20a5 5 0 0 1 10 0M14 11h6m-3-3 3 3-3 3"/>',
   message: '<path d="M4 5h16v12H9l-5 3V5Z"/><path d="M8 9h8M8 13h5"/>',
   shield: '<path d="M12 3 19 6v5c0 4.5-2.7 7.7-7 10-4.3-2.3-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
   upload: '<path d="M12 16V4M8 8l4-4 4 4M4 15v5h16v-5"/>',
@@ -563,14 +574,14 @@ const navigationIconPaths = {
 const navigationIconByScreen = {
   login: "login", home: "home", "link-teacher": "link", "no-access": "clock",
   "instructor-invite": "invite",
-  "student-payments": "payment", "student-grades": "grade", "student-chat": "message",
-  "training-board": "grade", "training-plan": "lesson", "student-progress": "grade",
-  students: "people", "student-detail": "profile",
-  "teacher-code": "link", "role-management": "shield", "delegated-lessons": "lesson",
-  "payment-review": "payment", "monthly-charges": "payment",
+  "student-payments": "wallet", "student-grades": "award", "student-chat": "message",
+  "training-board": "board", "training-plan": "checklist", "student-progress": "progress",
+  students: "people", "student-detail": "studentCard",
+  "teacher-code": "link", "role-management": "shield", "delegated-lessons": "delegatedLesson",
+  "payment-review": "receipt", "monthly-charges": "calendar",
   "teacher-chat": "message", "instructor-class": "lesson",
   "instructor-students": "people",
-  "instructor-chat": "message", "admin-home": "home", "teacher-invites": "people",
+  "instructor-chat": "message", "admin-home": "dashboard", "teacher-invites": "personAdd",
   "admin-students": "people",
   academy: "academy", "user-settings": "settings", privacy: "shield"
 };
@@ -7392,6 +7403,16 @@ function realAdminDatabaseErrorMessage(error, action) {
   if (action === "invite" && error && error.code === "23505") {
     return "Já existe um convite ou cadastro para esse e-mail.";
   }
+  const inviteError = error && typeof error.message === "string" ? error.message : "";
+  if (action === "invite" && inviteError.includes("google_identity_required")) {
+    return "Esta conta não tem uma identidade Google vinculada. Use o e-mail da conta Google do Professor.";
+  }
+  if (action === "invite" && inviteError.includes("professor_incompativel")) {
+    return "Este Professor já está vinculado a outra academia ou inativo. Confira o cadastro antes de tentar novamente.";
+  }
+  if (action === "invite" && inviteError.includes("papel_incompativel")) {
+    return "Este e-mail pertence a uma conta Adm ou Instrutor e não pode ser convertido automaticamente.";
+  }
   if (navigator.onLine === false || error instanceof TypeError) {
     return "Falha de rede. Verifique sua conexão e tente novamente.";
   }
@@ -7754,16 +7775,16 @@ function renderRealAdminDashboardScreen() {
     : `${emptyState("Nenhum Professor ativo encontrado", "Professores ativos aparecerão aqui.")}
        ${button("Gerenciar Professores", "role-management", "button button--quiet")}`;
   const invitationsContent = realAdminDashboardPendingInvites
-    ? `<p>${realAdminDashboardPendingInvites} convite(s) de Professor aguardando aceite.</p>`
-    : `${emptyState("Nenhum convite pendente", "Convites pendentes aparecerão aqui.")}
-       ${button("Convidar Professor", "teacher-invites", "button button--quiet")}`;
+    ? `<p>${realAdminDashboardPendingInvites} cadastro(s) aguardando o primeiro acesso com Google.</p>`
+    : `${emptyState("Nenhum cadastro aguardando acesso", "Cadastros sem perfil ativo aparecerão aqui.")}
+       ${button("Registrar Professor", "teacher-invites", "button button--quiet")}`;
   const academiesWithoutProfessorContent = academiesWithoutActiveProfessor.length
     ? `<p>${academiesWithoutActiveProfessor.length} ${academiesWithoutActiveProfessor.length === 1 ? "academia" : "academias"} sem Professor ativo.</p>
        <ul aria-label="Academias sem Professor ativo">${academiesWithoutActiveProfessor.map((academy) =>
          `<li>${escapeHtml(academy.nome)}</li>`
        ).join("")}</ul>
        <div class="form-actions">
-         ${button("Convidar Professor", "teacher-invites", "button button--quiet")}
+         ${button("Registrar Professor", "teacher-invites", "button button--quiet")}
          ${button("Gerenciar Professores", "role-management", "button button--quiet")}
        </div>`
     : emptyState(
@@ -7778,12 +7799,12 @@ function renderRealAdminDashboardScreen() {
       ${metric("ACADEMIAS", String(realAdminDashboardAcademies.length), "Cadastradas", "gold", "academy")}
       ${metric("PROFESSORES ATIVOS", String(realAdminDashboardProfessors.length), "Papel Professor", "green", "role-management")}
       ${metric("ALUNOS ATIVOS", String(realAdminDashboardStudents), "Papel Aluno", "blue", "admin-students")}
-      ${metric("CONVITES PENDENTES", String(realAdminDashboardPendingInvites), "Professores convidados", "amber", "teacher-invites")}
+      ${metric("AGUARDANDO ACESSO", String(realAdminDashboardPendingInvites), "Primeiro login Google", "amber", "teacher-invites")}
     </div>
     <div class="content-grid mt-16">
       ${panel("Academias", academiesContent)}
       ${panel("Professores ativos", professorsContent)}
-      ${panel("Convites de Professor", invitationsContent)}
+      ${panel("Professores aguardando acesso", invitationsContent)}
       ${panel("Academias sem Professor ativo", academiesWithoutProfessorContent)}
     </div>`;
 }
@@ -8059,16 +8080,17 @@ function renderRealAdminAcademyRows(scheduleRows, activeProfessors) {
 
 function renderRealAdminInvitesScreen() {
   return `
-    ${heading("VISÃO DO ADM", "Professores convidados", "Os convites cadastrados aparecem aqui.")}
+    ${heading("VISÃO DO ADM", "Professores convidados", "Cadastre o e-mail Google do Professor. Contas existentes como Aluno mudam de papel imediatamente.")}
     <div class="content-grid">
       ${panel("Convites cadastrados", `
         <div id="real-invite-list" aria-live="polite">Carregando convites...</div>
         <p class="login-action-error" id="real-invite-list-error" role="alert"></p>
       `)}
-      ${panel("Convidar professor", `
+      ${panel("Registrar e-mail de Professor", `
+        <p class="field-help">Registros e vínculos são mantidos; a idade declarada passa a adulto conforme o papel. Sem perfil existente, a atribuição ocorre no primeiro login Google; o termo de privacidade continua necessário.</p>
         <form data-real-admin-invite-form>
           <div class="field">
-            <label for="real-invite-email">E-mail</label>
+            <label for="real-invite-email">E-mail da conta Google</label>
             <input id="real-invite-email" name="email" type="text" inputmode="email" autocomplete="email" placeholder="nome@exemplo.com" aria-required="true">
           </div>
           <div class="field mt-12">
@@ -8081,7 +8103,7 @@ function renderRealAdminInvitesScreen() {
           <div class="form-actions">
             <div class="academy-save-action">
               <button class="button button--primary button--action" type="submit" data-real-invite-submit aria-describedby="real-invite-error real-invite-status" disabled>
-                <span data-action-label>Convidar professor</span>
+                <span data-action-label>Registrar Professor</span>
               </button>
               <div class="login-action-error" id="real-invite-error" role="alert"></div>
               <div class="field-help" id="real-invite-status" role="status" aria-live="polite"></div>
@@ -8247,7 +8269,7 @@ function renderRealAdminInviteRows(invites) {
 }
 
 function realAdminInviteStatusLabel(status) {
-  return status === "convidado" ? "Convidado"
+  return status === "convidado" ? "Aguardando primeiro acesso"
     : status === "ativo" ? "Ativo"
       : status === "revogado" ? "Revogado" : status;
 }
@@ -9380,8 +9402,8 @@ function handleRealAdminInviteSubmit(form) {
     announcement: form.querySelector("#real-invite-status"),
     buttons: [button, ...form.querySelectorAll("input, select")],
     loadingText: "Convidando...",
-    loadingMessage: "Salvando convite no banco.",
-    successMessage: "Convite de professor criado no banco.",
+    loadingMessage: "Registrando o e-mail de Professor no banco.",
+    successMessage: "Cadastro de Professor salvo.",
     errorMessage: "Não foi possível criar o convite. Tente novamente.",
     successDelay: 0,
     afterSuccess: () => { loadRealAdminInvites(); }

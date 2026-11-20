@@ -122,6 +122,16 @@ window.CASOS_ACEITE_F1 = [
     esperado: "O aluno só consulta os próprios registros; leitura e alteração de dados alheios são negadas no banco."
   },
   {
+    id: "F1-ACC-12",
+    area: "Acesso e permissões",
+    titulo: "Adm converte conta Google existente em Professor ao registrar o e-mail",
+    perfil: "Adm e Aluno com conta Google",
+    regras: "Papel definido pelo Adm no banco; consentimento por versão",
+    precondicoes: "Há uma conta Google fictícia com perfil de Aluno, dados e vínculos existentes, e um cadastro pendente para a mesma conta.",
+    passos: ["Aplicar a migration de conversão em banco de teste após revisão.", "Como Adm, registrar o e-mail Google existente e escolher a academia.", "Entrar novamente com a conta Google e conferir a navegação e os dados preservados."],
+    esperado: "O mesmo perfil passa imediatamente a Professor da academia, a idade segue a regra adulta do papel e o cadastro fica ativo. Nome, registros, vínculos e consentimentos são mantidos. A conta exibe somente recursos de Professor; não há aceite de convite, mas o aceite do termo de privacidade continua independente."
+  },
+  {
     id: "F1-INST-01",
     area: "Instrutor",
     titulo: "Instrutor tem perfil distinto de professor",

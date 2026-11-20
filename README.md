@@ -102,7 +102,7 @@ tatame/
 │       ├── pdfjs/
 │       └── tesseract/
 ├── supabase/
-│   ├── migrations/               # 43 migrations SQL (estrutura completa do banco)
+│   ├── migrations/               # 44 migrations SQL (estrutura completa do banco)
 │   └── functions/excluir-conta/  # Edge Function em TypeScript/Deno
 ├── assets/                       # Logos, ícones e avatares padrão
 └── tests/                        # Plano de testes e casos de aceite (F1–F3)
@@ -131,7 +131,9 @@ tatame/
 - Para contas sujeitas ao termo, somente o aceite da versão vigente libera as áreas com dados pessoais. Antes dele, o app usa apenas os dados mínimos de autenticação e não exibe nem altera dados do perfil.
 - A criação de perfil novo e o registro de consentimento ocorrem juntos; recusar não cria perfil nem grava aceite. A declaração de idade de Aluno e Instrutor é opcional, só é persistida após o aceite e pode ser solicitada novamente no próximo login se continuar ausente. Convites de Instrutor exigem declaração de adulto.
 - Adm é isento do aceite. Professor aceita a versão vigente sem receber modal de idade. O mesmo aceite não é solicitado novamente enquanto aquela versão continuar vigente.
+- Ao registrar o e-mail de uma conta Google existente como Professor, o Adm altera o papel imediatamente; registros, vínculos e consentimentos existentes são mantidos. A idade declarada segue a regra adulta do papel Professor. O perfil passa a exibir somente os recursos de Professor. Para uma conta ainda sem perfil, a atribuição ocorre no primeiro login Google após o aceite do termo; não há aceite de convite.
 - O controle de acesso é aplicado no banco por RLS e funções SQL; depende das migrations `20261120_41_consentimento_versao_legada.sql` e `20261120_42_consentimento_primeiro_acesso.sql`.
+- A conversão automática de contas existentes depende também da migration `20261120_43_professor_automatico_por_email.sql`.
 
 ---
 
