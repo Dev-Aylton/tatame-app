@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "5.26";
+const APP_VERSION = "5.28";
 const DEFAULT_PERSON_AVATAR_SRC = "assets/avatars/avatar-masculino.jpg";
 const FEMALE_PERSON_AVATAR_SRC = "assets/avatars/avatar-feminino.jpg";
 const REAL_PERSON_AVATARS = {
@@ -165,6 +165,7 @@ const tutorialStepsByRole = {
     ["home", "Início do Aluno", "Acompanhe o resumo da sua conta de Aluno e acesse os próximos passos."],
     ["student-payments", "Meus pagamentos", "Consulte suas cobranças e avise um pagamento ao Professor vinculado."],
     ["student-grades", "Minhas graduações", "Acompanhe sua faixa atual e o histórico registrado pelo Professor."],
+    ["home", "Presença", "Na tela inicial, marque sua presença da aula de hoje. Cada dia só pode ser confirmado uma vez; o Professor vê o resumo mensal e o histórico do aluno vinculado."],
     ["student-chat", "Conversa com o Professor", "Envie mensagens, arquive a conversa e consulte avisos internos de mensagens novas."],
     ["training-board", "Mural e grade", "Consulte a grade, os avisos e as perguntas frequentes do Professor."],
     ["student-progress", "Feedbacks e metas", "Consulte os feedbacks e as metas vinculados à sua conta."],
@@ -174,7 +175,8 @@ const tutorialStepsByRole = {
   professor: [
     ["home", "Início", "Acompanhe pagamentos a confirmar, cobranças atrasadas e atalhos para as tarefas mais usadas. O sino reúne mensagens não lidas e cobranças em atraso; abra um aviso para ir à conversa ou cobrança. Em Preferências e Academia, ajuste o zoom e o enquadramento da foto na prévia antes de enviar."],
     ["user-settings", "Acesso de Professor", "O Adm atribui esse perfil ao cadastrar o e-mail da sua conta Google. Não é necessário aceitar convite; o termo de privacidade continua sendo solicitado quando necessário."],
-    ["students", "Alunos", "Pesquise alunos vinculados ou sem conta, filtre pelo status e navegue entre as páginas das listas."],
+    ["students", "Alunos", "Pesquise alunos vinculados ou sem conta, filtre pelo status e navegue entre as páginas. Desvincular remove a relação atual sem apagar o histórico de graduações e cobranças; conversas e planos compartilhados deixam de aparecer pelo vínculo."],
+    ["student-detail", "Ficha do aluno", "Consulte a graduação atual, o histórico de graduações e a presença confirmada pelo próprio Aluno, mês a mês."],
     ["payment-review", "Pagamentos a confirmar", "Pesquise por aluno ou referência e filtre a origem ou o status para localizar pagamentos. Leia o comprovante, confira no seu banco e confirme ou rejeite manualmente. Registre recebimentos em dinheiro ou Pix. Para diárias avulsas, abra a autorização no painel da conta, marque a caixa e escolha Diária avulsa; você pode excluir lançamentos ou retirar a autorização, apagando todas as diárias."],
     ["monthly-charges", "Cobranças mensais", "Ao salvar uma regra ativa, a cobrança aplicável ao mês atual fica disponível ao Aluno. Crie cobranças de outros meses quando necessário e acompanhe atrasos."],
     ["teacher-chat", "Conversas", "Converse com Alunos e Instrutores vinculados. Arquive conversas, apague suas mensagens para ambos ou oculte mensagens recebidas só para você; avisos internos indicam mensagens novas."],
@@ -191,7 +193,7 @@ const tutorialStepsByRole = {
     ["academy", "Academia", "Consulte os dados e a grade das academias; o telefone aparece quando cadastrado."]
   ],
   aluno: [
-    ["home", "Início", "Consulte a situação das cobranças do mês e os atalhos para pagamentos, graduações e conversa. O sino reúne mensagens não lidas e cobranças em atraso; abra um aviso para ir à conversa ou pagamento. Se seu perfil puder enviar foto, ajuste o zoom e o enquadramento na prévia antes de aplicar; menores usam somente avatar."],
+    ["home", "Início", "Consulte a situação das cobranças do mês, marque sua presença da aula de hoje e acesse pagamentos, graduações e conversa. O sino reúne mensagens não lidas e cobranças em atraso. Se seu perfil puder enviar foto, ajuste o zoom e o enquadramento na prévia antes de aplicar; menores usam somente avatar."],
     ["student-payments", "Meus pagamentos", "Consulte cobranças e avise um pagamento. Se enviar comprovante, o Professor pode ler o valor automaticamente para ajudar na conferência; a decisão continua manual."],
     ["student-grades", "Minhas graduações", "Acompanhe sua faixa atual e o histórico registrado pelo Professor."],
     ["training-plan", "Planos de treino", "Consulte os planos semanais ou mensais que o Professor compartilhar com os alunos vinculados."],
@@ -312,6 +314,10 @@ let realStudentGraduationsState = "idle";
 let realStudentGraduationsNotice = "";
 let realStudentGraduationsRequestSequence = 0;
 let realStudentGraduationsOwnerId = "";
+let realStudentAttendance = [];
+let realStudentAttendanceState = "idle";
+let realStudentAttendanceNotice = "";
+let realStudentAttendanceRequestSequence = 0;
 let realPaymentUndoTimer = null;
 let realPaymentReceiptChargeId = "";
 let realProofViewerWindow = null;
@@ -1860,7 +1866,7 @@ function renderPrivacyDraftContent(headingTag = "h2") {
         <li>diárias avulsas, se autorizadas pelo Professor: valor, tipo de recebimento, data e identificação do Professor, sem identificação do visitante;</li>
         <li>fotos de perfil e da academia enviadas, além de metadados como formato, tamanho e data de atualização; escolha do avatar de perfil;</li>
         <li>notas privadas, feedbacks, metas e mensagens trocadas conforme os papéis e vínculos; cada participante também tem estados individuais de leitura e arquivamento, além de marcadores de leitura e dispensa de notificações;</li>
-        <li>dados de graduação, avisos e conteúdos de treino compartilhados nas telas do app.</li>
+        <li>dados de graduação, presença marcada pelo Aluno e conteúdos de treino compartilhados nas telas do app.</li>
       </ul>
       <p>No cadastro por e-mail e senha, o app coleta nome e e-mail. A senha é tratada pelo Supabase Auth e não é guardada pelo app.</p>
       <p>A exportação baixa arquivos JSON ou CSV com dados já carregados e visíveis para a própria conta. Não é backup do servidor. O telefone cadastrado pelo Adm é o contato institucional da academia, não o telefone pessoal do Aluno. Não pedimos data de nascimento nem WhatsApp. Pedimos que não escreva dados sensíveis no motivo da isenção.</p>
@@ -2446,7 +2452,8 @@ const realFeatureData = {
   linkedStudents: [],
   unregisteredStudents: [],
   unregisteredNotes: [],
-  dropIns: []
+  dropIns: [],
+  attendance: []
 };
 let realFeatureRequestSequence = 0;
 let realStudentDetailRequestSequence = 0;
@@ -2465,8 +2472,9 @@ function renderFeatureLoadState() {
   return "";
 }
 
-function featureActionButton(action, id, label, title = label) {
-  return `<div class="student-action-control"><button class="button button--quiet button--action" type="button" data-feature-action="${action}" data-feature-id="${escapeHtml(id || "")}" aria-label="${escapeHtml(title)}"><span data-action-label>${escapeHtml(label)}</span></button><p class="login-action-error" role="alert"></p><p class="field-help" role="status" aria-live="polite"></p></div>`;
+function featureActionButton(action, id, label, title = label, buttonClass = "button button--quiet") {
+  const controlId = escapeHtml(`feature-action-${action}-${id || "all"}`);
+  return `<div class="student-action-control"><button class="${escapeHtml(buttonClass)} button--action" type="button" data-feature-action="${escapeHtml(action)}" data-feature-id="${escapeHtml(id || "")}" aria-label="${escapeHtml(title)}" aria-describedby="${controlId}-error ${controlId}-status"><span data-action-label>${escapeHtml(label)}</span></button><p class="login-action-error" id="${controlId}-error" role="alert"></p><p class="field-help" id="${controlId}-status" role="status" aria-live="polite"></p></div>`;
 }
 
 function featureSubmitButton(label) {
@@ -3153,6 +3161,17 @@ function renderRealProfessorGraduationsScreen() {
   }
   const graduations = realProfessorGraduations.filter((graduation) => graduation.aluno_id === selectedStudent.id);
   const today = realGraduationToday();
+  const attendance = realFeatureData.attendance || [];
+  const presentMonth = attendance.filter((item) =>
+    typeof item.data_aula === "string" && item.data_aula.slice(0, 7) === today.slice(0, 7)
+  ).length;
+  const attendanceHistory = attendance.length
+    ? `<div class="timeline">${attendance.map((item) => `
+        <div class="timeline-item">
+          <span class="timeline-dot"></span>
+          <div><strong>Presente</strong><small>Data: ${escapeHtml(formatRealDate(item.data_aula))}</small></div>
+        </div>`).join("")}</div>`
+    : emptyState("Sem presença registrada", "Presenças marcadas pelo Aluno aparecerão aqui.");
   return `
     ${heading("VISÃO DO PROFESSOR", "Ficha do aluno", "Consulte a faixa atual e o histórico; novas graduações ficam registradas sem alterar as anteriores.")}
     <div class="content-grid">
@@ -3169,6 +3188,13 @@ function renderRealProfessorGraduationsScreen() {
       `)}
       ${panel("Graduação atual", renderRealGraduationCurrent(graduations), "panel-card--highlight")}
       ${panel("Histórico de graduações", renderRealGraduationHistory(graduations))}
+      ${panel("Presença", `
+        <div class="summary-grid">
+          ${metric("PRESENTE ESTE MÊS", String(presentMonth), "Aulas confirmadas pelo Aluno", "green")}
+          ${metric("TOTAL REGISTRADO", String(attendance.length), "Histórico completo", "blue")}
+        </div>
+        ${attendanceHistory}
+      `)}
       ${panel("Atribuir graduação", `
         <form class="real-graduation-form" data-real-graduation-form novalidate>
           <div class="form-grid">
@@ -3309,6 +3335,9 @@ async function loadRealStudentGraduations(renderScreen = true) {
   realStudentGraduationsState = "checking";
   realStudentGraduationsNotice = "";
   realStudentGraduationsOwnerId = "";
+  realStudentAttendance = [];
+  realStudentAttendanceState = "idle";
+  realStudentAttendanceNotice = "";
   if (!authClient || !userId || !hasRealStudentAccess()) {
     realStudentGraduationsState = "error";
     realStudentGraduationsNotice = "Esta tela exige uma conta real de Aluno ativa.";
@@ -3362,22 +3391,25 @@ async function loadRealStudentDetailData(updateView = true) {
     realFeatureData.error = "Não foi possível selecionar um aluno vinculado.";
   } else {
     try {
-      const [notes, feedbacks, goals] = await Promise.all([
+      const [notes, feedbacks, goals, attendance] = await Promise.all([
         authClient.rpc("listar_notas_privadas", {
           p_aluno_id: studentId,
           p_aluno_sem_conta_id: null
         }),
         authClient.rpc("listar_feedbacks", { p_aluno_id: studentId }),
-        authClient.rpc("listar_metas", { p_aluno_id: studentId })
+        authClient.rpc("listar_metas", { p_aluno_id: studentId }),
+        authClient.rpc("listar_presencas_professor", { p_aluno_id: studentId })
       ]);
       if (notes.error) throw notes.error;
       if (feedbacks.error) throw feedbacks.error;
       if (goals.error) throw goals.error;
-      if (![notes.data, feedbacks.data, goals.data].every(Array.isArray)) throw new TypeError("Lista indisponível.");
+      if (attendance.error) throw attendance.error;
+      if (![notes.data, feedbacks.data, goals.data, attendance.data].every(Array.isArray)) throw new TypeError("Lista indisponível.");
       if (!isCurrentRequest()) return;
       realFeatureData.notes = notes.data;
       realFeatureData.feedbacks = feedbacks.data;
       realFeatureData.goals = goals.data;
+      realFeatureData.attendance = attendance.data;
       realFeatureData.state = "found";
     } catch (error) {
       if (!isCurrentRequest()) return;
@@ -3404,6 +3436,7 @@ async function runRealFeatureRpc(functionName, parameters, expectsUuid) {
     "arquivar_grade_semanal", "publicar_grade_semanal", "criar_aviso",
     "editar_aviso", "arquivar_aviso", "criar_faq", "editar_faq", "arquivar_faq",
     "definir_status_aluno_vinculado", "definir_status_aluno_sem_conta",
+    "desvincular_aluno_professor",
     "criar_aula_avulsa", "excluir_aula_avulsa", "criar_aula_delegada",
     "editar_aula_delegada", "compartilhar_aula_delegada", "criar_plano_semanal",
     "editar_plano_semanal", "compartilhar_plano_semanal", "criar_plano_treino",
@@ -3476,6 +3509,13 @@ function renderRealFeatureStudents() {
           </div>
         </div>
         ${featureActionButton("toggle-linked-lock", student.id, student.status === "locked" ? "Destrancar" : "Trancar")}
+        ${featureActionButton(
+          "unlink-student",
+          student.id,
+          "Desvincular",
+          `Desvincular ${student.nome}`,
+          "button button--small button--danger"
+        )}
       </article>`).join(""),
       emptyTitle: "Nenhum aluno vinculado",
       emptyCopy: "Alunos vinculados aparecerão aqui."
@@ -3517,10 +3557,10 @@ function renderRealFeatureStudents() {
     return student ? `<li>${escapeHtml(student.nome)} · ${escapeHtml(entry.data_aula)}
       ${featureActionButton("delete-drop-in", entry.id, "Excluir diária")}</li>` : "";
   }).join("");
-  return `${heading("VISÃO DO PROFESSOR", "Alunos", "Gerencie trancamentos e aulas avulsas dos alunos sem conta.")}
+  return `${heading("VISÃO DO PROFESSOR", "Alunos", "Gerencie vínculos, trancamentos e aulas avulsas.")}
     ${renderRealExportButton("professor-students", "Exportar dados")}
     <div class="content-grid">
-      ${panel("Alunos vinculados", linkedStudentsContent)}
+      ${panel("Alunos vinculados", `${linkedStudentsContent}<p class="field-help">O desvínculo preserva graduações e registros financeiros. Conversas e planos compartilhados deixam de aparecer pelo vínculo atual.</p>`)}
       ${panel("Alunos sem conta", unregisteredStudentsContent)}
       ${panel("Aulas avulsas", dropInRows ? `<ul>${dropInRows}</ul>` : emptyState("Nenhuma diária", "As aulas avulsas registradas aparecerão aqui."))}
     </div>`;
@@ -3777,6 +3817,31 @@ function renderRealHomeScreen() {
       return `${title}${profileHeader}
         ${panel("Próxima ação", linkAction)}`;
     }
+    const today = realGraduationToday();
+    const markedToday = realStudentAttendance.some((item) => item.data_aula === today);
+    const attendancePanel = realStudentAttendanceState === "checking"
+      ? panel("Presença de hoje", '<div class="notice notice--info" role="status">Carregando presença...</div>')
+      : realStudentAttendanceState === "error"
+        ? panel("Presença de hoje", `
+            <div class="notice notice--pending" role="alert">${escapeHtml(realStudentAttendanceNotice)}</div>
+            <div class="student-action-control">
+              <button class="button button--primary button--action" type="button" data-real-attendance-retry aria-describedby="real-attendance-error real-attendance-status">
+                <span data-action-label>Tentar novamente</span>
+              </button>
+              <p class="login-action-error student-action-error" id="real-attendance-error" role="alert"></p>
+              <p class="field-help" id="real-attendance-status" role="status" aria-live="polite"></p>
+            </div>
+          `)
+        : panel("Presença de hoje", `
+            <p>${markedToday ? "Você marcou presença hoje." : "Marque sua presença na aula de hoje."}</p>
+            <div class="student-action-control">
+              <button class="button ${markedToday ? "button--quiet" : "button--primary"} button--action" type="button" data-real-attendance-mark aria-describedby="real-attendance-error real-attendance-status"${markedToday ? " disabled" : ""}>
+                <span data-action-label>${markedToday ? "Presença confirmada" : "Marcar presença"}</span>
+              </button>
+              <p class="login-action-error student-action-error" id="real-attendance-error" role="alert"></p>
+              <p class="field-help" id="real-attendance-status" role="status" aria-live="polite"></p>
+            </div>
+          `);
     const hasPending = counts.pending > 0 || counts.late > 0;
     return `${title}${profileHeader}<div class="stack">
       ${data.monthChargeCount
@@ -3788,6 +3853,7 @@ function renderRealHomeScreen() {
       ${panel(hasPending ? "Próxima ação" : "Tudo em dia", hasPending
         ? button("Ver pagamentos", "student-payments", "button button--primary")
         : `<p>Não há pagamentos pendentes neste mês.</p>${button("Ver graduações", "student-grades", "button button--quiet")}`)}
+      ${attendancePanel}
     </div>`;
   }
   return `${title}${profileHeader}
@@ -3844,6 +3910,9 @@ async function loadRealHomeData(renderScreen = true) {
       if (!link) {
         realStudentCharges = [];
         realStudentPayments = [];
+        realStudentAttendance = [];
+        realStudentAttendanceState = "idle";
+        realStudentAttendanceNotice = "";
         realHomeData = {
           hasLink: false,
           month,
@@ -3855,6 +3924,24 @@ async function loadRealHomeData(renderScreen = true) {
         if (!isCurrentRequest()) return false;
         if (realStudentPaymentsState !== "found") {
           throw new Error(realStudentPaymentsNotice || "Não foi possível carregar suas cobranças. Tente novamente.");
+        }
+        realStudentAttendanceState = "checking";
+        realStudentAttendanceNotice = "";
+        try {
+          const attendance = await authClient.rpc("listar_presencas_aluno");
+          if (attendance.error) throw attendance.error;
+          if (!Array.isArray(attendance.data)) throw new TypeError("Presenças indisponíveis.");
+          if (!isCurrentRequest()) return false;
+          realStudentAttendance = attendance.data;
+          realStudentAttendanceState = "found";
+        } catch (attendanceError) {
+          if (!isCurrentRequest()) return false;
+          logRealProfileSupabaseError("consultar presenças do Aluno", attendanceError);
+          realStudentAttendance = [];
+          realStudentAttendanceState = "error";
+          realStudentAttendanceNotice = navigator.onLine === false
+            ? "Falha de rede ao consultar a presença. Verifique a conexão e tente novamente."
+            : "Não foi possível consultar sua presença. Atualize o app e tente novamente.";
         }
         const monthCharges = realStudentCharges.filter((charge) =>
           typeof charge.mes === "string" && charge.mes.slice(0, 7) === month
@@ -9748,6 +9835,7 @@ function clearRealAccountCaches() {
   realProfessorPaymentsRequestSequence += 1;
   realProfessorGraduationsRequestSequence += 1;
   realStudentGraduationsRequestSequence += 1;
+  realStudentAttendanceRequestSequence += 1;
   realAdminStudentsRequestSequence += 1;
   realAdminDashboardRequestSequence += 1;
   realHomeRequestSequence += 1;
@@ -11110,6 +11198,14 @@ document.addEventListener("click", (event) => {
         parameters = action === "toggle-linked-lock"
           ? { p_aluno_id: id, p_status: student && student.status === "locked" ? null : "locked" }
           : { p_aluno_sem_conta_id: id, p_status: student && student.status === "locked" ? null : "locked" };
+      } else if (action === "unlink-student") {
+        const student = realFeatureData.linkedStudents.find((item) => item.id === id);
+        const confirmation = student
+          ? `Desvincular ${student.nome}? Graduações e registros financeiros serão preservados. Conversas e planos compartilhados deixarão de aparecer pelo vínculo atual.`
+          : "";
+        if (!student || !window.confirm(confirmation)) return;
+        functionName = "desvincular_aluno_professor";
+        parameters = { p_aluno_id: id };
       } else if (action === "delete-drop-in") {
         functionName = "excluir_aula_avulsa";
         parameters = { p_aula_avulsa_id: id };
@@ -11124,21 +11220,29 @@ document.addEventListener("click", (event) => {
       }
       const row = button.closest(".student-action-control");
       const isMessageDeletion = action === "delete-message-everyone" || action === "hide-message-self";
+      const isUnlink = action === "unlink-student";
       const errorMessage = action === "delete-message-everyone" || action === "hide-message-self"
         ? "Não foi possível apagar a mensagem. Atualize a conversa e tente novamente."
-        : "Não foi possível salvar. Tente novamente.";
+        : isUnlink
+          ? "Não foi possível desvincular o aluno. Atualize a lista e tente novamente."
+          : "Não foi possível salvar. Tente novamente.";
       await runButtonAction(button, {
         feedback: row.querySelector('[role="alert"]'),
         announcement: row.querySelector('[role="status"]'),
         buttons: Array.from(row.querySelectorAll("button")),
-        loadingText: isMessageDeletion ? "Apagando..." : "Salvando...",
-        loadingMessage: isMessageDeletion ? "Apagando a mensagem conforme sua escolha." : "Salvando alterações.",
-        successMessage: isMessageDeletion ? "Mensagem apagada." : "Alterações salvas.",
+        loadingText: isUnlink ? "Desvinculando..." : isMessageDeletion ? "Apagando..." : "Salvando...",
+        loadingMessage: isUnlink
+          ? "Removendo o vínculo ativo e preservando os registros históricos."
+          : isMessageDeletion ? "Apagando a mensagem conforme sua escolha." : "Salvando alterações.",
+        successMessage: isUnlink
+          ? "Vínculo removido. Os registros históricos foram preservados."
+          : isMessageDeletion ? "Mensagem apagada." : "Alterações salvas.",
+        successLabel: isUnlink ? "Desvinculado" : undefined,
         errorMessage,
         afterSuccess: () => reloadRealFeatureScreen()
       }, async () => {
         const result = await runRealFeatureRpc(functionName, parameters, expectsUuid);
-        return result.errorMessage ? result : {};
+        return result.errorMessage ? { errorMessage } : {};
       });
     }
 
@@ -12487,6 +12591,69 @@ document.addEventListener("submit", (event) => {
 document.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
+
+  const attendanceRetry = target.closest("[data-real-attendance-retry]");
+  if (attendanceRetry instanceof HTMLButtonElement) {
+    if (currentScreen !== "home" || !hasRealStudentAccess() || !authClient) return;
+    const control = attendanceRetry.closest(".student-action-control");
+    if (!control) return;
+    runButtonAction(attendanceRetry, {
+      feedback: control.querySelector("[role='alert']"),
+      announcement: control.querySelector("[role='status']"),
+      buttons: [attendanceRetry],
+      loadingText: "Atualizando...",
+      loadingMessage: "Consultando sua presença.",
+      successMessage: "Presença atualizada.",
+      errorMessage: "Não foi possível consultar sua presença. Tente novamente.",
+      afterSuccess: async () => {
+        await loadRealHomeData(false);
+        screenContent.innerHTML = renderRealHomeScreen();
+      }
+    }, async () => {
+      const attendance = await authClient.rpc("listar_presencas_aluno");
+      if (attendance.error) return { errorMessage: "Não foi possível consultar sua presença. Tente novamente." };
+      if (!Array.isArray(attendance.data)) return { errorMessage: "Presenças indisponíveis. Tente novamente." };
+      realStudentAttendance = attendance.data;
+      realStudentAttendanceState = "found";
+      realStudentAttendanceNotice = "";
+      return {};
+    });
+    return;
+  }
+
+  const attendanceMark = target.closest("[data-real-attendance-mark]");
+  if (attendanceMark instanceof HTMLButtonElement) {
+    if (currentScreen !== "home" || !hasRealStudentAccess() || !authClient) return;
+    const control = attendanceMark.closest(".student-action-control");
+    if (!control) return;
+    runButtonAction(attendanceMark, {
+      feedback: control.querySelector("[role='alert']"),
+      announcement: control.querySelector("[role='status']"),
+      buttons: [attendanceMark],
+      loadingText: "Marcando...",
+      loadingMessage: "Registrando sua presença de hoje.",
+      successMessage: "Presença confirmada.",
+      successLabel: "Presença confirmada",
+      errorMessage: "Não foi possível marcar presença. Atualize o app e tente novamente.",
+      afterSuccess: async () => {
+        await loadRealHomeData(false);
+        screenContent.innerHTML = renderRealHomeScreen();
+      }
+    }, async () => {
+      const { data, error } = await authClient.rpc("marcar_presenca_aluno", {
+        p_data_aula: realGraduationToday()
+      });
+      if (error) {
+        logRealProfileSupabaseError("marcar presença", error);
+        return { errorMessage: "Não foi possível marcar presença. Atualize o app e tente novamente." };
+      }
+      if (typeof data !== "string") {
+        return { errorMessage: "Não foi possível confirmar sua presença. Tente novamente." };
+      }
+      return {};
+    });
+    return;
+  }
 
   const lateBillingFilter = target.closest("[data-real-billing-late-filter]");
   if (lateBillingFilter) {

@@ -777,5 +777,25 @@ window.CASOS_ACEITE_F1 = [
     precondicoes: "Ambiente de teste com mais de 20 alunos fictícios vinculados e mais de 20 sem conta, com status ativo e trancado.",
     passos: ["Abrir Alunos e verificar que cada lista tem busca e paginação próprias.", "Pesquisar por nome e filtrar por Ativos ou Trancados em cada lista.", "Avançar e voltar páginas, conferir total e limites e mudar o filtro para confirmar que a página volta ao início.", "Conferir que ações de trancar, destrancar, registrar diária e salvar nota continuam associadas ao aluno correto."],
     esperado: "Busca, status e paginação atuam somente na lista correspondente; os dados e ações de cada aluno permanecem corretos."
+  },
+  {
+    id: "F1-PROF-02",
+    area: "Vínculos",
+    titulo: "Professor desvincula aluno sem apagar o histórico",
+    perfil: "Professor e Aluno",
+    regras: "Desvincular remove a relação atual e preserva os registros históricos.",
+    precondicoes: "Há dados fictícios de graduação, cobrança enviada, conversa e plano compartilhado para um aluno vinculado.",
+    passos: ["Como Professor, abrir Alunos e iniciar o desvínculo; cancelar a confirmação e verificar que o vínculo continua.", "Confirmar o desvínculo e verificar o estado carregando, bloqueio contra toque duplo, sucesso e remoção do aluno da lista atual.", "Simular uma falha da RPC e verificar Tentar de novo e o alerta acessível junto ao botão.", "Como aluno, conferir que graduações e cobranças enviadas continuam no histórico.", "Conferir que conversa e plano compartilhado deixam de aparecer após o vínculo ativo terminar.", "Tentar desvincular outro aluno ou usar a RPC com papel diferente e verificar que a operação é negada."],
+    esperado: "Somente o vínculo do aluno selecionado é removido; o perfil e os registros históricos permanecem. A alteração fica registrada em historico_vinculos e não concede acesso a dados privados de outro Professor."
+  },
+  {
+    id: "F1-PRES-01",
+    area: "Presença",
+    titulo: "Aluno marca presença e Professor consulta o histórico",
+    perfil: "Aluno e Professor",
+    regras: "Somente o Aluno confirma presença própria no dia atual; vínculo ativo obrigatório; Professor consulta apenas alunos vinculados.",
+    precondicoes: "Migration 46 aplicada, contas fictícias de Aluno e Professor vinculadas e o dia atual configurado no ambiente.",
+    passos: ["Como Aluno vinculado, abrir a tela inicial e marcar presença.", "Conferir carregamento, bloqueio contra toque duplo, sucesso e desabilitação do botão após confirmar.", "Repetir a confirmação no mesmo dia e verificar que não cria uma segunda presença.", "Como Professor, abrir Ficha do aluno, selecionar o Aluno e conferir resumo mensal e histórico de datas.", "Tentar marcar presença sem vínculo ou consultar outro aluno por tela e por RPC direta."],
+    esperado: "O Aluno confirma somente sua própria presença no dia atual e uma única vez; o Professor vê quantidade mensal e histórico completo dos alunos vinculados, sem alterar ou excluir presenças."
   }
 ];

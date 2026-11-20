@@ -102,7 +102,7 @@ tatame/
 │       ├── pdfjs/
 │       └── tesseract/
 ├── supabase/
-│   ├── migrations/               # 45 migrations SQL (estrutura completa do banco)
+│   ├── migrations/               # 46 migrations SQL (estrutura completa do banco)
 │   └── functions/excluir-conta/  # Edge Function em TypeScript/Deno
 ├── assets/                       # Logos, ícones e avatares padrão
 └── tests/                        # Plano de testes e casos de aceite (F1–F3)
@@ -139,7 +139,7 @@ tatame/
 
 ## 🗄 Banco de dados
 
-**45 migrations SQL** organizam a evolução do schema em ordem cronológica:
+**46 migrations SQL** organizam a evolução do schema em ordem cronológica:
 
 | Faixa | Domínio |
 |-------|---------|
