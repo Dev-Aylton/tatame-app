@@ -184,7 +184,7 @@ window.CASOS_ACEITE_F1 = [
     regras: "RN25",
     precondicoes: "Conta fictícia recém-criada sem aceite registrado.",
     passos: ["Entrar pela primeira vez.", "Tentar abrir o perfil e as áreas com dados pessoais sem aceitar o termo."],
-    esperado: "As áreas ficam bloqueadas até o aceite; a recusa não registra consentimento."
+    esperado: "Antes do aceite, nenhum dado do perfil ou das áreas protegidas é exibido ou gravado; a recusa encerra a sessão sem registrar consentimento."
   },
   {
     id: "F1-PRV-02",
@@ -192,9 +192,19 @@ window.CASOS_ACEITE_F1 = [
     titulo: "Aceite registra versão e data/hora",
     perfil: "Novo usuário",
     regras: "RN25",
-    precondicoes: "Contas fictícias de Aluno e Instrutor existentes sem aceite vigente, novo Aluno e versão vigente do termo configurada.",
-    passos: ["Como Aluno e Instrutor existentes, declarar a idade se solicitada e aceitar o termo.", "Sair e entrar novamente nas mesmas contas.", "Como novo Aluno, aceitar o termo ao criar o perfil.", "Consultar os registros dos aceites usando o contexto autorizado de teste.", "Excluir uma conta fictícia elegível e confirmar a remoção de seu registro de consentimento."],
-    esperado: "O registro associa cada perfil à versão exibida e à data/hora do aceite; o mesmo termo não reaparece após novo login. A exclusão da conta remove seu histórico de consentimento."
+    precondicoes: "Contas fictícias de Aluno e Instrutor existentes com idade declarada e sem aceite vigente, novo Aluno e versão vigente do termo configurada.",
+    passos: ["Como Aluno e Instrutor existentes com idade já declarada, aceitar o termo sem nova solicitação de idade.", "Sair e entrar novamente nas mesmas contas.", "Como novo Aluno, aceitar o termo ao criar o perfil.", "Sair e entrar novamente na conta desse Aluno e confirmar que o aceite não reaparece.", "Consultar os registros dos aceites usando o contexto autorizado de teste.", "Excluir uma conta fictícia elegível e confirmar a remoção de seu registro de consentimento."],
+    esperado: "O registro associa cada perfil à versão exibida e à data/hora do aceite; o mesmo termo não reaparece após novo login. Idade não declarada é opcional e não bloqueia o acesso; enquanto permanecer não declarada, a solicitação pode reaparecer no próximo login. A exclusão da conta remove seu histórico de consentimento."
+  },
+  {
+    id: "F1-PRV-03",
+    area: "Consentimento",
+    titulo: "Professor aceita sem modal de idade e Adm é isento",
+    perfil: "Professor e Adm",
+    regras: "RN25",
+    precondicoes: "Contas fictícias de Professor e Adm; Professor sem aceite da versão vigente.",
+    passos: ["Entrar como Adm e confirmar acesso sem modal de idade ou consentimento.", "Entrar como Professor e confirmar que o termo é solicitado, mas a idade não.", "Aceitar o termo, acessar o app, sair e entrar novamente.", "Confirmar que o termo e o modal de idade não reaparecem."],
+    esperado: "Adm não recebe modais de idade ou consentimento. Professor aceita a versão vigente antes do acesso aos dados, não recebe modal de idade e não volta a ver o termo após o aceite."
   },
   {
     id: "F1-ALU-01",

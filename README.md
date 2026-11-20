@@ -102,7 +102,7 @@ tatame/
 │       ├── pdfjs/
 │       └── tesseract/
 ├── supabase/
-│   ├── migrations/               # 41 migrations SQL (estrutura completa do banco)
+│   ├── migrations/               # 43 migrations SQL (estrutura completa do banco)
 │   └── functions/excluir-conta/  # Edge Function em TypeScript/Deno
 ├── assets/                       # Logos, ícones e avatares padrão
 └── tests/                        # Plano de testes e casos de aceite (F1–F3)
@@ -126,11 +126,18 @@ tatame/
 - **Exclusão de conta via Edge Function:** a chave `service_role` fica somente no servidor Supabase, nunca no cliente ou no repositório.
 - **Configuração do Supabase no site publicado:** `js/config.js` é carregado pelo aplicativo e deve ser versionado junto com a publicação do GitHub Pages. Como o conteúdo é público no navegador, use somente a URL do projeto e uma chave publicável (`sb_publishable_` ou `anon`); nunca inclua chave `sb_secret_`, `service_role`, senha ou token. `config.example.js` documenta o formato esperado.
 
+### Consentimento e primeiro acesso
+
+- Para contas sujeitas ao termo, somente o aceite da versão vigente libera as áreas com dados pessoais. Antes dele, o app usa apenas os dados mínimos de autenticação e não exibe nem altera dados do perfil.
+- A criação de perfil novo e o registro de consentimento ocorrem juntos; recusar não cria perfil nem grava aceite. A declaração de idade de Aluno e Instrutor é opcional, só é persistida após o aceite e pode ser solicitada novamente no próximo login se continuar ausente. Convites de Instrutor exigem declaração de adulto.
+- Adm é isento do aceite. Professor aceita a versão vigente sem receber modal de idade. O mesmo aceite não é solicitado novamente enquanto aquela versão continuar vigente.
+- O controle de acesso é aplicado no banco por RLS e funções SQL; depende das migrations `20261120_41_consentimento_versao_legada.sql` e `20261120_42_consentimento_primeiro_acesso.sql`.
+
 ---
 
 ## 🗄 Banco de dados
 
-**41 migrations SQL** organizam a evolução do schema em ordem cronológica:
+**43 migrations SQL** organizam a evolução do schema em ordem cronológica:
 
 | Faixa | Domínio |
 |-------|---------|
@@ -140,6 +147,7 @@ tatame/
 | 23–28 | Storage de comprovantes, fotos de perfil e avatar |
 | 29–34 | Grade semanal por academia, edição adm e acesso de aluno ao adm |
 | 35–41 | Reemissão de cobrança, conversas, notificações, exclusão de conta e índices de performance |
+| 20261120_41–42 | Compatibilidade de consentimento e acesso no primeiro acesso |
 
 Destaques do schema: `CHECK` constraints em status e valores monetários, índices parciais em cobranças abertas, trigger de imutabilidade em consentimentos.
 
@@ -196,11 +204,11 @@ supabase functions deploy excluir-conta
 
 | Arquivo | Conteúdo |
 |---------|----------|
-| `tests/teste.html` | Catálogo de casos de aceite — fases F1, F2 e F3 |
+| `tests/teste.html` | Catálogo de casos de aceite — fases F1, F2, F3 e F4 |
 | `tests/plano.html` | Painel visual do plano de trabalho |
 | `tests/roteiro-marco2.md` | Roteiro de testes funcionais do marco 2 |
 
-O painel verifica a estrutura e a cobertura do catálogo. Os fluxos funcionais (autenticação, RLS, Realtime e PWA) precisam ser executados contra um ambiente Supabase de teste.
+O painel verifica a estrutura e a cobertura do catálogo. Para esta entrega, o desenvolvedor confirmou a aplicação das migrations e a validação do fluxo de consentimento e primeiro acesso; o painel de integridade passou em 5/5 verificações. Isso não substitui a regressão geral nem valida as demais políticas RLS.
 
 ---
 

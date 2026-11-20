@@ -90,7 +90,7 @@ const checks = [
         areas.has("Performance") &&
         areas.has("PWA") &&
         areas.has("Documentação") &&
-        casesF1.length === 74 &&
+        casesF1.length === 75 &&
         casesF2.length === 7 &&
         casesF3.length === 4 &&
         casesF4.length === 18 &&
