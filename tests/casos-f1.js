@@ -377,6 +377,16 @@ window.CASOS_ACEITE_F1 = [
     esperado: "Salvar a regra cria e disponibiliza a cobrança aplicável ao Aluno sem envio manual. O cancelamento não bloqueia uma nova cobrança para o mesmo aluno e mês; a cobrança anterior permanece no histórico e no máximo uma cobrança não cancelada existe por aluno e mês."
   },
   {
+    id: "F1-PAG-16",
+    area: "Pagamentos",
+    titulo: "Cobrança para Adm vinculado não depende de código de turma",
+    perfil: "Professor e Adm com acesso de Aluno",
+    regras: "RN08",
+    precondicoes: "Há um Professor ativo sem registro em turmas e um Adm fictício habilitado para acesso de Aluno, diretamente vinculado ao Professor.",
+    passos: ["Aplicar a migration em banco de teste após revisão.", "Salvar uma regra mensal para o Adm vinculado sem gerar um código de turma.", "Conferir a regra e a cobrança do mês, e ajustar a carência."],
+    esperado: "A regra, a cobrança aplicável e a carência são salvas sem código de turma; apenas vínculos ativos e perfis de Aluno habilitados são aceitos."
+  },
+  {
     id: "F1-FIN-02",
     area: "Painel financeiro",
     titulo: "Pagamento pendente ou recusado não aumenta o recebido",

@@ -102,7 +102,7 @@ tatame/
 │       ├── pdfjs/
 │       └── tesseract/
 ├── supabase/
-│   ├── migrations/               # 44 migrations SQL (estrutura completa do banco)
+│   ├── migrations/               # 45 migrations SQL (estrutura completa do banco)
 │   └── functions/excluir-conta/  # Edge Function em TypeScript/Deno
 ├── assets/                       # Logos, ícones e avatares padrão
 └── tests/                        # Plano de testes e casos de aceite (F1–F3)
@@ -139,7 +139,7 @@ tatame/
 
 ## 🗄 Banco de dados
 
-**43 migrations SQL** organizam a evolução do schema em ordem cronológica:
+**45 migrations SQL** organizam a evolução do schema em ordem cronológica:
 
 | Faixa | Domínio |
 |-------|---------|
@@ -150,6 +150,7 @@ tatame/
 | 29–34 | Grade semanal por academia, edição adm e acesso de aluno ao adm |
 | 35–41 | Reemissão de cobrança, conversas, notificações, exclusão de conta e índices de performance |
 | 20261120_41–42 | Compatibilidade de consentimento e acesso no primeiro acesso |
+| 20261120_43–44 | Conversão automática de Professor e cobrança sem código de turma |
 
 Destaques do schema: `CHECK` constraints em status e valores monetários, índices parciais em cobranças abertas, trigger de imutabilidade em consentimentos.
 
