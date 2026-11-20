@@ -1,11 +1,11 @@
 -- ============================================================================
--- TATAME · schema.sql · DESCRIÇÃO DO ESTADO ATUAL DO BANCO REAL
+-- TATAME · schema.sql · SNAPSHOT PARCIAL DO SCHEMA PÚBLICO
 -- Projeto Supabase: tatame
--- Estado verificado em: 08/11/2026
+-- Snapshot detalhado verificado em: 08/11/2026
 --
 -- ATENÇÃO: este arquivo NÃO é migration e NÃO deve ser executado.
--- O banco real é a fonte da verdade; este arquivo é apenas uma descrição
--- do estado observado, montada a partir de:
+-- O banco real é a fonte da verdade. As seções detalhadas abaixo descrevem
+-- somente o snapshot histórico de 08/11/2026, montado a partir de:
 --   (A) consultas ao banco real (information_schema, pg_policies, pg_proc);
 --   (B) supabase/migrations/20261107_01_academias_perfis.sql
 --       supabase/migrations/20261107_02_ativar_professor.sql
@@ -19,8 +19,28 @@
 --       supabase/migrations/20261109_10_definir_nome_professor.sql
 --       supabase/migrations/20261109_11_consentimento.sql
 --       supabase/migrations/20261109_12_criar_perfil_aluno.sql
--- O comportamento das funções das migrations 05 a 12 NÃO foi testado com
--- contas reais; somente estrutura e permissões foram conferidas por leitura.
+--
+-- Verificação complementar do banco real em: 20/11/2026
+--   schema public: 42 relações, todas com RLS ativo;
+--   58 rotinas, todas SECURITY DEFINER; nenhuma executável por PUBLIC ou anon;
+--   52 rotinas executáveis por authenticated e 6 sem essa permissão.
+--   A migration 20261120_44_cobrancas_sem_codigo_turma.sql foi confirmada:
+--   suas 3 funções existem, não referenciam public.turmas e permitem EXECUTE
+--   apenas a authenticated. A verificação consultou somente metadados, sem
+--   ler registros das tabelas.
+--
+-- Esta verificação complementar não atualiza as definições históricas abaixo
+-- nem constitui um dump completo do schema atual.
+--
+-- Verificação complementar do desenvolvimento em 20/11/2026:
+--   migration 20261120_45_desvincular_aluno_professor.sql aplicada;
+--   migration 20261120_46_presenca_aluno.sql aplicada;
+--   public.historico_vinculos registra os vínculos encerrados sem apagar os
+--   históricos financeiros, de graduação e outros registros relacionados;
+--   public.presencas guarda uma confirmação por aluno, Professor e data.
+-- Nota histórica do snapshot: as funções das migrations 05 a 12 tiveram
+-- estrutura e permissões conferidas por leitura; não foram testadas com
+-- contas reais naquele momento.
 -- ============================================================================
 
 
@@ -119,6 +139,25 @@
 --   campos       text[]      NOT NULL  check não vazio e limitado a nome/foto_fundo_url
 --   Índices: academias_log_edicao_pkey e academias_log_edicao_academia_idx
 --            (academia_id, alterado_em DESC).
+--
+-- public.historico_vinculos
+--   aluno_id, professor_id, academia_id: identificadores do vínculo encerrado
+--   vinculo_criado_em: data original do vínculo
+--   status, trancado_desde, trancado_ate: estado registrado no encerramento
+--   executado_por: Professor que realizou o desvínculo
+--   desvinculado_em: data do encerramento
+--   RLS ativo; table grants revogados de public, anon e authenticated.
+--
+-- public.presencas
+--   id             uuid        NOT NULL  default gen_random_uuid()   PK
+--   aluno_id       uuid        NOT NULL  FK -> perfis(id) on delete cascade
+--   professor_id   uuid        NOT NULL  FK -> perfis(id) on delete cascade
+--   data_aula      date        NOT NULL
+--   marcado_em     timestamptz NOT NULL  default now()
+--   UNIQUE: (aluno_id, professor_id, data_aula)
+--   Índices: presencas_aluno_data_idx e presencas_professor_data_idx.
+--   RLS ativo; grants de tabela revogados. Acesso somente pelas RPCs:
+--   marcar_presenca_aluno, listar_presencas_aluno e listar_presencas_professor.
 
 
 -- ============================================================================
@@ -245,7 +284,7 @@
 
 
 -- ============================================================================
--- PENDÊNCIAS DO BANCO
+-- PENDÊNCIAS DO BANCO (snapshot histórico de 08/11/2026; não verificadas em 20/11)
 -- ============================================================================
 -- - Link de uso único para aluno pré-cadastrado, validade de 3 dias.
 -- - Funções do Adm.
