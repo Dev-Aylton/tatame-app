@@ -51,6 +51,13 @@ O app registra informações de cobrança e pagamento, mas não processa transa�
 - O parser de comprovantes usa arquivos locais de PDF.js e Tesseract.js no navegador. A leitura de imagens e PDFs não é enviada a um serviço externo de OCR; o Professor confere o comprovante e decide manualmente.
 - As alterações do banco são organizadas em migrations SQL em `supabase/migrations/`; não há migração automática durante a execução do app.
 
+### Consentimento e primeiro acesso
+
+- Para contas sujeitas ao termo, somente o aceite da versão vigente libera as áreas com dados pessoais. Antes dele, o app usa apenas os dados mínimos de autenticação e não exibe nem altera dados do perfil.
+- A criação de perfil novo e o registro de consentimento ocorrem juntos; recusar não cria perfil nem grava aceite. A declaração de idade de Aluno e Instrutor é opcional, só é persistida após o aceite e pode ser solicitada novamente no próximo login se continuar ausente. Convites de Instrutor exigem declaração de adulto.
+- Adm é isento do aceite. Professor aceita a versão vigente sem receber modal de idade. O mesmo aceite não é solicitado novamente enquanto aquela versão continuar vigente.
+- O controle de acesso é aplicado no banco por RLS e funções SQL; depende das migrations `20261120_41_consentimento_versao_legada.sql` e `20261120_42_consentimento_primeiro_acesso.sql`.
+
 ### Exclusão de conta
 
 A exclusão de contas de aluno e instrutor é feita pela Edge Function `excluir-conta`, que valida a sessão, verifica registros compartilhados e usa a chave de serviço somente no servidor. Antes de habilitar o fluxo em produção, aplique manualmente `supabase/migrations/20261115_31_consentimentos_exclusao.sql`, publique a função e configure `SUPABASE_SERVICE_ROLE_KEY` como segredo no Supabase. Nunca coloque essa chave no app ou no repositório. Contas com vínculos ou registros compartilhados são preservadas e a exclusão é bloqueada.
@@ -92,7 +99,7 @@ O app não lê variáveis de ambiente no navegador. A autenticação e os dados 
 
 - `tests/teste.html` apresenta o catálogo de casos de aceite das fases F1, F2 e F3.
 - O painel verifica a estrutura e a cobertura do catálogo; não executa os fluxos do app nem comprova o comportamento do Supabase ou das políticas RLS.
-- Os cenários funcionais ainda precisam ser executados em ambiente de teste.
+- Para esta entrega, o desenvolvedor confirmou a aplicação das migrations e a validação do fluxo de consentimento e primeiro acesso. O painel de integridade do catálogo passou em 5/5 verificações; isso não substitui a regressão geral nem valida as demais políticas RLS.
 
 ## Roadmap
 
