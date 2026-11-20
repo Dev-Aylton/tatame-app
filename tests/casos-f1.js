@@ -794,8 +794,8 @@ window.CASOS_ACEITE_F1 = [
     titulo: "Aluno marca presença e Professor consulta o histórico",
     perfil: "Aluno e Professor",
     regras: "Somente o Aluno confirma presença própria no dia atual; vínculo ativo obrigatório; Professor consulta apenas alunos vinculados.",
-    precondicoes: "Migration 46 aplicada, contas fictícias de Aluno e Professor vinculadas e o dia atual configurado no ambiente.",
-    passos: ["Como Aluno vinculado, abrir a tela inicial e marcar presença.", "Conferir carregamento, bloqueio contra toque duplo, sucesso e desabilitação do botão após confirmar.", "Repetir a confirmação no mesmo dia e verificar que não cria uma segunda presença.", "Como Professor, abrir Ficha do aluno, selecionar o Aluno e conferir resumo mensal e histórico de datas.", "Tentar marcar presença sem vínculo ou consultar outro aluno por tela e por RPC direta."],
+    precondicoes: "Migrations 46 e 47 aplicadas, contas fictícias de Aluno e Professor vinculadas e o dia atual configurado no ambiente.",
+    passos: ["Como Aluno vinculado, abrir a tela inicial e marcar presença.", "Conferir carregamento, bloqueio contra toque duplo, sucesso e desabilitação do botão após confirmar.", "Repetir a confirmação no mesmo dia e verificar que não cria uma segunda presença.", "Como Professor, abrir Ficha do aluno, selecionar o Aluno e conferir resumo mensal e histórico de datas.", "Como Adm, Instrutor ou Professor, tentar marcar presença por tela e por RPC direta e verificar recusa.", "Tentar marcar presença sem vínculo ou consultar outro aluno por tela e por RPC direta."],
     esperado: "O Aluno confirma somente sua própria presença no dia atual e uma única vez; o Professor vê quantidade mensal e histórico completo dos alunos vinculados, sem alterar ou excluir presenças."
   }
 ];

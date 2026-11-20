@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "5.28";
+const APP_VERSION = "5.29";
 const DEFAULT_PERSON_AVATAR_SRC = "assets/avatars/avatar-masculino.jpg";
 const FEMALE_PERSON_AVATAR_SRC = "assets/avatars/avatar-feminino.jpg";
 const REAL_PERSON_AVATARS = {
@@ -165,7 +165,6 @@ const tutorialStepsByRole = {
     ["home", "Início do Aluno", "Acompanhe o resumo da sua conta de Aluno e acesse os próximos passos."],
     ["student-payments", "Meus pagamentos", "Consulte suas cobranças e avise um pagamento ao Professor vinculado."],
     ["student-grades", "Minhas graduações", "Acompanhe sua faixa atual e o histórico registrado pelo Professor."],
-    ["home", "Presença", "Na tela inicial, marque sua presença da aula de hoje. Cada dia só pode ser confirmado uma vez; o Professor vê o resumo mensal e o histórico do aluno vinculado."],
     ["student-chat", "Conversa com o Professor", "Envie mensagens, arquive a conversa e consulte avisos internos de mensagens novas."],
     ["training-board", "Mural e grade", "Consulte a grade, os avisos e as perguntas frequentes do Professor."],
     ["student-progress", "Feedbacks e metas", "Consulte os feedbacks e as metas vinculados à sua conta."],
@@ -2453,7 +2452,9 @@ const realFeatureData = {
   unregisteredStudents: [],
   unregisteredNotes: [],
   dropIns: [],
-  attendance: []
+  attendance: [],
+  attendanceState: "idle",
+  attendanceNotice: ""
 };
 let realFeatureRequestSequence = 0;
 let realStudentDetailRequestSequence = 0;
@@ -3162,16 +3163,29 @@ function renderRealProfessorGraduationsScreen() {
   const graduations = realProfessorGraduations.filter((graduation) => graduation.aluno_id === selectedStudent.id);
   const today = realGraduationToday();
   const attendance = realFeatureData.attendance || [];
+  const attendanceState = realFeatureData.attendanceState || "idle";
+  const attendanceNotice = realFeatureData.attendanceNotice || "";
+  const attendanceContent = attendanceState === "error"
+    ? `<div class="notice notice--pending" role="alert">${escapeHtml(attendanceNotice)}</div>
+       <div class="student-action-control">
+         <button class="button button--primary button--action" type="button" data-real-attendance-load-retry aria-describedby="real-attendance-load-error real-attendance-load-status">
+           <span data-action-label>Tentar novamente</span>
+         </button>
+         <p class="login-action-error student-action-error" id="real-attendance-load-error" role="alert"></p>
+         <p class="field-help" id="real-attendance-load-status" role="status" aria-live="polite"></p>
+       </div>`
+    : attendanceState === "checking"
+      ? '<div class="notice notice--info" role="status">Carregando presenças...</div>'
+      : attendance.length
+        ? `<div class="timeline">${attendance.map((item) => `
+            <div class="timeline-item">
+              <span class="timeline-dot"></span>
+              <div><strong>Presente</strong><small>Data: ${escapeHtml(formatRealDate(item.data_aula))}</small></div>
+            </div>`).join("")}</div>`
+        : emptyState("Sem presença registrada", "Presenças marcadas pelo Aluno aparecerão aqui.");
   const presentMonth = attendance.filter((item) =>
     typeof item.data_aula === "string" && item.data_aula.slice(0, 7) === today.slice(0, 7)
   ).length;
-  const attendanceHistory = attendance.length
-    ? `<div class="timeline">${attendance.map((item) => `
-        <div class="timeline-item">
-          <span class="timeline-dot"></span>
-          <div><strong>Presente</strong><small>Data: ${escapeHtml(formatRealDate(item.data_aula))}</small></div>
-        </div>`).join("")}</div>`
-    : emptyState("Sem presença registrada", "Presenças marcadas pelo Aluno aparecerão aqui.");
   return `
     ${heading("VISÃO DO PROFESSOR", "Ficha do aluno", "Consulte a faixa atual e o histórico; novas graduações ficam registradas sem alterar as anteriores.")}
     <div class="content-grid">
@@ -3193,7 +3207,7 @@ function renderRealProfessorGraduationsScreen() {
           ${metric("PRESENTE ESTE MÊS", String(presentMonth), "Aulas confirmadas pelo Aluno", "green")}
           ${metric("TOTAL REGISTRADO", String(attendance.length), "Histórico completo", "blue")}
         </div>
-        ${attendanceHistory}
+        ${attendanceContent}
       `)}
       ${panel("Atribuir graduação", `
         <form class="real-graduation-form" data-real-graduation-form novalidate>
@@ -3386,31 +3400,50 @@ async function loadRealStudentDetailData(updateView = true) {
   const studentId = realSelectedGraduationStudentId;
   realFeatureData.state = "checking";
   realFeatureData.error = "";
+  realFeatureData.attendanceState = "checking";
+  realFeatureData.attendanceNotice = "";
   if (!studentId || !authClient || !isRealActiveProfessor()) {
     realFeatureData.state = "error";
     realFeatureData.error = "Não foi possível selecionar um aluno vinculado.";
+    realFeatureData.attendance = [];
+    realFeatureData.attendanceState = "error";
+    realFeatureData.attendanceNotice = "Selecione um aluno vinculado para consultar as presenças.";
   } else {
     try {
-      const [notes, feedbacks, goals, attendance] = await Promise.all([
+      const [notes, feedbacks, goals] = await Promise.all([
         authClient.rpc("listar_notas_privadas", {
           p_aluno_id: studentId,
           p_aluno_sem_conta_id: null
         }),
         authClient.rpc("listar_feedbacks", { p_aluno_id: studentId }),
-        authClient.rpc("listar_metas", { p_aluno_id: studentId }),
-        authClient.rpc("listar_presencas_professor", { p_aluno_id: studentId })
+        authClient.rpc("listar_metas", { p_aluno_id: studentId })
       ]);
       if (notes.error) throw notes.error;
       if (feedbacks.error) throw feedbacks.error;
       if (goals.error) throw goals.error;
-      if (attendance.error) throw attendance.error;
-      if (![notes.data, feedbacks.data, goals.data, attendance.data].every(Array.isArray)) throw new TypeError("Lista indisponível.");
+      if (![notes.data, feedbacks.data, goals.data].every(Array.isArray)) throw new TypeError("Lista indisponível.");
       if (!isCurrentRequest()) return;
       realFeatureData.notes = notes.data;
       realFeatureData.feedbacks = feedbacks.data;
       realFeatureData.goals = goals.data;
-      realFeatureData.attendance = attendance.data;
       realFeatureData.state = "found";
+      try {
+        const attendance = await authClient.rpc("listar_presencas_professor", { p_aluno_id: studentId });
+        if (!isCurrentRequest()) return;
+        if (attendance.error) throw attendance.error;
+        if (!Array.isArray(attendance.data)) throw new TypeError("Presenças indisponíveis.");
+        realFeatureData.attendance = attendance.data;
+        realFeatureData.attendanceState = "found";
+        realFeatureData.attendanceNotice = "";
+      } catch (attendanceError) {
+        if (!isCurrentRequest()) return;
+        logRealProfileSupabaseError("consultar presenças do Aluno", attendanceError);
+        realFeatureData.attendance = [];
+        realFeatureData.attendanceState = "error";
+        realFeatureData.attendanceNotice = navigator.onLine === false
+          ? "Falha de rede ao consultar presenças. Verifique a conexão e tente novamente."
+          : "Não foi possível consultar as presenças deste aluno.";
+      }
     } catch (error) {
       if (!isCurrentRequest()) return;
       logRealProfileSupabaseError("consultar notas, feedbacks e metas", error);
@@ -3817,9 +3850,12 @@ function renderRealHomeScreen() {
       return `${title}${profileHeader}
         ${panel("Próxima ação", linkAction)}`;
     }
+    const showAttendance = isRealActiveStudent();
     const today = realGraduationToday();
     const markedToday = realStudentAttendance.some((item) => item.data_aula === today);
-    const attendancePanel = realStudentAttendanceState === "checking"
+    const attendancePanel = !showAttendance
+      ? ""
+      : realStudentAttendanceState === "checking"
       ? panel("Presença de hoje", '<div class="notice notice--info" role="status">Carregando presença...</div>')
       : realStudentAttendanceState === "error"
         ? panel("Presença de hoje", `
@@ -9976,7 +10012,10 @@ function clearRealAccountCaches() {
     linkedStudents: [],
     unregisteredStudents: [],
     unregisteredNotes: [],
-    dropIns: []
+    dropIns: [],
+    attendance: [],
+    attendanceState: "idle",
+    attendanceNotice: ""
   });
 }
 
@@ -10726,6 +10765,36 @@ if (window.ResizeObserver) {
 document.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
+
+  const attendanceLoadRetry = target.closest("[data-real-attendance-load-retry]");
+  if (attendanceLoadRetry instanceof HTMLButtonElement) {
+    if (currentScreen !== "student-detail" || !isRealActiveProfessor()) return;
+    const control = attendanceLoadRetry.closest(".student-action-control");
+    if (!control) return;
+    runButtonAction(attendanceLoadRetry, {
+      feedback: control.querySelector("[role='alert']"),
+      announcement: control.querySelector("[role='status']"),
+      buttons: [attendanceLoadRetry],
+      loadingText: "Atualizando...",
+      loadingMessage: "Consultando as presenças do aluno.",
+      successMessage: "Presenças atualizadas.",
+      errorMessage: "Não foi possível consultar as presenças. Tente novamente.",
+      afterSuccess: () => {
+        screenContent.innerHTML = renderRealProfessorGraduationsScreen();
+      }
+    }, async () => {
+      const studentId = realSelectedGraduationStudentId;
+      if (!studentId) return { errorMessage: "Selecione um aluno vinculado." };
+      const attendance = await authClient.rpc("listar_presencas_professor", { p_aluno_id: studentId });
+      if (attendance.error) return { errorMessage: "Não foi possível consultar as presenças. Tente novamente." };
+      if (!Array.isArray(attendance.data)) return { errorMessage: "Presenças indisponíveis. Tente novamente." };
+      realFeatureData.attendance = attendance.data;
+      realFeatureData.attendanceState = "found";
+      realFeatureData.attendanceNotice = "";
+      return {};
+    });
+    return;
+  }
 
   const realProfessorAction = target.closest("[data-real-professor-action]");
   if (realProfessorAction instanceof HTMLButtonElement && isRealAdmSession()) {
