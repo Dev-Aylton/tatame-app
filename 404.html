@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0b0c">
+  <title>Página não encontrada | Tatame</title>
+  <link rel="stylesheet" href="css/app.css">
+  <style>
+    .tatame-not-found {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: 24px 16px;
+    }
+    .tatame-not-found-card {
+      width: min(100%, 520px);
+      text-align: center;
+      padding: 32px 24px;
+    }
+    .tatame-not-found-card h1 {
+      margin: 10px 0 8px;
+      font-size: clamp(24px, 7vw, 38px);
+    }
+    .tatame-not-found-card p {
+      margin: 0 auto 20px;
+      max-width: 390px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .tatame-not-found-code {
+      display: inline-block;
+      color: var(--accent-text);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .18em;
+    }
+  </style>
+</head>
+<body class="tatame-not-found" data-theme="dark">
+  <main class="panel-card tatame-not-found-card" aria-labelledby="not-found-title">
+    <span class="tatame-not-found-code">404</span>
+    <h1 id="not-found-title">Página não encontrada</h1>
+    <p>Este endereço não existe ou deixou de estar disponível no app.</p>
+    <a class="button button--primary" href="./index.html">Voltar ao Tatame</a>
+  </main>
+  <script>
+    (() => {
+      const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+      document.body.dataset.theme = prefersLight ? "light" : "dark";
+    })();
+  </script>
+</body>
+</html>

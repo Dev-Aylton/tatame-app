@@ -6,6 +6,7 @@ const CONFIG_PATH = new URL("./js/config.js", self.registration.scope).pathname;
 const PREVIEW_PATH = new URL("./dev-preview/", self.registration.scope).pathname;
 const STATIC_ASSETS = [
   "./index.html",
+  "./404.html",
   "./css/app.css",
   "./js/app.js",
   "./js/exportar.js",
@@ -88,12 +89,22 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith((async () => {
       try {
-        return await fetch(request);
+        const response = await fetch(request);
+        if (response.status === 404) {
+          const cache = await caches.open(CACHE_NAME);
+          return await cache.match(new URL("./404.html", self.registration.scope));
+        }
+        return response;
       } catch {
         const cache = await caches.open(CACHE_NAME);
         const cachedPage = await cache.match(request);
         if (cachedPage) return cachedPage;
         const cachedShell = await cache.match(SHELL_URL);
+        const cachedNotFound = await cache.match(new URL("./404.html", self.registration.scope));
+        const isShellPath = url.pathname === SHELL_URL.pathname ||
+          url.pathname === new URL("./privacidade.html", self.registration.scope).pathname ||
+          url.pathname === new URL("./404.html", self.registration.scope).pathname;
+        if (!isShellPath && cachedNotFound) return cachedNotFound;
         if (cachedShell) return cachedShell;
         throw new Error("A página offline não está disponível no cache.");
       }

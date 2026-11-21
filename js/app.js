@@ -4094,6 +4094,22 @@ function renderScreen(id) {
     ? renderRealTeacherCodeScreen
     : realAcademyDirectoryRenderer || realFeatureRenderer || realAdminRenderer || screen;
   if (!screenRenderer || !canViewScreen(id)) {
+    if (!screenRenderer) {
+      currentScreen = "not-found";
+      const title = document.querySelector("#current-screen-title");
+      if (title) title.textContent = "Página não encontrada";
+      screenContent.innerHTML = `
+        <div class="panel-card app-not-found" role="alert">
+          <span class="eyebrow">404</span>
+          <h2>Página não encontrada</h2>
+          <p>Este endereço não existe ou deixou de estar disponível no app.</p>
+          <div class="form-actions">
+            <button class="button button--primary" type="button" data-screen-target="login">Ir para o início</button>
+          </div>
+        </div>`;
+      renderNavigation();
+      return;
+    }
     const message = realUser && ["academy", "teacher-invites", "role-management", "admin-students"].includes(id)
       ? "Esta tela está disponível somente para uma conta real com papel Adm."
       : "Esta tela não está disponível para o papel desta conta.";
